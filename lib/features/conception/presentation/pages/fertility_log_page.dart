@@ -95,7 +95,13 @@ class _FertilityLogPageState extends ConsumerState<FertilityLogPage> {
               ),
               const SizedBox(height: 10),
               OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Local photo attachments are not enabled in this build.',
+                    ),
+                  ),
+                ),
                 icon: const Icon(Icons.camera_alt_outlined),
                 label: const Text('Store photo locally'),
               ),

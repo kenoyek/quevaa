@@ -35,6 +35,7 @@ class NotificationSettingsPage extends ConsumerWidget {
               NotificationPermissionCard(
                 enabled: preferences.enabled,
                 onEnable: controller.requestAndEnable,
+                onDismiss: controller.dismissPermissionInvitation,
               ),
               const SizedBox(height: 12),
               Card(

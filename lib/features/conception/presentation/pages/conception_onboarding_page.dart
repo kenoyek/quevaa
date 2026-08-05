@@ -247,7 +247,12 @@ class _SensitiveQuestionCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
               ),
-              TextButton(onPressed: () {}, child: const Text('Skip for now')),
+              TextButton(
+                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$title kept unchanged.')),
+                ),
+                child: const Text('Skip for now'),
+              ),
             ],
           ),
           const SizedBox(height: 6),

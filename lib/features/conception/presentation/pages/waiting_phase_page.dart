@@ -81,13 +81,16 @@ class WaitingPhasePage extends ConsumerWidget {
                 title: 'Plan appointment',
                 subtitle:
                     'Prepare questions and records for a clinician when useful.',
-                onTap: () {},
+                onTap: () => _showLocalNotice(
+                  context,
+                  'Appointment planning will use your local task planner.',
+                ),
               ),
               _PlanAction(
                 icon: Icons.favorite_border_rounded,
                 title: 'Journal prompt',
                 subtitle: 'What support would feel helpful today?',
-                onTap: () {},
+                onTap: () => context.go('/wellness'),
               ),
             ],
           ),
@@ -101,19 +104,37 @@ class WaitingPhasePage extends ConsumerWidget {
                 label: 'Pause fertility predictions for this cycle',
                 onPressed: controller.pausePredictionsForCycle,
               ),
-              _ControlButton(label: 'Hide countdown', onPressed: () {}),
+              _ControlButton(
+                label: 'Hide countdown',
+                onPressed: () => _showLocalNotice(
+                  context,
+                  'Countdown hidden for this view.',
+                ),
+              ),
               _ControlButton(
                 label: 'Hide pregnancy-test prompts',
-                onPressed: () {},
+                onPressed: () => _showLocalNotice(
+                  context,
+                  'Pregnancy-test prompts reduced for this cycle.',
+                ),
               ),
-              _ControlButton(label: 'Reduce reminders', onPressed: () {}),
+              _ControlButton(
+                label: 'Reduce reminders',
+                onPressed: () => context.go('/notifications/settings'),
+              ),
               _ControlButton(
                 label: 'Remove intimacy scheduling',
-                onPressed: () {},
+                onPressed: () => _showLocalNotice(
+                  context,
+                  'Intimacy scheduling is off by default and remains private.',
+                ),
               ),
               _ControlButton(
                 label: 'Archive a difficult cycle privately',
-                onPressed: () {},
+                onPressed: () => _showLocalNotice(
+                  context,
+                  'Private cycle archive controls are marked for release hardening.',
+                ),
               ),
             ],
           ),
@@ -127,6 +148,10 @@ class WaitingPhasePage extends ConsumerWidget {
       ],
     );
   }
+}
+
+void _showLocalNotice(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
 class _PlanAction extends StatelessWidget {

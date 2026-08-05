@@ -35,14 +35,17 @@ class PregnancyTransitionPage extends ConsumerWidget {
                       (section) => FilterChip(
                         selected: true,
                         label: Text(section),
-                        onSelected: (_) {},
+                        onSelected: null,
                       ),
                     )
                     .toList(),
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: () {},
+                onPressed: () => _showLocalNotice(
+                  context,
+                  'Report export requires app-lock verification before release.',
+                ),
                 icon: const Icon(Icons.lock_rounded),
                 label: const Text('Verify and generate report'),
               ),
@@ -97,15 +100,24 @@ class PregnancyTransitionPage extends ConsumerWidget {
                 runSpacing: 8,
                 children: [
                   OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () => _showLocalNotice(
+                      context,
+                      'Retest reminder controls are available in notification settings.',
+                    ),
                     child: const Text('Retest later'),
                   ),
                   OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () => _showLocalNotice(
+                      context,
+                      'Clinician contact details are not configured in this build.',
+                    ),
                     child: const Text('Contact a clinician'),
                   ),
                   FilledButton(
-                    onPressed: () {},
+                    onPressed: () => _showLocalNotice(
+                      context,
+                      'Early Pregnancy Mode is intentionally gated for medical review.',
+                    ),
                     child: const Text('Offer Early Pregnancy Mode'),
                   ),
                 ],
@@ -127,6 +139,10 @@ class PregnancyTransitionPage extends ConsumerWidget {
       ],
     );
   }
+}
+
+void _showLocalNotice(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
 const _shareable = [

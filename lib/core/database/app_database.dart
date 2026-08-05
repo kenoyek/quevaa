@@ -67,10 +67,27 @@ class CyclePredictions extends Table with AuditColumns {
 // 5. DailyLogs
 class DailyLogs extends Table with AuditColumns {
   DateTimeColumn get date => dateTime()();
+  TextColumn get flow => text().withDefault(const Constant('None'))();
+  BoolColumn get spotting => boolean().withDefault(const Constant(false))();
   IntColumn get energyLevel =>
       integer().withDefault(const Constant(3))(); // 1 to 5
   IntColumn get painLevel =>
       integer().withDefault(const Constant(0))(); // 0 to 5
+  TextColumn get mood => text().nullable()();
+  IntColumn get stressLevel =>
+      integer().withDefault(const Constant(2))(); // 0 to 5
+  RealColumn get sleepHours => real().nullable()();
+  IntColumn get sleepQuality =>
+      integer().withDefault(const Constant(3))(); // 1 to 5
+  IntColumn get waterGlasses => integer().withDefault(const Constant(0))();
+  TextColumn get appetite => text().nullable()();
+  TextColumn get cravings => text().nullable()();
+  TextColumn get exercise => text().nullable()();
+  TextColumn get medication => text().nullable()();
+  TextColumn get supplements => text().nullable()();
+  BoolColumn get intimacy => boolean().withDefault(const Constant(false))();
+  TextColumn get customSymptomsJson =>
+      text().withDefault(const Constant('[]'))();
   TextColumn get generalNotes => text().nullable()();
 }
 
@@ -112,27 +129,50 @@ class HydrationEntries extends Table with AuditColumns {
 class Tasks extends Table with AuditColumns {
   TextColumn get title => text()();
   TextColumn get description => text().nullable()();
+  TextColumn get category => text().withDefault(const Constant('General'))();
   TextColumn get targetPhase => text().withDefault(
     const Constant('All'),
   )(); // Menstrual, Follicular, Ovulation, Luteal, All
   TextColumn get recommendedEnergy =>
-      text().withDefault(const Constant('Medium'))(); // Low, Medium, High
+      text().withDefault(const Constant('Flexible'))(); // Low, Moderate, High
   BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get dueDate => dateTime().nullable()();
-  TextColumn get priority => text().withDefault(const Constant('Medium'))();
+  DateTimeColumn get scheduledDate => dateTime().nullable()();
+  IntColumn get scheduledTimeMinutes => integer().nullable()();
+  DateTimeColumn get reminderAt => dateTime().nullable()();
+  TextColumn get recurrenceRule => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('Inbox'))();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+  IntColumn get estimatedDurationMinutes =>
+      integer().withDefault(const Constant(30))();
+  TextColumn get cycleRecommendationTag => text().nullable()();
+  TextColumn get priority => text().withDefault(const Constant('Normal'))();
 }
 
 // 11. FocusSessions
 class FocusSessions extends Table with AuditColumns {
   TextColumn get title => text()();
+  IntColumn get taskId => integer().nullable()();
+  DateTimeColumn get startedAt => dateTime().nullable()();
   IntColumn get durationMinutes => integer()();
-  DateTimeColumn get completedAt => dateTime()();
+  IntColumn get breakMinutes => integer().withDefault(const Constant(5))();
+  IntColumn get elapsedSeconds => integer().withDefault(const Constant(0))();
+  TextColumn get status => text().withDefault(const Constant('Completed'))();
+  DateTimeColumn get completedAt => dateTime().nullable()();
 }
 
 // 12. Routines
 class Routines extends Table with AuditColumns {
   TextColumn get title => text()();
   TextColumn get frequency => text()(); // daily, phase_based
+  TextColumn get weekdaysJson => text().withDefault(const Constant('[]'))();
+  IntColumn get preferredTimeMinutes => integer().nullable()();
+  DateTimeColumn get reminderAt => dateTime().nullable()();
+  IntColumn get streakCount => integer().withDefault(const Constant(0))();
+  TextColumn get completionHistoryJson =>
+      text().withDefault(const Constant('[]'))();
+  DateTimeColumn get pausedUntil => dateTime().nullable()();
+  DateTimeColumn get archivedAt => dateTime().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 }
 
@@ -173,11 +213,18 @@ class PantryItems extends Table with AuditColumns {
   TextColumn get name => text()();
   RealColumn get quantity => real()();
   TextColumn get unit => text()();
+  TextColumn get category => text().withDefault(const Constant('General'))();
+  BoolColumn get lowStock => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get expiryDate => dateTime().nullable()();
 }
 
 // 18. ShoppingItems
 class ShoppingItems extends Table with AuditColumns {
   TextColumn get itemName => text()();
+  TextColumn get quantity => text().nullable()();
+  TextColumn get unit => text().nullable()();
+  TextColumn get category => text().withDefault(const Constant('General'))();
+  TextColumn get sourceMealTitle => text().nullable()();
   BoolColumn get isPurchased => boolean().withDefault(const Constant(false))();
 }
 
@@ -287,6 +334,10 @@ class NotificationCompletionRecords extends Table with AuditColumns {
 class AppSettings extends Table with AuditColumns {
   TextColumn get themeMode =>
       text().withDefault(const Constant('system'))(); // light, dark, system
+  TextColumn get cycleCalendarView =>
+      text().withDefault(const Constant('Month'))();
+  BoolColumn get hideCycleInPlanner =>
+      boolean().withDefault(const Constant(false))();
   BoolColumn get isAppLockEnabled =>
       boolean().withDefault(const Constant(false))();
   IntColumn get autoLockInactivitySeconds =>
@@ -343,10 +394,10 @@ class SubscriptionEntitlements extends Table with AuditColumns {
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -356,6 +407,58 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(notificationPreferenceRows);
         await m.createTable(notificationScheduleStates);
         await m.createTable(notificationCompletionRecords);
+      }
+      if (from < 3) {
+        await m.addColumn(dailyLogs, dailyLogs.flow);
+        await m.addColumn(dailyLogs, dailyLogs.spotting);
+        await m.addColumn(dailyLogs, dailyLogs.mood);
+        await m.addColumn(dailyLogs, dailyLogs.stressLevel);
+        await m.addColumn(dailyLogs, dailyLogs.sleepHours);
+        await m.addColumn(dailyLogs, dailyLogs.sleepQuality);
+        await m.addColumn(dailyLogs, dailyLogs.waterGlasses);
+        await m.addColumn(dailyLogs, dailyLogs.appetite);
+        await m.addColumn(dailyLogs, dailyLogs.cravings);
+        await m.addColumn(dailyLogs, dailyLogs.exercise);
+        await m.addColumn(dailyLogs, dailyLogs.medication);
+        await m.addColumn(dailyLogs, dailyLogs.supplements);
+        await m.addColumn(dailyLogs, dailyLogs.intimacy);
+        await m.addColumn(dailyLogs, dailyLogs.customSymptomsJson);
+
+        await m.addColumn(tasks, tasks.category);
+        await m.addColumn(tasks, tasks.scheduledDate);
+        await m.addColumn(tasks, tasks.scheduledTimeMinutes);
+        await m.addColumn(tasks, tasks.reminderAt);
+        await m.addColumn(tasks, tasks.recurrenceRule);
+        await m.addColumn(tasks, tasks.status);
+        await m.addColumn(tasks, tasks.completedAt);
+        await m.addColumn(tasks, tasks.estimatedDurationMinutes);
+        await m.addColumn(tasks, tasks.cycleRecommendationTag);
+
+        await m.addColumn(focusSessions, focusSessions.taskId);
+        await m.addColumn(focusSessions, focusSessions.startedAt);
+        await m.addColumn(focusSessions, focusSessions.breakMinutes);
+        await m.addColumn(focusSessions, focusSessions.elapsedSeconds);
+        await m.addColumn(focusSessions, focusSessions.status);
+
+        await m.addColumn(routines, routines.weekdaysJson);
+        await m.addColumn(routines, routines.preferredTimeMinutes);
+        await m.addColumn(routines, routines.reminderAt);
+        await m.addColumn(routines, routines.streakCount);
+        await m.addColumn(routines, routines.completionHistoryJson);
+        await m.addColumn(routines, routines.pausedUntil);
+        await m.addColumn(routines, routines.archivedAt);
+
+        await m.addColumn(pantryItems, pantryItems.category);
+        await m.addColumn(pantryItems, pantryItems.lowStock);
+        await m.addColumn(pantryItems, pantryItems.expiryDate);
+
+        await m.addColumn(shoppingItems, shoppingItems.quantity);
+        await m.addColumn(shoppingItems, shoppingItems.unit);
+        await m.addColumn(shoppingItems, shoppingItems.category);
+        await m.addColumn(shoppingItems, shoppingItems.sourceMealTitle);
+
+        await m.addColumn(appSettings, appSettings.cycleCalendarView);
+        await m.addColumn(appSettings, appSettings.hideCycleInPlanner);
       }
     },
   );

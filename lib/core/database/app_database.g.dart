@@ -3184,6 +3184,31 @@ class $DailyLogsTable extends DailyLogs
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _flowMeta = const VerificationMeta('flow');
+  @override
+  late final GeneratedColumn<String> flow = GeneratedColumn<String>(
+    'flow',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('None'),
+  );
+  static const VerificationMeta _spottingMeta = const VerificationMeta(
+    'spotting',
+  );
+  @override
+  late final GeneratedColumn<bool> spotting = GeneratedColumn<bool>(
+    'spotting',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("spotting" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _energyLevelMeta = const VerificationMeta(
     'energyLevel',
   );
@@ -3208,6 +3233,144 @@ class $DailyLogsTable extends DailyLogs
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _moodMeta = const VerificationMeta('mood');
+  @override
+  late final GeneratedColumn<String> mood = GeneratedColumn<String>(
+    'mood',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stressLevelMeta = const VerificationMeta(
+    'stressLevel',
+  );
+  @override
+  late final GeneratedColumn<int> stressLevel = GeneratedColumn<int>(
+    'stress_level',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(2),
+  );
+  static const VerificationMeta _sleepHoursMeta = const VerificationMeta(
+    'sleepHours',
+  );
+  @override
+  late final GeneratedColumn<double> sleepHours = GeneratedColumn<double>(
+    'sleep_hours',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sleepQualityMeta = const VerificationMeta(
+    'sleepQuality',
+  );
+  @override
+  late final GeneratedColumn<int> sleepQuality = GeneratedColumn<int>(
+    'sleep_quality',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(3),
+  );
+  static const VerificationMeta _waterGlassesMeta = const VerificationMeta(
+    'waterGlasses',
+  );
+  @override
+  late final GeneratedColumn<int> waterGlasses = GeneratedColumn<int>(
+    'water_glasses',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _appetiteMeta = const VerificationMeta(
+    'appetite',
+  );
+  @override
+  late final GeneratedColumn<String> appetite = GeneratedColumn<String>(
+    'appetite',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cravingsMeta = const VerificationMeta(
+    'cravings',
+  );
+  @override
+  late final GeneratedColumn<String> cravings = GeneratedColumn<String>(
+    'cravings',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _exerciseMeta = const VerificationMeta(
+    'exercise',
+  );
+  @override
+  late final GeneratedColumn<String> exercise = GeneratedColumn<String>(
+    'exercise',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _medicationMeta = const VerificationMeta(
+    'medication',
+  );
+  @override
+  late final GeneratedColumn<String> medication = GeneratedColumn<String>(
+    'medication',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _supplementsMeta = const VerificationMeta(
+    'supplements',
+  );
+  @override
+  late final GeneratedColumn<String> supplements = GeneratedColumn<String>(
+    'supplements',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _intimacyMeta = const VerificationMeta(
+    'intimacy',
+  );
+  @override
+  late final GeneratedColumn<bool> intimacy = GeneratedColumn<bool>(
+    'intimacy',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("intimacy" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _customSymptomsJsonMeta =
+      const VerificationMeta('customSymptomsJson');
+  @override
+  late final GeneratedColumn<String> customSymptomsJson =
+      GeneratedColumn<String>(
+        'custom_symptoms_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      );
   static const VerificationMeta _generalNotesMeta = const VerificationMeta(
     'generalNotes',
   );
@@ -3229,8 +3392,22 @@ class $DailyLogsTable extends DailyLogs
     schemaVersion,
     source,
     date,
+    flow,
+    spotting,
     energyLevel,
     painLevel,
+    mood,
+    stressLevel,
+    sleepHours,
+    sleepQuality,
+    waterGlasses,
+    appetite,
+    cravings,
+    exercise,
+    medication,
+    supplements,
+    intimacy,
+    customSymptomsJson,
     generalNotes,
   ];
   @override
@@ -3301,6 +3478,18 @@ class $DailyLogsTable extends DailyLogs
     } else if (isInserting) {
       context.missing(_dateMeta);
     }
+    if (data.containsKey('flow')) {
+      context.handle(
+        _flowMeta,
+        flow.isAcceptableOrUnknown(data['flow']!, _flowMeta),
+      );
+    }
+    if (data.containsKey('spotting')) {
+      context.handle(
+        _spottingMeta,
+        spotting.isAcceptableOrUnknown(data['spotting']!, _spottingMeta),
+      );
+    }
     if (data.containsKey('energy_level')) {
       context.handle(
         _energyLevelMeta,
@@ -3314,6 +3503,93 @@ class $DailyLogsTable extends DailyLogs
       context.handle(
         _painLevelMeta,
         painLevel.isAcceptableOrUnknown(data['pain_level']!, _painLevelMeta),
+      );
+    }
+    if (data.containsKey('mood')) {
+      context.handle(
+        _moodMeta,
+        mood.isAcceptableOrUnknown(data['mood']!, _moodMeta),
+      );
+    }
+    if (data.containsKey('stress_level')) {
+      context.handle(
+        _stressLevelMeta,
+        stressLevel.isAcceptableOrUnknown(
+          data['stress_level']!,
+          _stressLevelMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sleep_hours')) {
+      context.handle(
+        _sleepHoursMeta,
+        sleepHours.isAcceptableOrUnknown(data['sleep_hours']!, _sleepHoursMeta),
+      );
+    }
+    if (data.containsKey('sleep_quality')) {
+      context.handle(
+        _sleepQualityMeta,
+        sleepQuality.isAcceptableOrUnknown(
+          data['sleep_quality']!,
+          _sleepQualityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('water_glasses')) {
+      context.handle(
+        _waterGlassesMeta,
+        waterGlasses.isAcceptableOrUnknown(
+          data['water_glasses']!,
+          _waterGlassesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('appetite')) {
+      context.handle(
+        _appetiteMeta,
+        appetite.isAcceptableOrUnknown(data['appetite']!, _appetiteMeta),
+      );
+    }
+    if (data.containsKey('cravings')) {
+      context.handle(
+        _cravingsMeta,
+        cravings.isAcceptableOrUnknown(data['cravings']!, _cravingsMeta),
+      );
+    }
+    if (data.containsKey('exercise')) {
+      context.handle(
+        _exerciseMeta,
+        exercise.isAcceptableOrUnknown(data['exercise']!, _exerciseMeta),
+      );
+    }
+    if (data.containsKey('medication')) {
+      context.handle(
+        _medicationMeta,
+        medication.isAcceptableOrUnknown(data['medication']!, _medicationMeta),
+      );
+    }
+    if (data.containsKey('supplements')) {
+      context.handle(
+        _supplementsMeta,
+        supplements.isAcceptableOrUnknown(
+          data['supplements']!,
+          _supplementsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('intimacy')) {
+      context.handle(
+        _intimacyMeta,
+        intimacy.isAcceptableOrUnknown(data['intimacy']!, _intimacyMeta),
+      );
+    }
+    if (data.containsKey('custom_symptoms_json')) {
+      context.handle(
+        _customSymptomsJsonMeta,
+        customSymptomsJson.isAcceptableOrUnknown(
+          data['custom_symptoms_json']!,
+          _customSymptomsJsonMeta,
+        ),
       );
     }
     if (data.containsKey('general_notes')) {
@@ -3366,6 +3642,14 @@ class $DailyLogsTable extends DailyLogs
         DriftSqlType.dateTime,
         data['${effectivePrefix}date'],
       )!,
+      flow: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}flow'],
+      )!,
+      spotting: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}spotting'],
+      )!,
       energyLevel: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}energy_level'],
@@ -3373,6 +3657,54 @@ class $DailyLogsTable extends DailyLogs
       painLevel: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}pain_level'],
+      )!,
+      mood: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mood'],
+      ),
+      stressLevel: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}stress_level'],
+      )!,
+      sleepHours: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}sleep_hours'],
+      ),
+      sleepQuality: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sleep_quality'],
+      )!,
+      waterGlasses: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}water_glasses'],
+      )!,
+      appetite: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}appetite'],
+      ),
+      cravings: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cravings'],
+      ),
+      exercise: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}exercise'],
+      ),
+      medication: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}medication'],
+      ),
+      supplements: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supplements'],
+      ),
+      intimacy: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}intimacy'],
+      )!,
+      customSymptomsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_symptoms_json'],
       )!,
       generalNotes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -3396,8 +3728,22 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
   final int schemaVersion;
   final String source;
   final DateTime date;
+  final String flow;
+  final bool spotting;
   final int energyLevel;
   final int painLevel;
+  final String? mood;
+  final int stressLevel;
+  final double? sleepHours;
+  final int sleepQuality;
+  final int waterGlasses;
+  final String? appetite;
+  final String? cravings;
+  final String? exercise;
+  final String? medication;
+  final String? supplements;
+  final bool intimacy;
+  final String customSymptomsJson;
   final String? generalNotes;
   const DailyLog({
     required this.id,
@@ -3408,8 +3754,22 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
     required this.schemaVersion,
     required this.source,
     required this.date,
+    required this.flow,
+    required this.spotting,
     required this.energyLevel,
     required this.painLevel,
+    this.mood,
+    required this.stressLevel,
+    this.sleepHours,
+    required this.sleepQuality,
+    required this.waterGlasses,
+    this.appetite,
+    this.cravings,
+    this.exercise,
+    this.medication,
+    this.supplements,
+    required this.intimacy,
+    required this.customSymptomsJson,
     this.generalNotes,
   });
   @override
@@ -3425,8 +3785,36 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
     map['schema_version'] = Variable<int>(schemaVersion);
     map['source'] = Variable<String>(source);
     map['date'] = Variable<DateTime>(date);
+    map['flow'] = Variable<String>(flow);
+    map['spotting'] = Variable<bool>(spotting);
     map['energy_level'] = Variable<int>(energyLevel);
     map['pain_level'] = Variable<int>(painLevel);
+    if (!nullToAbsent || mood != null) {
+      map['mood'] = Variable<String>(mood);
+    }
+    map['stress_level'] = Variable<int>(stressLevel);
+    if (!nullToAbsent || sleepHours != null) {
+      map['sleep_hours'] = Variable<double>(sleepHours);
+    }
+    map['sleep_quality'] = Variable<int>(sleepQuality);
+    map['water_glasses'] = Variable<int>(waterGlasses);
+    if (!nullToAbsent || appetite != null) {
+      map['appetite'] = Variable<String>(appetite);
+    }
+    if (!nullToAbsent || cravings != null) {
+      map['cravings'] = Variable<String>(cravings);
+    }
+    if (!nullToAbsent || exercise != null) {
+      map['exercise'] = Variable<String>(exercise);
+    }
+    if (!nullToAbsent || medication != null) {
+      map['medication'] = Variable<String>(medication);
+    }
+    if (!nullToAbsent || supplements != null) {
+      map['supplements'] = Variable<String>(supplements);
+    }
+    map['intimacy'] = Variable<bool>(intimacy);
+    map['custom_symptoms_json'] = Variable<String>(customSymptomsJson);
     if (!nullToAbsent || generalNotes != null) {
       map['general_notes'] = Variable<String>(generalNotes);
     }
@@ -3445,8 +3833,34 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
       schemaVersion: Value(schemaVersion),
       source: Value(source),
       date: Value(date),
+      flow: Value(flow),
+      spotting: Value(spotting),
       energyLevel: Value(energyLevel),
       painLevel: Value(painLevel),
+      mood: mood == null && nullToAbsent ? const Value.absent() : Value(mood),
+      stressLevel: Value(stressLevel),
+      sleepHours: sleepHours == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sleepHours),
+      sleepQuality: Value(sleepQuality),
+      waterGlasses: Value(waterGlasses),
+      appetite: appetite == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appetite),
+      cravings: cravings == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cravings),
+      exercise: exercise == null && nullToAbsent
+          ? const Value.absent()
+          : Value(exercise),
+      medication: medication == null && nullToAbsent
+          ? const Value.absent()
+          : Value(medication),
+      supplements: supplements == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supplements),
+      intimacy: Value(intimacy),
+      customSymptomsJson: Value(customSymptomsJson),
       generalNotes: generalNotes == null && nullToAbsent
           ? const Value.absent()
           : Value(generalNotes),
@@ -3467,8 +3881,24 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
       schemaVersion: serializer.fromJson<int>(json['schemaVersion']),
       source: serializer.fromJson<String>(json['source']),
       date: serializer.fromJson<DateTime>(json['date']),
+      flow: serializer.fromJson<String>(json['flow']),
+      spotting: serializer.fromJson<bool>(json['spotting']),
       energyLevel: serializer.fromJson<int>(json['energyLevel']),
       painLevel: serializer.fromJson<int>(json['painLevel']),
+      mood: serializer.fromJson<String?>(json['mood']),
+      stressLevel: serializer.fromJson<int>(json['stressLevel']),
+      sleepHours: serializer.fromJson<double?>(json['sleepHours']),
+      sleepQuality: serializer.fromJson<int>(json['sleepQuality']),
+      waterGlasses: serializer.fromJson<int>(json['waterGlasses']),
+      appetite: serializer.fromJson<String?>(json['appetite']),
+      cravings: serializer.fromJson<String?>(json['cravings']),
+      exercise: serializer.fromJson<String?>(json['exercise']),
+      medication: serializer.fromJson<String?>(json['medication']),
+      supplements: serializer.fromJson<String?>(json['supplements']),
+      intimacy: serializer.fromJson<bool>(json['intimacy']),
+      customSymptomsJson: serializer.fromJson<String>(
+        json['customSymptomsJson'],
+      ),
       generalNotes: serializer.fromJson<String?>(json['generalNotes']),
     );
   }
@@ -3484,8 +3914,22 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
       'schemaVersion': serializer.toJson<int>(schemaVersion),
       'source': serializer.toJson<String>(source),
       'date': serializer.toJson<DateTime>(date),
+      'flow': serializer.toJson<String>(flow),
+      'spotting': serializer.toJson<bool>(spotting),
       'energyLevel': serializer.toJson<int>(energyLevel),
       'painLevel': serializer.toJson<int>(painLevel),
+      'mood': serializer.toJson<String?>(mood),
+      'stressLevel': serializer.toJson<int>(stressLevel),
+      'sleepHours': serializer.toJson<double?>(sleepHours),
+      'sleepQuality': serializer.toJson<int>(sleepQuality),
+      'waterGlasses': serializer.toJson<int>(waterGlasses),
+      'appetite': serializer.toJson<String?>(appetite),
+      'cravings': serializer.toJson<String?>(cravings),
+      'exercise': serializer.toJson<String?>(exercise),
+      'medication': serializer.toJson<String?>(medication),
+      'supplements': serializer.toJson<String?>(supplements),
+      'intimacy': serializer.toJson<bool>(intimacy),
+      'customSymptomsJson': serializer.toJson<String>(customSymptomsJson),
       'generalNotes': serializer.toJson<String?>(generalNotes),
     };
   }
@@ -3499,8 +3943,22 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
     int? schemaVersion,
     String? source,
     DateTime? date,
+    String? flow,
+    bool? spotting,
     int? energyLevel,
     int? painLevel,
+    Value<String?> mood = const Value.absent(),
+    int? stressLevel,
+    Value<double?> sleepHours = const Value.absent(),
+    int? sleepQuality,
+    int? waterGlasses,
+    Value<String?> appetite = const Value.absent(),
+    Value<String?> cravings = const Value.absent(),
+    Value<String?> exercise = const Value.absent(),
+    Value<String?> medication = const Value.absent(),
+    Value<String?> supplements = const Value.absent(),
+    bool? intimacy,
+    String? customSymptomsJson,
     Value<String?> generalNotes = const Value.absent(),
   }) => DailyLog(
     id: id ?? this.id,
@@ -3511,8 +3969,22 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
     schemaVersion: schemaVersion ?? this.schemaVersion,
     source: source ?? this.source,
     date: date ?? this.date,
+    flow: flow ?? this.flow,
+    spotting: spotting ?? this.spotting,
     energyLevel: energyLevel ?? this.energyLevel,
     painLevel: painLevel ?? this.painLevel,
+    mood: mood.present ? mood.value : this.mood,
+    stressLevel: stressLevel ?? this.stressLevel,
+    sleepHours: sleepHours.present ? sleepHours.value : this.sleepHours,
+    sleepQuality: sleepQuality ?? this.sleepQuality,
+    waterGlasses: waterGlasses ?? this.waterGlasses,
+    appetite: appetite.present ? appetite.value : this.appetite,
+    cravings: cravings.present ? cravings.value : this.cravings,
+    exercise: exercise.present ? exercise.value : this.exercise,
+    medication: medication.present ? medication.value : this.medication,
+    supplements: supplements.present ? supplements.value : this.supplements,
+    intimacy: intimacy ?? this.intimacy,
+    customSymptomsJson: customSymptomsJson ?? this.customSymptomsJson,
     generalNotes: generalNotes.present ? generalNotes.value : this.generalNotes,
   );
   DailyLog copyWithCompanion(DailyLogsCompanion data) {
@@ -3527,10 +3999,38 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
           : this.schemaVersion,
       source: data.source.present ? data.source.value : this.source,
       date: data.date.present ? data.date.value : this.date,
+      flow: data.flow.present ? data.flow.value : this.flow,
+      spotting: data.spotting.present ? data.spotting.value : this.spotting,
       energyLevel: data.energyLevel.present
           ? data.energyLevel.value
           : this.energyLevel,
       painLevel: data.painLevel.present ? data.painLevel.value : this.painLevel,
+      mood: data.mood.present ? data.mood.value : this.mood,
+      stressLevel: data.stressLevel.present
+          ? data.stressLevel.value
+          : this.stressLevel,
+      sleepHours: data.sleepHours.present
+          ? data.sleepHours.value
+          : this.sleepHours,
+      sleepQuality: data.sleepQuality.present
+          ? data.sleepQuality.value
+          : this.sleepQuality,
+      waterGlasses: data.waterGlasses.present
+          ? data.waterGlasses.value
+          : this.waterGlasses,
+      appetite: data.appetite.present ? data.appetite.value : this.appetite,
+      cravings: data.cravings.present ? data.cravings.value : this.cravings,
+      exercise: data.exercise.present ? data.exercise.value : this.exercise,
+      medication: data.medication.present
+          ? data.medication.value
+          : this.medication,
+      supplements: data.supplements.present
+          ? data.supplements.value
+          : this.supplements,
+      intimacy: data.intimacy.present ? data.intimacy.value : this.intimacy,
+      customSymptomsJson: data.customSymptomsJson.present
+          ? data.customSymptomsJson.value
+          : this.customSymptomsJson,
       generalNotes: data.generalNotes.present
           ? data.generalNotes.value
           : this.generalNotes,
@@ -3548,15 +4048,29 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('source: $source, ')
           ..write('date: $date, ')
+          ..write('flow: $flow, ')
+          ..write('spotting: $spotting, ')
           ..write('energyLevel: $energyLevel, ')
           ..write('painLevel: $painLevel, ')
+          ..write('mood: $mood, ')
+          ..write('stressLevel: $stressLevel, ')
+          ..write('sleepHours: $sleepHours, ')
+          ..write('sleepQuality: $sleepQuality, ')
+          ..write('waterGlasses: $waterGlasses, ')
+          ..write('appetite: $appetite, ')
+          ..write('cravings: $cravings, ')
+          ..write('exercise: $exercise, ')
+          ..write('medication: $medication, ')
+          ..write('supplements: $supplements, ')
+          ..write('intimacy: $intimacy, ')
+          ..write('customSymptomsJson: $customSymptomsJson, ')
           ..write('generalNotes: $generalNotes')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     uuid,
     createdAt,
@@ -3565,10 +4079,24 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
     schemaVersion,
     source,
     date,
+    flow,
+    spotting,
     energyLevel,
     painLevel,
+    mood,
+    stressLevel,
+    sleepHours,
+    sleepQuality,
+    waterGlasses,
+    appetite,
+    cravings,
+    exercise,
+    medication,
+    supplements,
+    intimacy,
+    customSymptomsJson,
     generalNotes,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3581,8 +4109,22 @@ class DailyLog extends DataClass implements Insertable<DailyLog> {
           other.schemaVersion == this.schemaVersion &&
           other.source == this.source &&
           other.date == this.date &&
+          other.flow == this.flow &&
+          other.spotting == this.spotting &&
           other.energyLevel == this.energyLevel &&
           other.painLevel == this.painLevel &&
+          other.mood == this.mood &&
+          other.stressLevel == this.stressLevel &&
+          other.sleepHours == this.sleepHours &&
+          other.sleepQuality == this.sleepQuality &&
+          other.waterGlasses == this.waterGlasses &&
+          other.appetite == this.appetite &&
+          other.cravings == this.cravings &&
+          other.exercise == this.exercise &&
+          other.medication == this.medication &&
+          other.supplements == this.supplements &&
+          other.intimacy == this.intimacy &&
+          other.customSymptomsJson == this.customSymptomsJson &&
           other.generalNotes == this.generalNotes);
 }
 
@@ -3595,8 +4137,22 @@ class DailyLogsCompanion extends UpdateCompanion<DailyLog> {
   final Value<int> schemaVersion;
   final Value<String> source;
   final Value<DateTime> date;
+  final Value<String> flow;
+  final Value<bool> spotting;
   final Value<int> energyLevel;
   final Value<int> painLevel;
+  final Value<String?> mood;
+  final Value<int> stressLevel;
+  final Value<double?> sleepHours;
+  final Value<int> sleepQuality;
+  final Value<int> waterGlasses;
+  final Value<String?> appetite;
+  final Value<String?> cravings;
+  final Value<String?> exercise;
+  final Value<String?> medication;
+  final Value<String?> supplements;
+  final Value<bool> intimacy;
+  final Value<String> customSymptomsJson;
   final Value<String?> generalNotes;
   const DailyLogsCompanion({
     this.id = const Value.absent(),
@@ -3607,8 +4163,22 @@ class DailyLogsCompanion extends UpdateCompanion<DailyLog> {
     this.schemaVersion = const Value.absent(),
     this.source = const Value.absent(),
     this.date = const Value.absent(),
+    this.flow = const Value.absent(),
+    this.spotting = const Value.absent(),
     this.energyLevel = const Value.absent(),
     this.painLevel = const Value.absent(),
+    this.mood = const Value.absent(),
+    this.stressLevel = const Value.absent(),
+    this.sleepHours = const Value.absent(),
+    this.sleepQuality = const Value.absent(),
+    this.waterGlasses = const Value.absent(),
+    this.appetite = const Value.absent(),
+    this.cravings = const Value.absent(),
+    this.exercise = const Value.absent(),
+    this.medication = const Value.absent(),
+    this.supplements = const Value.absent(),
+    this.intimacy = const Value.absent(),
+    this.customSymptomsJson = const Value.absent(),
     this.generalNotes = const Value.absent(),
   });
   DailyLogsCompanion.insert({
@@ -3620,8 +4190,22 @@ class DailyLogsCompanion extends UpdateCompanion<DailyLog> {
     this.schemaVersion = const Value.absent(),
     this.source = const Value.absent(),
     required DateTime date,
+    this.flow = const Value.absent(),
+    this.spotting = const Value.absent(),
     this.energyLevel = const Value.absent(),
     this.painLevel = const Value.absent(),
+    this.mood = const Value.absent(),
+    this.stressLevel = const Value.absent(),
+    this.sleepHours = const Value.absent(),
+    this.sleepQuality = const Value.absent(),
+    this.waterGlasses = const Value.absent(),
+    this.appetite = const Value.absent(),
+    this.cravings = const Value.absent(),
+    this.exercise = const Value.absent(),
+    this.medication = const Value.absent(),
+    this.supplements = const Value.absent(),
+    this.intimacy = const Value.absent(),
+    this.customSymptomsJson = const Value.absent(),
     this.generalNotes = const Value.absent(),
   }) : uuid = Value(uuid),
        createdAt = Value(createdAt),
@@ -3636,8 +4220,22 @@ class DailyLogsCompanion extends UpdateCompanion<DailyLog> {
     Expression<int>? schemaVersion,
     Expression<String>? source,
     Expression<DateTime>? date,
+    Expression<String>? flow,
+    Expression<bool>? spotting,
     Expression<int>? energyLevel,
     Expression<int>? painLevel,
+    Expression<String>? mood,
+    Expression<int>? stressLevel,
+    Expression<double>? sleepHours,
+    Expression<int>? sleepQuality,
+    Expression<int>? waterGlasses,
+    Expression<String>? appetite,
+    Expression<String>? cravings,
+    Expression<String>? exercise,
+    Expression<String>? medication,
+    Expression<String>? supplements,
+    Expression<bool>? intimacy,
+    Expression<String>? customSymptomsJson,
     Expression<String>? generalNotes,
   }) {
     return RawValuesInsertable({
@@ -3649,8 +4247,23 @@ class DailyLogsCompanion extends UpdateCompanion<DailyLog> {
       if (schemaVersion != null) 'schema_version': schemaVersion,
       if (source != null) 'source': source,
       if (date != null) 'date': date,
+      if (flow != null) 'flow': flow,
+      if (spotting != null) 'spotting': spotting,
       if (energyLevel != null) 'energy_level': energyLevel,
       if (painLevel != null) 'pain_level': painLevel,
+      if (mood != null) 'mood': mood,
+      if (stressLevel != null) 'stress_level': stressLevel,
+      if (sleepHours != null) 'sleep_hours': sleepHours,
+      if (sleepQuality != null) 'sleep_quality': sleepQuality,
+      if (waterGlasses != null) 'water_glasses': waterGlasses,
+      if (appetite != null) 'appetite': appetite,
+      if (cravings != null) 'cravings': cravings,
+      if (exercise != null) 'exercise': exercise,
+      if (medication != null) 'medication': medication,
+      if (supplements != null) 'supplements': supplements,
+      if (intimacy != null) 'intimacy': intimacy,
+      if (customSymptomsJson != null)
+        'custom_symptoms_json': customSymptomsJson,
       if (generalNotes != null) 'general_notes': generalNotes,
     });
   }
@@ -3664,8 +4277,22 @@ class DailyLogsCompanion extends UpdateCompanion<DailyLog> {
     Value<int>? schemaVersion,
     Value<String>? source,
     Value<DateTime>? date,
+    Value<String>? flow,
+    Value<bool>? spotting,
     Value<int>? energyLevel,
     Value<int>? painLevel,
+    Value<String?>? mood,
+    Value<int>? stressLevel,
+    Value<double?>? sleepHours,
+    Value<int>? sleepQuality,
+    Value<int>? waterGlasses,
+    Value<String?>? appetite,
+    Value<String?>? cravings,
+    Value<String?>? exercise,
+    Value<String?>? medication,
+    Value<String?>? supplements,
+    Value<bool>? intimacy,
+    Value<String>? customSymptomsJson,
     Value<String?>? generalNotes,
   }) {
     return DailyLogsCompanion(
@@ -3677,8 +4304,22 @@ class DailyLogsCompanion extends UpdateCompanion<DailyLog> {
       schemaVersion: schemaVersion ?? this.schemaVersion,
       source: source ?? this.source,
       date: date ?? this.date,
+      flow: flow ?? this.flow,
+      spotting: spotting ?? this.spotting,
       energyLevel: energyLevel ?? this.energyLevel,
       painLevel: painLevel ?? this.painLevel,
+      mood: mood ?? this.mood,
+      stressLevel: stressLevel ?? this.stressLevel,
+      sleepHours: sleepHours ?? this.sleepHours,
+      sleepQuality: sleepQuality ?? this.sleepQuality,
+      waterGlasses: waterGlasses ?? this.waterGlasses,
+      appetite: appetite ?? this.appetite,
+      cravings: cravings ?? this.cravings,
+      exercise: exercise ?? this.exercise,
+      medication: medication ?? this.medication,
+      supplements: supplements ?? this.supplements,
+      intimacy: intimacy ?? this.intimacy,
+      customSymptomsJson: customSymptomsJson ?? this.customSymptomsJson,
       generalNotes: generalNotes ?? this.generalNotes,
     );
   }
@@ -3710,11 +4351,53 @@ class DailyLogsCompanion extends UpdateCompanion<DailyLog> {
     if (date.present) {
       map['date'] = Variable<DateTime>(date.value);
     }
+    if (flow.present) {
+      map['flow'] = Variable<String>(flow.value);
+    }
+    if (spotting.present) {
+      map['spotting'] = Variable<bool>(spotting.value);
+    }
     if (energyLevel.present) {
       map['energy_level'] = Variable<int>(energyLevel.value);
     }
     if (painLevel.present) {
       map['pain_level'] = Variable<int>(painLevel.value);
+    }
+    if (mood.present) {
+      map['mood'] = Variable<String>(mood.value);
+    }
+    if (stressLevel.present) {
+      map['stress_level'] = Variable<int>(stressLevel.value);
+    }
+    if (sleepHours.present) {
+      map['sleep_hours'] = Variable<double>(sleepHours.value);
+    }
+    if (sleepQuality.present) {
+      map['sleep_quality'] = Variable<int>(sleepQuality.value);
+    }
+    if (waterGlasses.present) {
+      map['water_glasses'] = Variable<int>(waterGlasses.value);
+    }
+    if (appetite.present) {
+      map['appetite'] = Variable<String>(appetite.value);
+    }
+    if (cravings.present) {
+      map['cravings'] = Variable<String>(cravings.value);
+    }
+    if (exercise.present) {
+      map['exercise'] = Variable<String>(exercise.value);
+    }
+    if (medication.present) {
+      map['medication'] = Variable<String>(medication.value);
+    }
+    if (supplements.present) {
+      map['supplements'] = Variable<String>(supplements.value);
+    }
+    if (intimacy.present) {
+      map['intimacy'] = Variable<bool>(intimacy.value);
+    }
+    if (customSymptomsJson.present) {
+      map['custom_symptoms_json'] = Variable<String>(customSymptomsJson.value);
     }
     if (generalNotes.present) {
       map['general_notes'] = Variable<String>(generalNotes.value);
@@ -3733,8 +4416,22 @@ class DailyLogsCompanion extends UpdateCompanion<DailyLog> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('source: $source, ')
           ..write('date: $date, ')
+          ..write('flow: $flow, ')
+          ..write('spotting: $spotting, ')
           ..write('energyLevel: $energyLevel, ')
           ..write('painLevel: $painLevel, ')
+          ..write('mood: $mood, ')
+          ..write('stressLevel: $stressLevel, ')
+          ..write('sleepHours: $sleepHours, ')
+          ..write('sleepQuality: $sleepQuality, ')
+          ..write('waterGlasses: $waterGlasses, ')
+          ..write('appetite: $appetite, ')
+          ..write('cravings: $cravings, ')
+          ..write('exercise: $exercise, ')
+          ..write('medication: $medication, ')
+          ..write('supplements: $supplements, ')
+          ..write('intimacy: $intimacy, ')
+          ..write('customSymptomsJson: $customSymptomsJson, ')
           ..write('generalNotes: $generalNotes')
           ..write(')'))
         .toString();
@@ -6281,6 +6978,18 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('General'),
+  );
   static const VerificationMeta _targetPhaseMeta = const VerificationMeta(
     'targetPhase',
   );
@@ -6304,7 +7013,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         false,
         type: DriftSqlType.string,
         requiredDuringInsert: false,
-        defaultValue: const Constant('Medium'),
+        defaultValue: const Constant('Flexible'),
       );
   static const VerificationMeta _isCompletedMeta = const VerificationMeta(
     'isCompleted',
@@ -6332,6 +7041,94 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _scheduledDateMeta = const VerificationMeta(
+    'scheduledDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduledDate =
+      GeneratedColumn<DateTime>(
+        'scheduled_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _scheduledTimeMinutesMeta =
+      const VerificationMeta('scheduledTimeMinutes');
+  @override
+  late final GeneratedColumn<int> scheduledTimeMinutes = GeneratedColumn<int>(
+    'scheduled_time_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reminderAtMeta = const VerificationMeta(
+    'reminderAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> reminderAt = GeneratedColumn<DateTime>(
+    'reminder_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _recurrenceRuleMeta = const VerificationMeta(
+    'recurrenceRule',
+  );
+  @override
+  late final GeneratedColumn<String> recurrenceRule = GeneratedColumn<String>(
+    'recurrence_rule',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Inbox'),
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _estimatedDurationMinutesMeta =
+      const VerificationMeta('estimatedDurationMinutes');
+  @override
+  late final GeneratedColumn<int> estimatedDurationMinutes =
+      GeneratedColumn<int>(
+        'estimated_duration_minutes',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(30),
+      );
+  static const VerificationMeta _cycleRecommendationTagMeta =
+      const VerificationMeta('cycleRecommendationTag');
+  @override
+  late final GeneratedColumn<String> cycleRecommendationTag =
+      GeneratedColumn<String>(
+        'cycle_recommendation_tag',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _priorityMeta = const VerificationMeta(
     'priority',
   );
@@ -6342,7 +7139,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('Medium'),
+    defaultValue: const Constant('Normal'),
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -6355,10 +7152,19 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     source,
     title,
     description,
+    category,
     targetPhase,
     recommendedEnergy,
     isCompleted,
     dueDate,
+    scheduledDate,
+    scheduledTimeMinutes,
+    reminderAt,
+    recurrenceRule,
+    status,
+    completedAt,
+    estimatedDurationMinutes,
+    cycleRecommendationTag,
     priority,
   ];
   @override
@@ -6438,6 +7244,12 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         ),
       );
     }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
     if (data.containsKey('target_phase')) {
       context.handle(
         _targetPhaseMeta,
@@ -6469,6 +7281,72 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
       context.handle(
         _dueDateMeta,
         dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    }
+    if (data.containsKey('scheduled_date')) {
+      context.handle(
+        _scheduledDateMeta,
+        scheduledDate.isAcceptableOrUnknown(
+          data['scheduled_date']!,
+          _scheduledDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('scheduled_time_minutes')) {
+      context.handle(
+        _scheduledTimeMinutesMeta,
+        scheduledTimeMinutes.isAcceptableOrUnknown(
+          data['scheduled_time_minutes']!,
+          _scheduledTimeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reminder_at')) {
+      context.handle(
+        _reminderAtMeta,
+        reminderAt.isAcceptableOrUnknown(data['reminder_at']!, _reminderAtMeta),
+      );
+    }
+    if (data.containsKey('recurrence_rule')) {
+      context.handle(
+        _recurrenceRuleMeta,
+        recurrenceRule.isAcceptableOrUnknown(
+          data['recurrence_rule']!,
+          _recurrenceRuleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('estimated_duration_minutes')) {
+      context.handle(
+        _estimatedDurationMinutesMeta,
+        estimatedDurationMinutes.isAcceptableOrUnknown(
+          data['estimated_duration_minutes']!,
+          _estimatedDurationMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cycle_recommendation_tag')) {
+      context.handle(
+        _cycleRecommendationTagMeta,
+        cycleRecommendationTag.isAcceptableOrUnknown(
+          data['cycle_recommendation_tag']!,
+          _cycleRecommendationTagMeta,
+        ),
       );
     }
     if (data.containsKey('priority')) {
@@ -6522,6 +7400,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       ),
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
       targetPhase: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}target_phase'],
@@ -6537,6 +7419,38 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
       dueDate: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}due_date'],
+      ),
+      scheduledDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scheduled_date'],
+      ),
+      scheduledTimeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}scheduled_time_minutes'],
+      ),
+      reminderAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}reminder_at'],
+      ),
+      recurrenceRule: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_rule'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      ),
+      estimatedDurationMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}estimated_duration_minutes'],
+      )!,
+      cycleRecommendationTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cycle_recommendation_tag'],
       ),
       priority: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -6561,10 +7475,19 @@ class Task extends DataClass implements Insertable<Task> {
   final String source;
   final String title;
   final String? description;
+  final String category;
   final String targetPhase;
   final String recommendedEnergy;
   final bool isCompleted;
   final DateTime? dueDate;
+  final DateTime? scheduledDate;
+  final int? scheduledTimeMinutes;
+  final DateTime? reminderAt;
+  final String? recurrenceRule;
+  final String status;
+  final DateTime? completedAt;
+  final int estimatedDurationMinutes;
+  final String? cycleRecommendationTag;
   final String priority;
   const Task({
     required this.id,
@@ -6576,10 +7499,19 @@ class Task extends DataClass implements Insertable<Task> {
     required this.source,
     required this.title,
     this.description,
+    required this.category,
     required this.targetPhase,
     required this.recommendedEnergy,
     required this.isCompleted,
     this.dueDate,
+    this.scheduledDate,
+    this.scheduledTimeMinutes,
+    this.reminderAt,
+    this.recurrenceRule,
+    required this.status,
+    this.completedAt,
+    required this.estimatedDurationMinutes,
+    this.cycleRecommendationTag,
     required this.priority,
   });
   @override
@@ -6598,11 +7530,34 @@ class Task extends DataClass implements Insertable<Task> {
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
     }
+    map['category'] = Variable<String>(category);
     map['target_phase'] = Variable<String>(targetPhase);
     map['recommended_energy'] = Variable<String>(recommendedEnergy);
     map['is_completed'] = Variable<bool>(isCompleted);
     if (!nullToAbsent || dueDate != null) {
       map['due_date'] = Variable<DateTime>(dueDate);
+    }
+    if (!nullToAbsent || scheduledDate != null) {
+      map['scheduled_date'] = Variable<DateTime>(scheduledDate);
+    }
+    if (!nullToAbsent || scheduledTimeMinutes != null) {
+      map['scheduled_time_minutes'] = Variable<int>(scheduledTimeMinutes);
+    }
+    if (!nullToAbsent || reminderAt != null) {
+      map['reminder_at'] = Variable<DateTime>(reminderAt);
+    }
+    if (!nullToAbsent || recurrenceRule != null) {
+      map['recurrence_rule'] = Variable<String>(recurrenceRule);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    map['estimated_duration_minutes'] = Variable<int>(estimatedDurationMinutes);
+    if (!nullToAbsent || cycleRecommendationTag != null) {
+      map['cycle_recommendation_tag'] = Variable<String>(
+        cycleRecommendationTag,
+      );
     }
     map['priority'] = Variable<String>(priority);
     return map;
@@ -6623,12 +7578,33 @@ class Task extends DataClass implements Insertable<Task> {
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
+      category: Value(category),
       targetPhase: Value(targetPhase),
       recommendedEnergy: Value(recommendedEnergy),
       isCompleted: Value(isCompleted),
       dueDate: dueDate == null && nullToAbsent
           ? const Value.absent()
           : Value(dueDate),
+      scheduledDate: scheduledDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduledDate),
+      scheduledTimeMinutes: scheduledTimeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduledTimeMinutes),
+      reminderAt: reminderAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderAt),
+      recurrenceRule: recurrenceRule == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceRule),
+      status: Value(status),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      estimatedDurationMinutes: Value(estimatedDurationMinutes),
+      cycleRecommendationTag: cycleRecommendationTag == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cycleRecommendationTag),
       priority: Value(priority),
     );
   }
@@ -6648,10 +7624,25 @@ class Task extends DataClass implements Insertable<Task> {
       source: serializer.fromJson<String>(json['source']),
       title: serializer.fromJson<String>(json['title']),
       description: serializer.fromJson<String?>(json['description']),
+      category: serializer.fromJson<String>(json['category']),
       targetPhase: serializer.fromJson<String>(json['targetPhase']),
       recommendedEnergy: serializer.fromJson<String>(json['recommendedEnergy']),
       isCompleted: serializer.fromJson<bool>(json['isCompleted']),
       dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
+      scheduledDate: serializer.fromJson<DateTime?>(json['scheduledDate']),
+      scheduledTimeMinutes: serializer.fromJson<int?>(
+        json['scheduledTimeMinutes'],
+      ),
+      reminderAt: serializer.fromJson<DateTime?>(json['reminderAt']),
+      recurrenceRule: serializer.fromJson<String?>(json['recurrenceRule']),
+      status: serializer.fromJson<String>(json['status']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+      estimatedDurationMinutes: serializer.fromJson<int>(
+        json['estimatedDurationMinutes'],
+      ),
+      cycleRecommendationTag: serializer.fromJson<String?>(
+        json['cycleRecommendationTag'],
+      ),
       priority: serializer.fromJson<String>(json['priority']),
     );
   }
@@ -6668,10 +7659,23 @@ class Task extends DataClass implements Insertable<Task> {
       'source': serializer.toJson<String>(source),
       'title': serializer.toJson<String>(title),
       'description': serializer.toJson<String?>(description),
+      'category': serializer.toJson<String>(category),
       'targetPhase': serializer.toJson<String>(targetPhase),
       'recommendedEnergy': serializer.toJson<String>(recommendedEnergy),
       'isCompleted': serializer.toJson<bool>(isCompleted),
       'dueDate': serializer.toJson<DateTime?>(dueDate),
+      'scheduledDate': serializer.toJson<DateTime?>(scheduledDate),
+      'scheduledTimeMinutes': serializer.toJson<int?>(scheduledTimeMinutes),
+      'reminderAt': serializer.toJson<DateTime?>(reminderAt),
+      'recurrenceRule': serializer.toJson<String?>(recurrenceRule),
+      'status': serializer.toJson<String>(status),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+      'estimatedDurationMinutes': serializer.toJson<int>(
+        estimatedDurationMinutes,
+      ),
+      'cycleRecommendationTag': serializer.toJson<String?>(
+        cycleRecommendationTag,
+      ),
       'priority': serializer.toJson<String>(priority),
     };
   }
@@ -6686,10 +7690,19 @@ class Task extends DataClass implements Insertable<Task> {
     String? source,
     String? title,
     Value<String?> description = const Value.absent(),
+    String? category,
     String? targetPhase,
     String? recommendedEnergy,
     bool? isCompleted,
     Value<DateTime?> dueDate = const Value.absent(),
+    Value<DateTime?> scheduledDate = const Value.absent(),
+    Value<int?> scheduledTimeMinutes = const Value.absent(),
+    Value<DateTime?> reminderAt = const Value.absent(),
+    Value<String?> recurrenceRule = const Value.absent(),
+    String? status,
+    Value<DateTime?> completedAt = const Value.absent(),
+    int? estimatedDurationMinutes,
+    Value<String?> cycleRecommendationTag = const Value.absent(),
     String? priority,
   }) => Task(
     id: id ?? this.id,
@@ -6701,10 +7714,28 @@ class Task extends DataClass implements Insertable<Task> {
     source: source ?? this.source,
     title: title ?? this.title,
     description: description.present ? description.value : this.description,
+    category: category ?? this.category,
     targetPhase: targetPhase ?? this.targetPhase,
     recommendedEnergy: recommendedEnergy ?? this.recommendedEnergy,
     isCompleted: isCompleted ?? this.isCompleted,
     dueDate: dueDate.present ? dueDate.value : this.dueDate,
+    scheduledDate: scheduledDate.present
+        ? scheduledDate.value
+        : this.scheduledDate,
+    scheduledTimeMinutes: scheduledTimeMinutes.present
+        ? scheduledTimeMinutes.value
+        : this.scheduledTimeMinutes,
+    reminderAt: reminderAt.present ? reminderAt.value : this.reminderAt,
+    recurrenceRule: recurrenceRule.present
+        ? recurrenceRule.value
+        : this.recurrenceRule,
+    status: status ?? this.status,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+    estimatedDurationMinutes:
+        estimatedDurationMinutes ?? this.estimatedDurationMinutes,
+    cycleRecommendationTag: cycleRecommendationTag.present
+        ? cycleRecommendationTag.value
+        : this.cycleRecommendationTag,
     priority: priority ?? this.priority,
   );
   Task copyWithCompanion(TasksCompanion data) {
@@ -6722,6 +7753,7 @@ class Task extends DataClass implements Insertable<Task> {
       description: data.description.present
           ? data.description.value
           : this.description,
+      category: data.category.present ? data.category.value : this.category,
       targetPhase: data.targetPhase.present
           ? data.targetPhase.value
           : this.targetPhase,
@@ -6732,6 +7764,28 @@ class Task extends DataClass implements Insertable<Task> {
           ? data.isCompleted.value
           : this.isCompleted,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      scheduledDate: data.scheduledDate.present
+          ? data.scheduledDate.value
+          : this.scheduledDate,
+      scheduledTimeMinutes: data.scheduledTimeMinutes.present
+          ? data.scheduledTimeMinutes.value
+          : this.scheduledTimeMinutes,
+      reminderAt: data.reminderAt.present
+          ? data.reminderAt.value
+          : this.reminderAt,
+      recurrenceRule: data.recurrenceRule.present
+          ? data.recurrenceRule.value
+          : this.recurrenceRule,
+      status: data.status.present ? data.status.value : this.status,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      estimatedDurationMinutes: data.estimatedDurationMinutes.present
+          ? data.estimatedDurationMinutes.value
+          : this.estimatedDurationMinutes,
+      cycleRecommendationTag: data.cycleRecommendationTag.present
+          ? data.cycleRecommendationTag.value
+          : this.cycleRecommendationTag,
       priority: data.priority.present ? data.priority.value : this.priority,
     );
   }
@@ -6748,17 +7802,26 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('source: $source, ')
           ..write('title: $title, ')
           ..write('description: $description, ')
+          ..write('category: $category, ')
           ..write('targetPhase: $targetPhase, ')
           ..write('recommendedEnergy: $recommendedEnergy, ')
           ..write('isCompleted: $isCompleted, ')
           ..write('dueDate: $dueDate, ')
+          ..write('scheduledDate: $scheduledDate, ')
+          ..write('scheduledTimeMinutes: $scheduledTimeMinutes, ')
+          ..write('reminderAt: $reminderAt, ')
+          ..write('recurrenceRule: $recurrenceRule, ')
+          ..write('status: $status, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('estimatedDurationMinutes: $estimatedDurationMinutes, ')
+          ..write('cycleRecommendationTag: $cycleRecommendationTag, ')
           ..write('priority: $priority')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     uuid,
     createdAt,
@@ -6768,12 +7831,21 @@ class Task extends DataClass implements Insertable<Task> {
     source,
     title,
     description,
+    category,
     targetPhase,
     recommendedEnergy,
     isCompleted,
     dueDate,
+    scheduledDate,
+    scheduledTimeMinutes,
+    reminderAt,
+    recurrenceRule,
+    status,
+    completedAt,
+    estimatedDurationMinutes,
+    cycleRecommendationTag,
     priority,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -6787,10 +7859,19 @@ class Task extends DataClass implements Insertable<Task> {
           other.source == this.source &&
           other.title == this.title &&
           other.description == this.description &&
+          other.category == this.category &&
           other.targetPhase == this.targetPhase &&
           other.recommendedEnergy == this.recommendedEnergy &&
           other.isCompleted == this.isCompleted &&
           other.dueDate == this.dueDate &&
+          other.scheduledDate == this.scheduledDate &&
+          other.scheduledTimeMinutes == this.scheduledTimeMinutes &&
+          other.reminderAt == this.reminderAt &&
+          other.recurrenceRule == this.recurrenceRule &&
+          other.status == this.status &&
+          other.completedAt == this.completedAt &&
+          other.estimatedDurationMinutes == this.estimatedDurationMinutes &&
+          other.cycleRecommendationTag == this.cycleRecommendationTag &&
           other.priority == this.priority);
 }
 
@@ -6804,10 +7885,19 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<String> source;
   final Value<String> title;
   final Value<String?> description;
+  final Value<String> category;
   final Value<String> targetPhase;
   final Value<String> recommendedEnergy;
   final Value<bool> isCompleted;
   final Value<DateTime?> dueDate;
+  final Value<DateTime?> scheduledDate;
+  final Value<int?> scheduledTimeMinutes;
+  final Value<DateTime?> reminderAt;
+  final Value<String?> recurrenceRule;
+  final Value<String> status;
+  final Value<DateTime?> completedAt;
+  final Value<int> estimatedDurationMinutes;
+  final Value<String?> cycleRecommendationTag;
   final Value<String> priority;
   const TasksCompanion({
     this.id = const Value.absent(),
@@ -6819,10 +7909,19 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.source = const Value.absent(),
     this.title = const Value.absent(),
     this.description = const Value.absent(),
+    this.category = const Value.absent(),
     this.targetPhase = const Value.absent(),
     this.recommendedEnergy = const Value.absent(),
     this.isCompleted = const Value.absent(),
     this.dueDate = const Value.absent(),
+    this.scheduledDate = const Value.absent(),
+    this.scheduledTimeMinutes = const Value.absent(),
+    this.reminderAt = const Value.absent(),
+    this.recurrenceRule = const Value.absent(),
+    this.status = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.estimatedDurationMinutes = const Value.absent(),
+    this.cycleRecommendationTag = const Value.absent(),
     this.priority = const Value.absent(),
   });
   TasksCompanion.insert({
@@ -6835,10 +7934,19 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.source = const Value.absent(),
     required String title,
     this.description = const Value.absent(),
+    this.category = const Value.absent(),
     this.targetPhase = const Value.absent(),
     this.recommendedEnergy = const Value.absent(),
     this.isCompleted = const Value.absent(),
     this.dueDate = const Value.absent(),
+    this.scheduledDate = const Value.absent(),
+    this.scheduledTimeMinutes = const Value.absent(),
+    this.reminderAt = const Value.absent(),
+    this.recurrenceRule = const Value.absent(),
+    this.status = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.estimatedDurationMinutes = const Value.absent(),
+    this.cycleRecommendationTag = const Value.absent(),
     this.priority = const Value.absent(),
   }) : uuid = Value(uuid),
        createdAt = Value(createdAt),
@@ -6854,10 +7962,19 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<String>? source,
     Expression<String>? title,
     Expression<String>? description,
+    Expression<String>? category,
     Expression<String>? targetPhase,
     Expression<String>? recommendedEnergy,
     Expression<bool>? isCompleted,
     Expression<DateTime>? dueDate,
+    Expression<DateTime>? scheduledDate,
+    Expression<int>? scheduledTimeMinutes,
+    Expression<DateTime>? reminderAt,
+    Expression<String>? recurrenceRule,
+    Expression<String>? status,
+    Expression<DateTime>? completedAt,
+    Expression<int>? estimatedDurationMinutes,
+    Expression<String>? cycleRecommendationTag,
     Expression<String>? priority,
   }) {
     return RawValuesInsertable({
@@ -6870,10 +7987,22 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (source != null) 'source': source,
       if (title != null) 'title': title,
       if (description != null) 'description': description,
+      if (category != null) 'category': category,
       if (targetPhase != null) 'target_phase': targetPhase,
       if (recommendedEnergy != null) 'recommended_energy': recommendedEnergy,
       if (isCompleted != null) 'is_completed': isCompleted,
       if (dueDate != null) 'due_date': dueDate,
+      if (scheduledDate != null) 'scheduled_date': scheduledDate,
+      if (scheduledTimeMinutes != null)
+        'scheduled_time_minutes': scheduledTimeMinutes,
+      if (reminderAt != null) 'reminder_at': reminderAt,
+      if (recurrenceRule != null) 'recurrence_rule': recurrenceRule,
+      if (status != null) 'status': status,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (estimatedDurationMinutes != null)
+        'estimated_duration_minutes': estimatedDurationMinutes,
+      if (cycleRecommendationTag != null)
+        'cycle_recommendation_tag': cycleRecommendationTag,
       if (priority != null) 'priority': priority,
     });
   }
@@ -6888,10 +8017,19 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<String>? source,
     Value<String>? title,
     Value<String?>? description,
+    Value<String>? category,
     Value<String>? targetPhase,
     Value<String>? recommendedEnergy,
     Value<bool>? isCompleted,
     Value<DateTime?>? dueDate,
+    Value<DateTime?>? scheduledDate,
+    Value<int?>? scheduledTimeMinutes,
+    Value<DateTime?>? reminderAt,
+    Value<String?>? recurrenceRule,
+    Value<String>? status,
+    Value<DateTime?>? completedAt,
+    Value<int>? estimatedDurationMinutes,
+    Value<String?>? cycleRecommendationTag,
     Value<String>? priority,
   }) {
     return TasksCompanion(
@@ -6904,10 +8042,21 @@ class TasksCompanion extends UpdateCompanion<Task> {
       source: source ?? this.source,
       title: title ?? this.title,
       description: description ?? this.description,
+      category: category ?? this.category,
       targetPhase: targetPhase ?? this.targetPhase,
       recommendedEnergy: recommendedEnergy ?? this.recommendedEnergy,
       isCompleted: isCompleted ?? this.isCompleted,
       dueDate: dueDate ?? this.dueDate,
+      scheduledDate: scheduledDate ?? this.scheduledDate,
+      scheduledTimeMinutes: scheduledTimeMinutes ?? this.scheduledTimeMinutes,
+      reminderAt: reminderAt ?? this.reminderAt,
+      recurrenceRule: recurrenceRule ?? this.recurrenceRule,
+      status: status ?? this.status,
+      completedAt: completedAt ?? this.completedAt,
+      estimatedDurationMinutes:
+          estimatedDurationMinutes ?? this.estimatedDurationMinutes,
+      cycleRecommendationTag:
+          cycleRecommendationTag ?? this.cycleRecommendationTag,
       priority: priority ?? this.priority,
     );
   }
@@ -6942,6 +8091,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
     if (targetPhase.present) {
       map['target_phase'] = Variable<String>(targetPhase.value);
     }
@@ -6953,6 +8105,34 @@ class TasksCompanion extends UpdateCompanion<Task> {
     }
     if (dueDate.present) {
       map['due_date'] = Variable<DateTime>(dueDate.value);
+    }
+    if (scheduledDate.present) {
+      map['scheduled_date'] = Variable<DateTime>(scheduledDate.value);
+    }
+    if (scheduledTimeMinutes.present) {
+      map['scheduled_time_minutes'] = Variable<int>(scheduledTimeMinutes.value);
+    }
+    if (reminderAt.present) {
+      map['reminder_at'] = Variable<DateTime>(reminderAt.value);
+    }
+    if (recurrenceRule.present) {
+      map['recurrence_rule'] = Variable<String>(recurrenceRule.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (estimatedDurationMinutes.present) {
+      map['estimated_duration_minutes'] = Variable<int>(
+        estimatedDurationMinutes.value,
+      );
+    }
+    if (cycleRecommendationTag.present) {
+      map['cycle_recommendation_tag'] = Variable<String>(
+        cycleRecommendationTag.value,
+      );
     }
     if (priority.present) {
       map['priority'] = Variable<String>(priority.value);
@@ -6972,10 +8152,19 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('source: $source, ')
           ..write('title: $title, ')
           ..write('description: $description, ')
+          ..write('category: $category, ')
           ..write('targetPhase: $targetPhase, ')
           ..write('recommendedEnergy: $recommendedEnergy, ')
           ..write('isCompleted: $isCompleted, ')
           ..write('dueDate: $dueDate, ')
+          ..write('scheduledDate: $scheduledDate, ')
+          ..write('scheduledTimeMinutes: $scheduledTimeMinutes, ')
+          ..write('reminderAt: $reminderAt, ')
+          ..write('recurrenceRule: $recurrenceRule, ')
+          ..write('status: $status, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('estimatedDurationMinutes: $estimatedDurationMinutes, ')
+          ..write('cycleRecommendationTag: $cycleRecommendationTag, ')
           ..write('priority: $priority')
           ..write(')'))
         .toString();
@@ -7074,6 +8263,26 @@ class $FocusSessionsTable extends FocusSessions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<int> taskId = GeneratedColumn<int>(
+    'task_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+    'started_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _durationMinutesMeta = const VerificationMeta(
     'durationMinutes',
   );
@@ -7085,6 +8294,40 @@ class $FocusSessionsTable extends FocusSessions
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _breakMinutesMeta = const VerificationMeta(
+    'breakMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> breakMinutes = GeneratedColumn<int>(
+    'break_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(5),
+  );
+  static const VerificationMeta _elapsedSecondsMeta = const VerificationMeta(
+    'elapsedSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> elapsedSeconds = GeneratedColumn<int>(
+    'elapsed_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Completed'),
+  );
   static const VerificationMeta _completedAtMeta = const VerificationMeta(
     'completedAt',
   );
@@ -7092,9 +8335,9 @@ class $FocusSessionsTable extends FocusSessions
   late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
     'completed_at',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -7106,7 +8349,12 @@ class $FocusSessionsTable extends FocusSessions
     schemaVersion,
     source,
     title,
+    taskId,
+    startedAt,
     durationMinutes,
+    breakMinutes,
+    elapsedSeconds,
+    status,
     completedAt,
   ];
   @override
@@ -7177,6 +8425,18 @@ class $FocusSessionsTable extends FocusSessions
     } else if (isInserting) {
       context.missing(_titleMeta);
     }
+    if (data.containsKey('task_id')) {
+      context.handle(
+        _taskIdMeta,
+        taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
+      );
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(
+        _startedAtMeta,
+        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
+      );
+    }
     if (data.containsKey('duration_minutes')) {
       context.handle(
         _durationMinutesMeta,
@@ -7188,6 +8448,30 @@ class $FocusSessionsTable extends FocusSessions
     } else if (isInserting) {
       context.missing(_durationMinutesMeta);
     }
+    if (data.containsKey('break_minutes')) {
+      context.handle(
+        _breakMinutesMeta,
+        breakMinutes.isAcceptableOrUnknown(
+          data['break_minutes']!,
+          _breakMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('elapsed_seconds')) {
+      context.handle(
+        _elapsedSecondsMeta,
+        elapsedSeconds.isAcceptableOrUnknown(
+          data['elapsed_seconds']!,
+          _elapsedSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
     if (data.containsKey('completed_at')) {
       context.handle(
         _completedAtMeta,
@@ -7196,8 +8480,6 @@ class $FocusSessionsTable extends FocusSessions
           _completedAtMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_completedAtMeta);
     }
     return context;
   }
@@ -7240,14 +8522,34 @@ class $FocusSessionsTable extends FocusSessions
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       )!,
+      taskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}task_id'],
+      ),
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}started_at'],
+      ),
       durationMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}duration_minutes'],
       )!,
+      breakMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}break_minutes'],
+      )!,
+      elapsedSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}elapsed_seconds'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
       completedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}completed_at'],
-      )!,
+      ),
     );
   }
 
@@ -7266,8 +8568,13 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
   final int schemaVersion;
   final String source;
   final String title;
+  final int? taskId;
+  final DateTime? startedAt;
   final int durationMinutes;
-  final DateTime completedAt;
+  final int breakMinutes;
+  final int elapsedSeconds;
+  final String status;
+  final DateTime? completedAt;
   const FocusSession({
     required this.id,
     required this.uuid,
@@ -7277,8 +8584,13 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
     required this.schemaVersion,
     required this.source,
     required this.title,
+    this.taskId,
+    this.startedAt,
     required this.durationMinutes,
-    required this.completedAt,
+    required this.breakMinutes,
+    required this.elapsedSeconds,
+    required this.status,
+    this.completedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7293,8 +8605,19 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
     map['schema_version'] = Variable<int>(schemaVersion);
     map['source'] = Variable<String>(source);
     map['title'] = Variable<String>(title);
+    if (!nullToAbsent || taskId != null) {
+      map['task_id'] = Variable<int>(taskId);
+    }
+    if (!nullToAbsent || startedAt != null) {
+      map['started_at'] = Variable<DateTime>(startedAt);
+    }
     map['duration_minutes'] = Variable<int>(durationMinutes);
-    map['completed_at'] = Variable<DateTime>(completedAt);
+    map['break_minutes'] = Variable<int>(breakMinutes);
+    map['elapsed_seconds'] = Variable<int>(elapsedSeconds);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
     return map;
   }
 
@@ -7310,8 +8633,19 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
       schemaVersion: Value(schemaVersion),
       source: Value(source),
       title: Value(title),
+      taskId: taskId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taskId),
+      startedAt: startedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startedAt),
       durationMinutes: Value(durationMinutes),
-      completedAt: Value(completedAt),
+      breakMinutes: Value(breakMinutes),
+      elapsedSeconds: Value(elapsedSeconds),
+      status: Value(status),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
     );
   }
 
@@ -7329,8 +8663,13 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
       schemaVersion: serializer.fromJson<int>(json['schemaVersion']),
       source: serializer.fromJson<String>(json['source']),
       title: serializer.fromJson<String>(json['title']),
+      taskId: serializer.fromJson<int?>(json['taskId']),
+      startedAt: serializer.fromJson<DateTime?>(json['startedAt']),
       durationMinutes: serializer.fromJson<int>(json['durationMinutes']),
-      completedAt: serializer.fromJson<DateTime>(json['completedAt']),
+      breakMinutes: serializer.fromJson<int>(json['breakMinutes']),
+      elapsedSeconds: serializer.fromJson<int>(json['elapsedSeconds']),
+      status: serializer.fromJson<String>(json['status']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
     );
   }
   @override
@@ -7345,8 +8684,13 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
       'schemaVersion': serializer.toJson<int>(schemaVersion),
       'source': serializer.toJson<String>(source),
       'title': serializer.toJson<String>(title),
+      'taskId': serializer.toJson<int?>(taskId),
+      'startedAt': serializer.toJson<DateTime?>(startedAt),
       'durationMinutes': serializer.toJson<int>(durationMinutes),
-      'completedAt': serializer.toJson<DateTime>(completedAt),
+      'breakMinutes': serializer.toJson<int>(breakMinutes),
+      'elapsedSeconds': serializer.toJson<int>(elapsedSeconds),
+      'status': serializer.toJson<String>(status),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
     };
   }
 
@@ -7359,8 +8703,13 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
     int? schemaVersion,
     String? source,
     String? title,
+    Value<int?> taskId = const Value.absent(),
+    Value<DateTime?> startedAt = const Value.absent(),
     int? durationMinutes,
-    DateTime? completedAt,
+    int? breakMinutes,
+    int? elapsedSeconds,
+    String? status,
+    Value<DateTime?> completedAt = const Value.absent(),
   }) => FocusSession(
     id: id ?? this.id,
     uuid: uuid ?? this.uuid,
@@ -7370,8 +8719,13 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
     schemaVersion: schemaVersion ?? this.schemaVersion,
     source: source ?? this.source,
     title: title ?? this.title,
+    taskId: taskId.present ? taskId.value : this.taskId,
+    startedAt: startedAt.present ? startedAt.value : this.startedAt,
     durationMinutes: durationMinutes ?? this.durationMinutes,
-    completedAt: completedAt ?? this.completedAt,
+    breakMinutes: breakMinutes ?? this.breakMinutes,
+    elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
+    status: status ?? this.status,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
   );
   FocusSession copyWithCompanion(FocusSessionsCompanion data) {
     return FocusSession(
@@ -7385,9 +8739,18 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
           : this.schemaVersion,
       source: data.source.present ? data.source.value : this.source,
       title: data.title.present ? data.title.value : this.title,
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
       durationMinutes: data.durationMinutes.present
           ? data.durationMinutes.value
           : this.durationMinutes,
+      breakMinutes: data.breakMinutes.present
+          ? data.breakMinutes.value
+          : this.breakMinutes,
+      elapsedSeconds: data.elapsedSeconds.present
+          ? data.elapsedSeconds.value
+          : this.elapsedSeconds,
+      status: data.status.present ? data.status.value : this.status,
       completedAt: data.completedAt.present
           ? data.completedAt.value
           : this.completedAt,
@@ -7405,7 +8768,12 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('source: $source, ')
           ..write('title: $title, ')
+          ..write('taskId: $taskId, ')
+          ..write('startedAt: $startedAt, ')
           ..write('durationMinutes: $durationMinutes, ')
+          ..write('breakMinutes: $breakMinutes, ')
+          ..write('elapsedSeconds: $elapsedSeconds, ')
+          ..write('status: $status, ')
           ..write('completedAt: $completedAt')
           ..write(')'))
         .toString();
@@ -7421,7 +8789,12 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
     schemaVersion,
     source,
     title,
+    taskId,
+    startedAt,
     durationMinutes,
+    breakMinutes,
+    elapsedSeconds,
+    status,
     completedAt,
   );
   @override
@@ -7436,7 +8809,12 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
           other.schemaVersion == this.schemaVersion &&
           other.source == this.source &&
           other.title == this.title &&
+          other.taskId == this.taskId &&
+          other.startedAt == this.startedAt &&
           other.durationMinutes == this.durationMinutes &&
+          other.breakMinutes == this.breakMinutes &&
+          other.elapsedSeconds == this.elapsedSeconds &&
+          other.status == this.status &&
           other.completedAt == this.completedAt);
 }
 
@@ -7449,8 +8827,13 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
   final Value<int> schemaVersion;
   final Value<String> source;
   final Value<String> title;
+  final Value<int?> taskId;
+  final Value<DateTime?> startedAt;
   final Value<int> durationMinutes;
-  final Value<DateTime> completedAt;
+  final Value<int> breakMinutes;
+  final Value<int> elapsedSeconds;
+  final Value<String> status;
+  final Value<DateTime?> completedAt;
   const FocusSessionsCompanion({
     this.id = const Value.absent(),
     this.uuid = const Value.absent(),
@@ -7460,7 +8843,12 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
     this.schemaVersion = const Value.absent(),
     this.source = const Value.absent(),
     this.title = const Value.absent(),
+    this.taskId = const Value.absent(),
+    this.startedAt = const Value.absent(),
     this.durationMinutes = const Value.absent(),
+    this.breakMinutes = const Value.absent(),
+    this.elapsedSeconds = const Value.absent(),
+    this.status = const Value.absent(),
     this.completedAt = const Value.absent(),
   });
   FocusSessionsCompanion.insert({
@@ -7472,14 +8860,18 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
     this.schemaVersion = const Value.absent(),
     this.source = const Value.absent(),
     required String title,
+    this.taskId = const Value.absent(),
+    this.startedAt = const Value.absent(),
     required int durationMinutes,
-    required DateTime completedAt,
+    this.breakMinutes = const Value.absent(),
+    this.elapsedSeconds = const Value.absent(),
+    this.status = const Value.absent(),
+    this.completedAt = const Value.absent(),
   }) : uuid = Value(uuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
        title = Value(title),
-       durationMinutes = Value(durationMinutes),
-       completedAt = Value(completedAt);
+       durationMinutes = Value(durationMinutes);
   static Insertable<FocusSession> custom({
     Expression<int>? id,
     Expression<String>? uuid,
@@ -7489,7 +8881,12 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
     Expression<int>? schemaVersion,
     Expression<String>? source,
     Expression<String>? title,
+    Expression<int>? taskId,
+    Expression<DateTime>? startedAt,
     Expression<int>? durationMinutes,
+    Expression<int>? breakMinutes,
+    Expression<int>? elapsedSeconds,
+    Expression<String>? status,
     Expression<DateTime>? completedAt,
   }) {
     return RawValuesInsertable({
@@ -7501,7 +8898,12 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
       if (schemaVersion != null) 'schema_version': schemaVersion,
       if (source != null) 'source': source,
       if (title != null) 'title': title,
+      if (taskId != null) 'task_id': taskId,
+      if (startedAt != null) 'started_at': startedAt,
       if (durationMinutes != null) 'duration_minutes': durationMinutes,
+      if (breakMinutes != null) 'break_minutes': breakMinutes,
+      if (elapsedSeconds != null) 'elapsed_seconds': elapsedSeconds,
+      if (status != null) 'status': status,
       if (completedAt != null) 'completed_at': completedAt,
     });
   }
@@ -7515,8 +8917,13 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
     Value<int>? schemaVersion,
     Value<String>? source,
     Value<String>? title,
+    Value<int?>? taskId,
+    Value<DateTime?>? startedAt,
     Value<int>? durationMinutes,
-    Value<DateTime>? completedAt,
+    Value<int>? breakMinutes,
+    Value<int>? elapsedSeconds,
+    Value<String>? status,
+    Value<DateTime?>? completedAt,
   }) {
     return FocusSessionsCompanion(
       id: id ?? this.id,
@@ -7527,7 +8934,12 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
       schemaVersion: schemaVersion ?? this.schemaVersion,
       source: source ?? this.source,
       title: title ?? this.title,
+      taskId: taskId ?? this.taskId,
+      startedAt: startedAt ?? this.startedAt,
       durationMinutes: durationMinutes ?? this.durationMinutes,
+      breakMinutes: breakMinutes ?? this.breakMinutes,
+      elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
+      status: status ?? this.status,
       completedAt: completedAt ?? this.completedAt,
     );
   }
@@ -7559,8 +8971,23 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
+    if (taskId.present) {
+      map['task_id'] = Variable<int>(taskId.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
     if (durationMinutes.present) {
       map['duration_minutes'] = Variable<int>(durationMinutes.value);
+    }
+    if (breakMinutes.present) {
+      map['break_minutes'] = Variable<int>(breakMinutes.value);
+    }
+    if (elapsedSeconds.present) {
+      map['elapsed_seconds'] = Variable<int>(elapsedSeconds.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
     }
     if (completedAt.present) {
       map['completed_at'] = Variable<DateTime>(completedAt.value);
@@ -7579,7 +9006,12 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('source: $source, ')
           ..write('title: $title, ')
+          ..write('taskId: $taskId, ')
+          ..write('startedAt: $startedAt, ')
           ..write('durationMinutes: $durationMinutes, ')
+          ..write('breakMinutes: $breakMinutes, ')
+          ..write('elapsedSeconds: $elapsedSeconds, ')
+          ..write('status: $status, ')
           ..write('completedAt: $completedAt')
           ..write(')'))
         .toString();
@@ -7688,6 +9120,85 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _weekdaysJsonMeta = const VerificationMeta(
+    'weekdaysJson',
+  );
+  @override
+  late final GeneratedColumn<String> weekdaysJson = GeneratedColumn<String>(
+    'weekdays_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _preferredTimeMinutesMeta =
+      const VerificationMeta('preferredTimeMinutes');
+  @override
+  late final GeneratedColumn<int> preferredTimeMinutes = GeneratedColumn<int>(
+    'preferred_time_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reminderAtMeta = const VerificationMeta(
+    'reminderAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> reminderAt = GeneratedColumn<DateTime>(
+    'reminder_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _streakCountMeta = const VerificationMeta(
+    'streakCount',
+  );
+  @override
+  late final GeneratedColumn<int> streakCount = GeneratedColumn<int>(
+    'streak_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _completionHistoryJsonMeta =
+      const VerificationMeta('completionHistoryJson');
+  @override
+  late final GeneratedColumn<String> completionHistoryJson =
+      GeneratedColumn<String>(
+        'completion_history_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      );
+  static const VerificationMeta _pausedUntilMeta = const VerificationMeta(
+    'pausedUntil',
+  );
+  @override
+  late final GeneratedColumn<DateTime> pausedUntil = GeneratedColumn<DateTime>(
+    'paused_until',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> archivedAt = GeneratedColumn<DateTime>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isActiveMeta = const VerificationMeta(
     'isActive',
   );
@@ -7714,6 +9225,13 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     source,
     title,
     frequency,
+    weekdaysJson,
+    preferredTimeMinutes,
+    reminderAt,
+    streakCount,
+    completionHistoryJson,
+    pausedUntil,
+    archivedAt,
     isActive,
   ];
   @override
@@ -7792,6 +9310,63 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     } else if (isInserting) {
       context.missing(_frequencyMeta);
     }
+    if (data.containsKey('weekdays_json')) {
+      context.handle(
+        _weekdaysJsonMeta,
+        weekdaysJson.isAcceptableOrUnknown(
+          data['weekdays_json']!,
+          _weekdaysJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('preferred_time_minutes')) {
+      context.handle(
+        _preferredTimeMinutesMeta,
+        preferredTimeMinutes.isAcceptableOrUnknown(
+          data['preferred_time_minutes']!,
+          _preferredTimeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reminder_at')) {
+      context.handle(
+        _reminderAtMeta,
+        reminderAt.isAcceptableOrUnknown(data['reminder_at']!, _reminderAtMeta),
+      );
+    }
+    if (data.containsKey('streak_count')) {
+      context.handle(
+        _streakCountMeta,
+        streakCount.isAcceptableOrUnknown(
+          data['streak_count']!,
+          _streakCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('completion_history_json')) {
+      context.handle(
+        _completionHistoryJsonMeta,
+        completionHistoryJson.isAcceptableOrUnknown(
+          data['completion_history_json']!,
+          _completionHistoryJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('paused_until')) {
+      context.handle(
+        _pausedUntilMeta,
+        pausedUntil.isAcceptableOrUnknown(
+          data['paused_until']!,
+          _pausedUntilMeta,
+        ),
+      );
+    }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
+      );
+    }
     if (data.containsKey('is_active')) {
       context.handle(
         _isActiveMeta,
@@ -7843,6 +9418,34 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
         DriftSqlType.string,
         data['${effectivePrefix}frequency'],
       )!,
+      weekdaysJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}weekdays_json'],
+      )!,
+      preferredTimeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}preferred_time_minutes'],
+      ),
+      reminderAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}reminder_at'],
+      ),
+      streakCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}streak_count'],
+      )!,
+      completionHistoryJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}completion_history_json'],
+      )!,
+      pausedUntil: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}paused_until'],
+      ),
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}archived_at'],
+      ),
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
@@ -7866,6 +9469,13 @@ class Routine extends DataClass implements Insertable<Routine> {
   final String source;
   final String title;
   final String frequency;
+  final String weekdaysJson;
+  final int? preferredTimeMinutes;
+  final DateTime? reminderAt;
+  final int streakCount;
+  final String completionHistoryJson;
+  final DateTime? pausedUntil;
+  final DateTime? archivedAt;
   final bool isActive;
   const Routine({
     required this.id,
@@ -7877,6 +9487,13 @@ class Routine extends DataClass implements Insertable<Routine> {
     required this.source,
     required this.title,
     required this.frequency,
+    required this.weekdaysJson,
+    this.preferredTimeMinutes,
+    this.reminderAt,
+    required this.streakCount,
+    required this.completionHistoryJson,
+    this.pausedUntil,
+    this.archivedAt,
     required this.isActive,
   });
   @override
@@ -7893,6 +9510,21 @@ class Routine extends DataClass implements Insertable<Routine> {
     map['source'] = Variable<String>(source);
     map['title'] = Variable<String>(title);
     map['frequency'] = Variable<String>(frequency);
+    map['weekdays_json'] = Variable<String>(weekdaysJson);
+    if (!nullToAbsent || preferredTimeMinutes != null) {
+      map['preferred_time_minutes'] = Variable<int>(preferredTimeMinutes);
+    }
+    if (!nullToAbsent || reminderAt != null) {
+      map['reminder_at'] = Variable<DateTime>(reminderAt);
+    }
+    map['streak_count'] = Variable<int>(streakCount);
+    map['completion_history_json'] = Variable<String>(completionHistoryJson);
+    if (!nullToAbsent || pausedUntil != null) {
+      map['paused_until'] = Variable<DateTime>(pausedUntil);
+    }
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<DateTime>(archivedAt);
+    }
     map['is_active'] = Variable<bool>(isActive);
     return map;
   }
@@ -7910,6 +9542,21 @@ class Routine extends DataClass implements Insertable<Routine> {
       source: Value(source),
       title: Value(title),
       frequency: Value(frequency),
+      weekdaysJson: Value(weekdaysJson),
+      preferredTimeMinutes: preferredTimeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(preferredTimeMinutes),
+      reminderAt: reminderAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderAt),
+      streakCount: Value(streakCount),
+      completionHistoryJson: Value(completionHistoryJson),
+      pausedUntil: pausedUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pausedUntil),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
       isActive: Value(isActive),
     );
   }
@@ -7929,6 +9576,17 @@ class Routine extends DataClass implements Insertable<Routine> {
       source: serializer.fromJson<String>(json['source']),
       title: serializer.fromJson<String>(json['title']),
       frequency: serializer.fromJson<String>(json['frequency']),
+      weekdaysJson: serializer.fromJson<String>(json['weekdaysJson']),
+      preferredTimeMinutes: serializer.fromJson<int?>(
+        json['preferredTimeMinutes'],
+      ),
+      reminderAt: serializer.fromJson<DateTime?>(json['reminderAt']),
+      streakCount: serializer.fromJson<int>(json['streakCount']),
+      completionHistoryJson: serializer.fromJson<String>(
+        json['completionHistoryJson'],
+      ),
+      pausedUntil: serializer.fromJson<DateTime?>(json['pausedUntil']),
+      archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       isActive: serializer.fromJson<bool>(json['isActive']),
     );
   }
@@ -7945,6 +9603,13 @@ class Routine extends DataClass implements Insertable<Routine> {
       'source': serializer.toJson<String>(source),
       'title': serializer.toJson<String>(title),
       'frequency': serializer.toJson<String>(frequency),
+      'weekdaysJson': serializer.toJson<String>(weekdaysJson),
+      'preferredTimeMinutes': serializer.toJson<int?>(preferredTimeMinutes),
+      'reminderAt': serializer.toJson<DateTime?>(reminderAt),
+      'streakCount': serializer.toJson<int>(streakCount),
+      'completionHistoryJson': serializer.toJson<String>(completionHistoryJson),
+      'pausedUntil': serializer.toJson<DateTime?>(pausedUntil),
+      'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'isActive': serializer.toJson<bool>(isActive),
     };
   }
@@ -7959,6 +9624,13 @@ class Routine extends DataClass implements Insertable<Routine> {
     String? source,
     String? title,
     String? frequency,
+    String? weekdaysJson,
+    Value<int?> preferredTimeMinutes = const Value.absent(),
+    Value<DateTime?> reminderAt = const Value.absent(),
+    int? streakCount,
+    String? completionHistoryJson,
+    Value<DateTime?> pausedUntil = const Value.absent(),
+    Value<DateTime?> archivedAt = const Value.absent(),
     bool? isActive,
   }) => Routine(
     id: id ?? this.id,
@@ -7970,6 +9642,15 @@ class Routine extends DataClass implements Insertable<Routine> {
     source: source ?? this.source,
     title: title ?? this.title,
     frequency: frequency ?? this.frequency,
+    weekdaysJson: weekdaysJson ?? this.weekdaysJson,
+    preferredTimeMinutes: preferredTimeMinutes.present
+        ? preferredTimeMinutes.value
+        : this.preferredTimeMinutes,
+    reminderAt: reminderAt.present ? reminderAt.value : this.reminderAt,
+    streakCount: streakCount ?? this.streakCount,
+    completionHistoryJson: completionHistoryJson ?? this.completionHistoryJson,
+    pausedUntil: pausedUntil.present ? pausedUntil.value : this.pausedUntil,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     isActive: isActive ?? this.isActive,
   );
   Routine copyWithCompanion(RoutinesCompanion data) {
@@ -7985,6 +9666,27 @@ class Routine extends DataClass implements Insertable<Routine> {
       source: data.source.present ? data.source.value : this.source,
       title: data.title.present ? data.title.value : this.title,
       frequency: data.frequency.present ? data.frequency.value : this.frequency,
+      weekdaysJson: data.weekdaysJson.present
+          ? data.weekdaysJson.value
+          : this.weekdaysJson,
+      preferredTimeMinutes: data.preferredTimeMinutes.present
+          ? data.preferredTimeMinutes.value
+          : this.preferredTimeMinutes,
+      reminderAt: data.reminderAt.present
+          ? data.reminderAt.value
+          : this.reminderAt,
+      streakCount: data.streakCount.present
+          ? data.streakCount.value
+          : this.streakCount,
+      completionHistoryJson: data.completionHistoryJson.present
+          ? data.completionHistoryJson.value
+          : this.completionHistoryJson,
+      pausedUntil: data.pausedUntil.present
+          ? data.pausedUntil.value
+          : this.pausedUntil,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
     );
   }
@@ -8001,6 +9703,13 @@ class Routine extends DataClass implements Insertable<Routine> {
           ..write('source: $source, ')
           ..write('title: $title, ')
           ..write('frequency: $frequency, ')
+          ..write('weekdaysJson: $weekdaysJson, ')
+          ..write('preferredTimeMinutes: $preferredTimeMinutes, ')
+          ..write('reminderAt: $reminderAt, ')
+          ..write('streakCount: $streakCount, ')
+          ..write('completionHistoryJson: $completionHistoryJson, ')
+          ..write('pausedUntil: $pausedUntil, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('isActive: $isActive')
           ..write(')'))
         .toString();
@@ -8017,6 +9726,13 @@ class Routine extends DataClass implements Insertable<Routine> {
     source,
     title,
     frequency,
+    weekdaysJson,
+    preferredTimeMinutes,
+    reminderAt,
+    streakCount,
+    completionHistoryJson,
+    pausedUntil,
+    archivedAt,
     isActive,
   );
   @override
@@ -8032,6 +9748,13 @@ class Routine extends DataClass implements Insertable<Routine> {
           other.source == this.source &&
           other.title == this.title &&
           other.frequency == this.frequency &&
+          other.weekdaysJson == this.weekdaysJson &&
+          other.preferredTimeMinutes == this.preferredTimeMinutes &&
+          other.reminderAt == this.reminderAt &&
+          other.streakCount == this.streakCount &&
+          other.completionHistoryJson == this.completionHistoryJson &&
+          other.pausedUntil == this.pausedUntil &&
+          other.archivedAt == this.archivedAt &&
           other.isActive == this.isActive);
 }
 
@@ -8045,6 +9768,13 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   final Value<String> source;
   final Value<String> title;
   final Value<String> frequency;
+  final Value<String> weekdaysJson;
+  final Value<int?> preferredTimeMinutes;
+  final Value<DateTime?> reminderAt;
+  final Value<int> streakCount;
+  final Value<String> completionHistoryJson;
+  final Value<DateTime?> pausedUntil;
+  final Value<DateTime?> archivedAt;
   final Value<bool> isActive;
   const RoutinesCompanion({
     this.id = const Value.absent(),
@@ -8056,6 +9786,13 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     this.source = const Value.absent(),
     this.title = const Value.absent(),
     this.frequency = const Value.absent(),
+    this.weekdaysJson = const Value.absent(),
+    this.preferredTimeMinutes = const Value.absent(),
+    this.reminderAt = const Value.absent(),
+    this.streakCount = const Value.absent(),
+    this.completionHistoryJson = const Value.absent(),
+    this.pausedUntil = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.isActive = const Value.absent(),
   });
   RoutinesCompanion.insert({
@@ -8068,6 +9805,13 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     this.source = const Value.absent(),
     required String title,
     required String frequency,
+    this.weekdaysJson = const Value.absent(),
+    this.preferredTimeMinutes = const Value.absent(),
+    this.reminderAt = const Value.absent(),
+    this.streakCount = const Value.absent(),
+    this.completionHistoryJson = const Value.absent(),
+    this.pausedUntil = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.isActive = const Value.absent(),
   }) : uuid = Value(uuid),
        createdAt = Value(createdAt),
@@ -8084,6 +9828,13 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     Expression<String>? source,
     Expression<String>? title,
     Expression<String>? frequency,
+    Expression<String>? weekdaysJson,
+    Expression<int>? preferredTimeMinutes,
+    Expression<DateTime>? reminderAt,
+    Expression<int>? streakCount,
+    Expression<String>? completionHistoryJson,
+    Expression<DateTime>? pausedUntil,
+    Expression<DateTime>? archivedAt,
     Expression<bool>? isActive,
   }) {
     return RawValuesInsertable({
@@ -8096,6 +9847,15 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
       if (source != null) 'source': source,
       if (title != null) 'title': title,
       if (frequency != null) 'frequency': frequency,
+      if (weekdaysJson != null) 'weekdays_json': weekdaysJson,
+      if (preferredTimeMinutes != null)
+        'preferred_time_minutes': preferredTimeMinutes,
+      if (reminderAt != null) 'reminder_at': reminderAt,
+      if (streakCount != null) 'streak_count': streakCount,
+      if (completionHistoryJson != null)
+        'completion_history_json': completionHistoryJson,
+      if (pausedUntil != null) 'paused_until': pausedUntil,
+      if (archivedAt != null) 'archived_at': archivedAt,
       if (isActive != null) 'is_active': isActive,
     });
   }
@@ -8110,6 +9870,13 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     Value<String>? source,
     Value<String>? title,
     Value<String>? frequency,
+    Value<String>? weekdaysJson,
+    Value<int?>? preferredTimeMinutes,
+    Value<DateTime?>? reminderAt,
+    Value<int>? streakCount,
+    Value<String>? completionHistoryJson,
+    Value<DateTime?>? pausedUntil,
+    Value<DateTime?>? archivedAt,
     Value<bool>? isActive,
   }) {
     return RoutinesCompanion(
@@ -8122,6 +9889,14 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
       source: source ?? this.source,
       title: title ?? this.title,
       frequency: frequency ?? this.frequency,
+      weekdaysJson: weekdaysJson ?? this.weekdaysJson,
+      preferredTimeMinutes: preferredTimeMinutes ?? this.preferredTimeMinutes,
+      reminderAt: reminderAt ?? this.reminderAt,
+      streakCount: streakCount ?? this.streakCount,
+      completionHistoryJson:
+          completionHistoryJson ?? this.completionHistoryJson,
+      pausedUntil: pausedUntil ?? this.pausedUntil,
+      archivedAt: archivedAt ?? this.archivedAt,
       isActive: isActive ?? this.isActive,
     );
   }
@@ -8156,6 +9931,29 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     if (frequency.present) {
       map['frequency'] = Variable<String>(frequency.value);
     }
+    if (weekdaysJson.present) {
+      map['weekdays_json'] = Variable<String>(weekdaysJson.value);
+    }
+    if (preferredTimeMinutes.present) {
+      map['preferred_time_minutes'] = Variable<int>(preferredTimeMinutes.value);
+    }
+    if (reminderAt.present) {
+      map['reminder_at'] = Variable<DateTime>(reminderAt.value);
+    }
+    if (streakCount.present) {
+      map['streak_count'] = Variable<int>(streakCount.value);
+    }
+    if (completionHistoryJson.present) {
+      map['completion_history_json'] = Variable<String>(
+        completionHistoryJson.value,
+      );
+    }
+    if (pausedUntil.present) {
+      map['paused_until'] = Variable<DateTime>(pausedUntil.value);
+    }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<DateTime>(archivedAt.value);
+    }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
@@ -8174,6 +9972,13 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
           ..write('source: $source, ')
           ..write('title: $title, ')
           ..write('frequency: $frequency, ')
+          ..write('weekdaysJson: $weekdaysJson, ')
+          ..write('preferredTimeMinutes: $preferredTimeMinutes, ')
+          ..write('reminderAt: $reminderAt, ')
+          ..write('streakCount: $streakCount, ')
+          ..write('completionHistoryJson: $completionHistoryJson, ')
+          ..write('pausedUntil: $pausedUntil, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('isActive: $isActive')
           ..write(')'))
         .toString();
@@ -10836,6 +12641,44 @@ class $PantryItemsTable extends PantryItems
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('General'),
+  );
+  static const VerificationMeta _lowStockMeta = const VerificationMeta(
+    'lowStock',
+  );
+  @override
+  late final GeneratedColumn<bool> lowStock = GeneratedColumn<bool>(
+    'low_stock',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("low_stock" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _expiryDateMeta = const VerificationMeta(
+    'expiryDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> expiryDate = GeneratedColumn<DateTime>(
+    'expiry_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -10848,6 +12691,9 @@ class $PantryItemsTable extends PantryItems
     name,
     quantity,
     unit,
+    category,
+    lowStock,
+    expiryDate,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -10933,6 +12779,24 @@ class $PantryItemsTable extends PantryItems
     } else if (isInserting) {
       context.missing(_unitMeta);
     }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('low_stock')) {
+      context.handle(
+        _lowStockMeta,
+        lowStock.isAcceptableOrUnknown(data['low_stock']!, _lowStockMeta),
+      );
+    }
+    if (data.containsKey('expiry_date')) {
+      context.handle(
+        _expiryDateMeta,
+        expiryDate.isAcceptableOrUnknown(data['expiry_date']!, _expiryDateMeta),
+      );
+    }
     return context;
   }
 
@@ -10982,6 +12846,18 @@ class $PantryItemsTable extends PantryItems
         DriftSqlType.string,
         data['${effectivePrefix}unit'],
       )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
+      lowStock: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}low_stock'],
+      )!,
+      expiryDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}expiry_date'],
+      ),
     );
   }
 
@@ -11002,6 +12878,9 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
   final String name;
   final double quantity;
   final String unit;
+  final String category;
+  final bool lowStock;
+  final DateTime? expiryDate;
   const PantryItem({
     required this.id,
     required this.uuid,
@@ -11013,6 +12892,9 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
     required this.name,
     required this.quantity,
     required this.unit,
+    required this.category,
+    required this.lowStock,
+    this.expiryDate,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11029,6 +12911,11 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
     map['name'] = Variable<String>(name);
     map['quantity'] = Variable<double>(quantity);
     map['unit'] = Variable<String>(unit);
+    map['category'] = Variable<String>(category);
+    map['low_stock'] = Variable<bool>(lowStock);
+    if (!nullToAbsent || expiryDate != null) {
+      map['expiry_date'] = Variable<DateTime>(expiryDate);
+    }
     return map;
   }
 
@@ -11046,6 +12933,11 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
       name: Value(name),
       quantity: Value(quantity),
       unit: Value(unit),
+      category: Value(category),
+      lowStock: Value(lowStock),
+      expiryDate: expiryDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expiryDate),
     );
   }
 
@@ -11065,6 +12957,9 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
       name: serializer.fromJson<String>(json['name']),
       quantity: serializer.fromJson<double>(json['quantity']),
       unit: serializer.fromJson<String>(json['unit']),
+      category: serializer.fromJson<String>(json['category']),
+      lowStock: serializer.fromJson<bool>(json['lowStock']),
+      expiryDate: serializer.fromJson<DateTime?>(json['expiryDate']),
     );
   }
   @override
@@ -11081,6 +12976,9 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
       'name': serializer.toJson<String>(name),
       'quantity': serializer.toJson<double>(quantity),
       'unit': serializer.toJson<String>(unit),
+      'category': serializer.toJson<String>(category),
+      'lowStock': serializer.toJson<bool>(lowStock),
+      'expiryDate': serializer.toJson<DateTime?>(expiryDate),
     };
   }
 
@@ -11095,6 +12993,9 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
     String? name,
     double? quantity,
     String? unit,
+    String? category,
+    bool? lowStock,
+    Value<DateTime?> expiryDate = const Value.absent(),
   }) => PantryItem(
     id: id ?? this.id,
     uuid: uuid ?? this.uuid,
@@ -11106,6 +13007,9 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
     name: name ?? this.name,
     quantity: quantity ?? this.quantity,
     unit: unit ?? this.unit,
+    category: category ?? this.category,
+    lowStock: lowStock ?? this.lowStock,
+    expiryDate: expiryDate.present ? expiryDate.value : this.expiryDate,
   );
   PantryItem copyWithCompanion(PantryItemsCompanion data) {
     return PantryItem(
@@ -11121,6 +13025,11 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
       name: data.name.present ? data.name.value : this.name,
       quantity: data.quantity.present ? data.quantity.value : this.quantity,
       unit: data.unit.present ? data.unit.value : this.unit,
+      category: data.category.present ? data.category.value : this.category,
+      lowStock: data.lowStock.present ? data.lowStock.value : this.lowStock,
+      expiryDate: data.expiryDate.present
+          ? data.expiryDate.value
+          : this.expiryDate,
     );
   }
 
@@ -11136,7 +13045,10 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
           ..write('source: $source, ')
           ..write('name: $name, ')
           ..write('quantity: $quantity, ')
-          ..write('unit: $unit')
+          ..write('unit: $unit, ')
+          ..write('category: $category, ')
+          ..write('lowStock: $lowStock, ')
+          ..write('expiryDate: $expiryDate')
           ..write(')'))
         .toString();
   }
@@ -11153,6 +13065,9 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
     name,
     quantity,
     unit,
+    category,
+    lowStock,
+    expiryDate,
   );
   @override
   bool operator ==(Object other) =>
@@ -11167,7 +13082,10 @@ class PantryItem extends DataClass implements Insertable<PantryItem> {
           other.source == this.source &&
           other.name == this.name &&
           other.quantity == this.quantity &&
-          other.unit == this.unit);
+          other.unit == this.unit &&
+          other.category == this.category &&
+          other.lowStock == this.lowStock &&
+          other.expiryDate == this.expiryDate);
 }
 
 class PantryItemsCompanion extends UpdateCompanion<PantryItem> {
@@ -11181,6 +13099,9 @@ class PantryItemsCompanion extends UpdateCompanion<PantryItem> {
   final Value<String> name;
   final Value<double> quantity;
   final Value<String> unit;
+  final Value<String> category;
+  final Value<bool> lowStock;
+  final Value<DateTime?> expiryDate;
   const PantryItemsCompanion({
     this.id = const Value.absent(),
     this.uuid = const Value.absent(),
@@ -11192,6 +13113,9 @@ class PantryItemsCompanion extends UpdateCompanion<PantryItem> {
     this.name = const Value.absent(),
     this.quantity = const Value.absent(),
     this.unit = const Value.absent(),
+    this.category = const Value.absent(),
+    this.lowStock = const Value.absent(),
+    this.expiryDate = const Value.absent(),
   });
   PantryItemsCompanion.insert({
     this.id = const Value.absent(),
@@ -11204,6 +13128,9 @@ class PantryItemsCompanion extends UpdateCompanion<PantryItem> {
     required String name,
     required double quantity,
     required String unit,
+    this.category = const Value.absent(),
+    this.lowStock = const Value.absent(),
+    this.expiryDate = const Value.absent(),
   }) : uuid = Value(uuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -11221,6 +13148,9 @@ class PantryItemsCompanion extends UpdateCompanion<PantryItem> {
     Expression<String>? name,
     Expression<double>? quantity,
     Expression<String>? unit,
+    Expression<String>? category,
+    Expression<bool>? lowStock,
+    Expression<DateTime>? expiryDate,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -11233,6 +13163,9 @@ class PantryItemsCompanion extends UpdateCompanion<PantryItem> {
       if (name != null) 'name': name,
       if (quantity != null) 'quantity': quantity,
       if (unit != null) 'unit': unit,
+      if (category != null) 'category': category,
+      if (lowStock != null) 'low_stock': lowStock,
+      if (expiryDate != null) 'expiry_date': expiryDate,
     });
   }
 
@@ -11247,6 +13180,9 @@ class PantryItemsCompanion extends UpdateCompanion<PantryItem> {
     Value<String>? name,
     Value<double>? quantity,
     Value<String>? unit,
+    Value<String>? category,
+    Value<bool>? lowStock,
+    Value<DateTime?>? expiryDate,
   }) {
     return PantryItemsCompanion(
       id: id ?? this.id,
@@ -11259,6 +13195,9 @@ class PantryItemsCompanion extends UpdateCompanion<PantryItem> {
       name: name ?? this.name,
       quantity: quantity ?? this.quantity,
       unit: unit ?? this.unit,
+      category: category ?? this.category,
+      lowStock: lowStock ?? this.lowStock,
+      expiryDate: expiryDate ?? this.expiryDate,
     );
   }
 
@@ -11295,6 +13234,15 @@ class PantryItemsCompanion extends UpdateCompanion<PantryItem> {
     if (unit.present) {
       map['unit'] = Variable<String>(unit.value);
     }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (lowStock.present) {
+      map['low_stock'] = Variable<bool>(lowStock.value);
+    }
+    if (expiryDate.present) {
+      map['expiry_date'] = Variable<DateTime>(expiryDate.value);
+    }
     return map;
   }
 
@@ -11310,7 +13258,10 @@ class PantryItemsCompanion extends UpdateCompanion<PantryItem> {
           ..write('source: $source, ')
           ..write('name: $name, ')
           ..write('quantity: $quantity, ')
-          ..write('unit: $unit')
+          ..write('unit: $unit, ')
+          ..write('category: $category, ')
+          ..write('lowStock: $lowStock, ')
+          ..write('expiryDate: $expiryDate')
           ..write(')'))
         .toString();
   }
@@ -11410,6 +13361,49 @@ class $ShoppingItemsTable extends ShoppingItems
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<String> quantity = GeneratedColumn<String>(
+    'quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unitMeta = const VerificationMeta('unit');
+  @override
+  late final GeneratedColumn<String> unit = GeneratedColumn<String>(
+    'unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('General'),
+  );
+  static const VerificationMeta _sourceMealTitleMeta = const VerificationMeta(
+    'sourceMealTitle',
+  );
+  @override
+  late final GeneratedColumn<String> sourceMealTitle = GeneratedColumn<String>(
+    'source_meal_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isPurchasedMeta = const VerificationMeta(
     'isPurchased',
   );
@@ -11435,6 +13429,10 @@ class $ShoppingItemsTable extends ShoppingItems
     schemaVersion,
     source,
     itemName,
+    quantity,
+    unit,
+    category,
+    sourceMealTitle,
     isPurchased,
   ];
   @override
@@ -11505,6 +13503,33 @@ class $ShoppingItemsTable extends ShoppingItems
     } else if (isInserting) {
       context.missing(_itemNameMeta);
     }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    }
+    if (data.containsKey('unit')) {
+      context.handle(
+        _unitMeta,
+        unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
+      );
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('source_meal_title')) {
+      context.handle(
+        _sourceMealTitleMeta,
+        sourceMealTitle.isAcceptableOrUnknown(
+          data['source_meal_title']!,
+          _sourceMealTitleMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_purchased')) {
       context.handle(
         _isPurchasedMeta,
@@ -11555,6 +13580,22 @@ class $ShoppingItemsTable extends ShoppingItems
         DriftSqlType.string,
         data['${effectivePrefix}item_name'],
       )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}quantity'],
+      ),
+      unit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit'],
+      ),
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
+      sourceMealTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_meal_title'],
+      ),
       isPurchased: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_purchased'],
@@ -11577,6 +13618,10 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
   final int schemaVersion;
   final String source;
   final String itemName;
+  final String? quantity;
+  final String? unit;
+  final String category;
+  final String? sourceMealTitle;
   final bool isPurchased;
   const ShoppingItem({
     required this.id,
@@ -11587,6 +13632,10 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
     required this.schemaVersion,
     required this.source,
     required this.itemName,
+    this.quantity,
+    this.unit,
+    required this.category,
+    this.sourceMealTitle,
     required this.isPurchased,
   });
   @override
@@ -11602,6 +13651,16 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
     map['schema_version'] = Variable<int>(schemaVersion);
     map['source'] = Variable<String>(source);
     map['item_name'] = Variable<String>(itemName);
+    if (!nullToAbsent || quantity != null) {
+      map['quantity'] = Variable<String>(quantity);
+    }
+    if (!nullToAbsent || unit != null) {
+      map['unit'] = Variable<String>(unit);
+    }
+    map['category'] = Variable<String>(category);
+    if (!nullToAbsent || sourceMealTitle != null) {
+      map['source_meal_title'] = Variable<String>(sourceMealTitle);
+    }
     map['is_purchased'] = Variable<bool>(isPurchased);
     return map;
   }
@@ -11618,6 +13677,14 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
       schemaVersion: Value(schemaVersion),
       source: Value(source),
       itemName: Value(itemName),
+      quantity: quantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quantity),
+      unit: unit == null && nullToAbsent ? const Value.absent() : Value(unit),
+      category: Value(category),
+      sourceMealTitle: sourceMealTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceMealTitle),
       isPurchased: Value(isPurchased),
     );
   }
@@ -11636,6 +13703,10 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
       schemaVersion: serializer.fromJson<int>(json['schemaVersion']),
       source: serializer.fromJson<String>(json['source']),
       itemName: serializer.fromJson<String>(json['itemName']),
+      quantity: serializer.fromJson<String?>(json['quantity']),
+      unit: serializer.fromJson<String?>(json['unit']),
+      category: serializer.fromJson<String>(json['category']),
+      sourceMealTitle: serializer.fromJson<String?>(json['sourceMealTitle']),
       isPurchased: serializer.fromJson<bool>(json['isPurchased']),
     );
   }
@@ -11651,6 +13722,10 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
       'schemaVersion': serializer.toJson<int>(schemaVersion),
       'source': serializer.toJson<String>(source),
       'itemName': serializer.toJson<String>(itemName),
+      'quantity': serializer.toJson<String?>(quantity),
+      'unit': serializer.toJson<String?>(unit),
+      'category': serializer.toJson<String>(category),
+      'sourceMealTitle': serializer.toJson<String?>(sourceMealTitle),
       'isPurchased': serializer.toJson<bool>(isPurchased),
     };
   }
@@ -11664,6 +13739,10 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
     int? schemaVersion,
     String? source,
     String? itemName,
+    Value<String?> quantity = const Value.absent(),
+    Value<String?> unit = const Value.absent(),
+    String? category,
+    Value<String?> sourceMealTitle = const Value.absent(),
     bool? isPurchased,
   }) => ShoppingItem(
     id: id ?? this.id,
@@ -11674,6 +13753,12 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
     schemaVersion: schemaVersion ?? this.schemaVersion,
     source: source ?? this.source,
     itemName: itemName ?? this.itemName,
+    quantity: quantity.present ? quantity.value : this.quantity,
+    unit: unit.present ? unit.value : this.unit,
+    category: category ?? this.category,
+    sourceMealTitle: sourceMealTitle.present
+        ? sourceMealTitle.value
+        : this.sourceMealTitle,
     isPurchased: isPurchased ?? this.isPurchased,
   );
   ShoppingItem copyWithCompanion(ShoppingItemsCompanion data) {
@@ -11688,6 +13773,12 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
           : this.schemaVersion,
       source: data.source.present ? data.source.value : this.source,
       itemName: data.itemName.present ? data.itemName.value : this.itemName,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      unit: data.unit.present ? data.unit.value : this.unit,
+      category: data.category.present ? data.category.value : this.category,
+      sourceMealTitle: data.sourceMealTitle.present
+          ? data.sourceMealTitle.value
+          : this.sourceMealTitle,
       isPurchased: data.isPurchased.present
           ? data.isPurchased.value
           : this.isPurchased,
@@ -11705,6 +13796,10 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('source: $source, ')
           ..write('itemName: $itemName, ')
+          ..write('quantity: $quantity, ')
+          ..write('unit: $unit, ')
+          ..write('category: $category, ')
+          ..write('sourceMealTitle: $sourceMealTitle, ')
           ..write('isPurchased: $isPurchased')
           ..write(')'))
         .toString();
@@ -11720,6 +13815,10 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
     schemaVersion,
     source,
     itemName,
+    quantity,
+    unit,
+    category,
+    sourceMealTitle,
     isPurchased,
   );
   @override
@@ -11734,6 +13833,10 @@ class ShoppingItem extends DataClass implements Insertable<ShoppingItem> {
           other.schemaVersion == this.schemaVersion &&
           other.source == this.source &&
           other.itemName == this.itemName &&
+          other.quantity == this.quantity &&
+          other.unit == this.unit &&
+          other.category == this.category &&
+          other.sourceMealTitle == this.sourceMealTitle &&
           other.isPurchased == this.isPurchased);
 }
 
@@ -11746,6 +13849,10 @@ class ShoppingItemsCompanion extends UpdateCompanion<ShoppingItem> {
   final Value<int> schemaVersion;
   final Value<String> source;
   final Value<String> itemName;
+  final Value<String?> quantity;
+  final Value<String?> unit;
+  final Value<String> category;
+  final Value<String?> sourceMealTitle;
   final Value<bool> isPurchased;
   const ShoppingItemsCompanion({
     this.id = const Value.absent(),
@@ -11756,6 +13863,10 @@ class ShoppingItemsCompanion extends UpdateCompanion<ShoppingItem> {
     this.schemaVersion = const Value.absent(),
     this.source = const Value.absent(),
     this.itemName = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.category = const Value.absent(),
+    this.sourceMealTitle = const Value.absent(),
     this.isPurchased = const Value.absent(),
   });
   ShoppingItemsCompanion.insert({
@@ -11767,6 +13878,10 @@ class ShoppingItemsCompanion extends UpdateCompanion<ShoppingItem> {
     this.schemaVersion = const Value.absent(),
     this.source = const Value.absent(),
     required String itemName,
+    this.quantity = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.category = const Value.absent(),
+    this.sourceMealTitle = const Value.absent(),
     this.isPurchased = const Value.absent(),
   }) : uuid = Value(uuid),
        createdAt = Value(createdAt),
@@ -11781,6 +13896,10 @@ class ShoppingItemsCompanion extends UpdateCompanion<ShoppingItem> {
     Expression<int>? schemaVersion,
     Expression<String>? source,
     Expression<String>? itemName,
+    Expression<String>? quantity,
+    Expression<String>? unit,
+    Expression<String>? category,
+    Expression<String>? sourceMealTitle,
     Expression<bool>? isPurchased,
   }) {
     return RawValuesInsertable({
@@ -11792,6 +13911,10 @@ class ShoppingItemsCompanion extends UpdateCompanion<ShoppingItem> {
       if (schemaVersion != null) 'schema_version': schemaVersion,
       if (source != null) 'source': source,
       if (itemName != null) 'item_name': itemName,
+      if (quantity != null) 'quantity': quantity,
+      if (unit != null) 'unit': unit,
+      if (category != null) 'category': category,
+      if (sourceMealTitle != null) 'source_meal_title': sourceMealTitle,
       if (isPurchased != null) 'is_purchased': isPurchased,
     });
   }
@@ -11805,6 +13928,10 @@ class ShoppingItemsCompanion extends UpdateCompanion<ShoppingItem> {
     Value<int>? schemaVersion,
     Value<String>? source,
     Value<String>? itemName,
+    Value<String?>? quantity,
+    Value<String?>? unit,
+    Value<String>? category,
+    Value<String?>? sourceMealTitle,
     Value<bool>? isPurchased,
   }) {
     return ShoppingItemsCompanion(
@@ -11816,6 +13943,10 @@ class ShoppingItemsCompanion extends UpdateCompanion<ShoppingItem> {
       schemaVersion: schemaVersion ?? this.schemaVersion,
       source: source ?? this.source,
       itemName: itemName ?? this.itemName,
+      quantity: quantity ?? this.quantity,
+      unit: unit ?? this.unit,
+      category: category ?? this.category,
+      sourceMealTitle: sourceMealTitle ?? this.sourceMealTitle,
       isPurchased: isPurchased ?? this.isPurchased,
     );
   }
@@ -11847,6 +13978,18 @@ class ShoppingItemsCompanion extends UpdateCompanion<ShoppingItem> {
     if (itemName.present) {
       map['item_name'] = Variable<String>(itemName.value);
     }
+    if (quantity.present) {
+      map['quantity'] = Variable<String>(quantity.value);
+    }
+    if (unit.present) {
+      map['unit'] = Variable<String>(unit.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (sourceMealTitle.present) {
+      map['source_meal_title'] = Variable<String>(sourceMealTitle.value);
+    }
     if (isPurchased.present) {
       map['is_purchased'] = Variable<bool>(isPurchased.value);
     }
@@ -11864,6 +14007,10 @@ class ShoppingItemsCompanion extends UpdateCompanion<ShoppingItem> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('source: $source, ')
           ..write('itemName: $itemName, ')
+          ..write('quantity: $quantity, ')
+          ..write('unit: $unit, ')
+          ..write('category: $category, ')
+          ..write('sourceMealTitle: $sourceMealTitle, ')
           ..write('isPurchased: $isPurchased')
           ..write(')'))
         .toString();
@@ -18747,6 +20894,33 @@ class $AppSettingsTable extends AppSettings
     requiredDuringInsert: false,
     defaultValue: const Constant('system'),
   );
+  static const VerificationMeta _cycleCalendarViewMeta = const VerificationMeta(
+    'cycleCalendarView',
+  );
+  @override
+  late final GeneratedColumn<String> cycleCalendarView =
+      GeneratedColumn<String>(
+        'cycle_calendar_view',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('Month'),
+      );
+  static const VerificationMeta _hideCycleInPlannerMeta =
+      const VerificationMeta('hideCycleInPlanner');
+  @override
+  late final GeneratedColumn<bool> hideCycleInPlanner = GeneratedColumn<bool>(
+    'hide_cycle_in_planner',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("hide_cycle_in_planner" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _isAppLockEnabledMeta = const VerificationMeta(
     'isAppLockEnabled',
   );
@@ -18784,6 +20958,8 @@ class $AppSettingsTable extends AppSettings
     schemaVersion,
     source,
     themeMode,
+    cycleCalendarView,
+    hideCycleInPlanner,
     isAppLockEnabled,
     autoLockInactivitySeconds,
   ];
@@ -18853,6 +21029,24 @@ class $AppSettingsTable extends AppSettings
         themeMode.isAcceptableOrUnknown(data['theme_mode']!, _themeModeMeta),
       );
     }
+    if (data.containsKey('cycle_calendar_view')) {
+      context.handle(
+        _cycleCalendarViewMeta,
+        cycleCalendarView.isAcceptableOrUnknown(
+          data['cycle_calendar_view']!,
+          _cycleCalendarViewMeta,
+        ),
+      );
+    }
+    if (data.containsKey('hide_cycle_in_planner')) {
+      context.handle(
+        _hideCycleInPlannerMeta,
+        hideCycleInPlanner.isAcceptableOrUnknown(
+          data['hide_cycle_in_planner']!,
+          _hideCycleInPlannerMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_app_lock_enabled')) {
       context.handle(
         _isAppLockEnabledMeta,
@@ -18912,6 +21106,14 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}theme_mode'],
       )!,
+      cycleCalendarView: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cycle_calendar_view'],
+      )!,
+      hideCycleInPlanner: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}hide_cycle_in_planner'],
+      )!,
       isAppLockEnabled: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_app_lock_enabled'],
@@ -18938,6 +21140,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final int schemaVersion;
   final String source;
   final String themeMode;
+  final String cycleCalendarView;
+  final bool hideCycleInPlanner;
   final bool isAppLockEnabled;
   final int autoLockInactivitySeconds;
   const AppSetting({
@@ -18949,6 +21153,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     required this.schemaVersion,
     required this.source,
     required this.themeMode,
+    required this.cycleCalendarView,
+    required this.hideCycleInPlanner,
     required this.isAppLockEnabled,
     required this.autoLockInactivitySeconds,
   });
@@ -18965,6 +21171,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     map['schema_version'] = Variable<int>(schemaVersion);
     map['source'] = Variable<String>(source);
     map['theme_mode'] = Variable<String>(themeMode);
+    map['cycle_calendar_view'] = Variable<String>(cycleCalendarView);
+    map['hide_cycle_in_planner'] = Variable<bool>(hideCycleInPlanner);
     map['is_app_lock_enabled'] = Variable<bool>(isAppLockEnabled);
     map['auto_lock_inactivity_seconds'] = Variable<int>(
       autoLockInactivitySeconds,
@@ -18984,6 +21192,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       schemaVersion: Value(schemaVersion),
       source: Value(source),
       themeMode: Value(themeMode),
+      cycleCalendarView: Value(cycleCalendarView),
+      hideCycleInPlanner: Value(hideCycleInPlanner),
       isAppLockEnabled: Value(isAppLockEnabled),
       autoLockInactivitySeconds: Value(autoLockInactivitySeconds),
     );
@@ -19003,6 +21213,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       schemaVersion: serializer.fromJson<int>(json['schemaVersion']),
       source: serializer.fromJson<String>(json['source']),
       themeMode: serializer.fromJson<String>(json['themeMode']),
+      cycleCalendarView: serializer.fromJson<String>(json['cycleCalendarView']),
+      hideCycleInPlanner: serializer.fromJson<bool>(json['hideCycleInPlanner']),
       isAppLockEnabled: serializer.fromJson<bool>(json['isAppLockEnabled']),
       autoLockInactivitySeconds: serializer.fromJson<int>(
         json['autoLockInactivitySeconds'],
@@ -19021,6 +21233,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'schemaVersion': serializer.toJson<int>(schemaVersion),
       'source': serializer.toJson<String>(source),
       'themeMode': serializer.toJson<String>(themeMode),
+      'cycleCalendarView': serializer.toJson<String>(cycleCalendarView),
+      'hideCycleInPlanner': serializer.toJson<bool>(hideCycleInPlanner),
       'isAppLockEnabled': serializer.toJson<bool>(isAppLockEnabled),
       'autoLockInactivitySeconds': serializer.toJson<int>(
         autoLockInactivitySeconds,
@@ -19037,6 +21251,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     int? schemaVersion,
     String? source,
     String? themeMode,
+    String? cycleCalendarView,
+    bool? hideCycleInPlanner,
     bool? isAppLockEnabled,
     int? autoLockInactivitySeconds,
   }) => AppSetting(
@@ -19048,6 +21264,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     schemaVersion: schemaVersion ?? this.schemaVersion,
     source: source ?? this.source,
     themeMode: themeMode ?? this.themeMode,
+    cycleCalendarView: cycleCalendarView ?? this.cycleCalendarView,
+    hideCycleInPlanner: hideCycleInPlanner ?? this.hideCycleInPlanner,
     isAppLockEnabled: isAppLockEnabled ?? this.isAppLockEnabled,
     autoLockInactivitySeconds:
         autoLockInactivitySeconds ?? this.autoLockInactivitySeconds,
@@ -19064,6 +21282,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           : this.schemaVersion,
       source: data.source.present ? data.source.value : this.source,
       themeMode: data.themeMode.present ? data.themeMode.value : this.themeMode,
+      cycleCalendarView: data.cycleCalendarView.present
+          ? data.cycleCalendarView.value
+          : this.cycleCalendarView,
+      hideCycleInPlanner: data.hideCycleInPlanner.present
+          ? data.hideCycleInPlanner.value
+          : this.hideCycleInPlanner,
       isAppLockEnabled: data.isAppLockEnabled.present
           ? data.isAppLockEnabled.value
           : this.isAppLockEnabled,
@@ -19084,6 +21308,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('source: $source, ')
           ..write('themeMode: $themeMode, ')
+          ..write('cycleCalendarView: $cycleCalendarView, ')
+          ..write('hideCycleInPlanner: $hideCycleInPlanner, ')
           ..write('isAppLockEnabled: $isAppLockEnabled, ')
           ..write('autoLockInactivitySeconds: $autoLockInactivitySeconds')
           ..write(')'))
@@ -19100,6 +21326,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     schemaVersion,
     source,
     themeMode,
+    cycleCalendarView,
+    hideCycleInPlanner,
     isAppLockEnabled,
     autoLockInactivitySeconds,
   );
@@ -19115,6 +21343,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.schemaVersion == this.schemaVersion &&
           other.source == this.source &&
           other.themeMode == this.themeMode &&
+          other.cycleCalendarView == this.cycleCalendarView &&
+          other.hideCycleInPlanner == this.hideCycleInPlanner &&
           other.isAppLockEnabled == this.isAppLockEnabled &&
           other.autoLockInactivitySeconds == this.autoLockInactivitySeconds);
 }
@@ -19128,6 +21358,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<int> schemaVersion;
   final Value<String> source;
   final Value<String> themeMode;
+  final Value<String> cycleCalendarView;
+  final Value<bool> hideCycleInPlanner;
   final Value<bool> isAppLockEnabled;
   final Value<int> autoLockInactivitySeconds;
   const AppSettingsCompanion({
@@ -19139,6 +21371,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.schemaVersion = const Value.absent(),
     this.source = const Value.absent(),
     this.themeMode = const Value.absent(),
+    this.cycleCalendarView = const Value.absent(),
+    this.hideCycleInPlanner = const Value.absent(),
     this.isAppLockEnabled = const Value.absent(),
     this.autoLockInactivitySeconds = const Value.absent(),
   });
@@ -19151,6 +21385,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.schemaVersion = const Value.absent(),
     this.source = const Value.absent(),
     this.themeMode = const Value.absent(),
+    this.cycleCalendarView = const Value.absent(),
+    this.hideCycleInPlanner = const Value.absent(),
     this.isAppLockEnabled = const Value.absent(),
     this.autoLockInactivitySeconds = const Value.absent(),
   }) : uuid = Value(uuid),
@@ -19165,6 +21401,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<int>? schemaVersion,
     Expression<String>? source,
     Expression<String>? themeMode,
+    Expression<String>? cycleCalendarView,
+    Expression<bool>? hideCycleInPlanner,
     Expression<bool>? isAppLockEnabled,
     Expression<int>? autoLockInactivitySeconds,
   }) {
@@ -19177,6 +21415,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (schemaVersion != null) 'schema_version': schemaVersion,
       if (source != null) 'source': source,
       if (themeMode != null) 'theme_mode': themeMode,
+      if (cycleCalendarView != null) 'cycle_calendar_view': cycleCalendarView,
+      if (hideCycleInPlanner != null)
+        'hide_cycle_in_planner': hideCycleInPlanner,
       if (isAppLockEnabled != null) 'is_app_lock_enabled': isAppLockEnabled,
       if (autoLockInactivitySeconds != null)
         'auto_lock_inactivity_seconds': autoLockInactivitySeconds,
@@ -19192,6 +21433,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<int>? schemaVersion,
     Value<String>? source,
     Value<String>? themeMode,
+    Value<String>? cycleCalendarView,
+    Value<bool>? hideCycleInPlanner,
     Value<bool>? isAppLockEnabled,
     Value<int>? autoLockInactivitySeconds,
   }) {
@@ -19204,6 +21447,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       schemaVersion: schemaVersion ?? this.schemaVersion,
       source: source ?? this.source,
       themeMode: themeMode ?? this.themeMode,
+      cycleCalendarView: cycleCalendarView ?? this.cycleCalendarView,
+      hideCycleInPlanner: hideCycleInPlanner ?? this.hideCycleInPlanner,
       isAppLockEnabled: isAppLockEnabled ?? this.isAppLockEnabled,
       autoLockInactivitySeconds:
           autoLockInactivitySeconds ?? this.autoLockInactivitySeconds,
@@ -19237,6 +21482,12 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (themeMode.present) {
       map['theme_mode'] = Variable<String>(themeMode.value);
     }
+    if (cycleCalendarView.present) {
+      map['cycle_calendar_view'] = Variable<String>(cycleCalendarView.value);
+    }
+    if (hideCycleInPlanner.present) {
+      map['hide_cycle_in_planner'] = Variable<bool>(hideCycleInPlanner.value);
+    }
     if (isAppLockEnabled.present) {
       map['is_app_lock_enabled'] = Variable<bool>(isAppLockEnabled.value);
     }
@@ -19259,6 +21510,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('source: $source, ')
           ..write('themeMode: $themeMode, ')
+          ..write('cycleCalendarView: $cycleCalendarView, ')
+          ..write('hideCycleInPlanner: $hideCycleInPlanner, ')
           ..write('isAppLockEnabled: $isAppLockEnabled, ')
           ..write('autoLockInactivitySeconds: $autoLockInactivitySeconds')
           ..write(')'))
@@ -22000,8 +24253,22 @@ typedef $$DailyLogsTableCreateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String> source,
       required DateTime date,
+      Value<String> flow,
+      Value<bool> spotting,
       Value<int> energyLevel,
       Value<int> painLevel,
+      Value<String?> mood,
+      Value<int> stressLevel,
+      Value<double?> sleepHours,
+      Value<int> sleepQuality,
+      Value<int> waterGlasses,
+      Value<String?> appetite,
+      Value<String?> cravings,
+      Value<String?> exercise,
+      Value<String?> medication,
+      Value<String?> supplements,
+      Value<bool> intimacy,
+      Value<String> customSymptomsJson,
       Value<String?> generalNotes,
     });
 typedef $$DailyLogsTableUpdateCompanionBuilder =
@@ -22014,8 +24281,22 @@ typedef $$DailyLogsTableUpdateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String> source,
       Value<DateTime> date,
+      Value<String> flow,
+      Value<bool> spotting,
       Value<int> energyLevel,
       Value<int> painLevel,
+      Value<String?> mood,
+      Value<int> stressLevel,
+      Value<double?> sleepHours,
+      Value<int> sleepQuality,
+      Value<int> waterGlasses,
+      Value<String?> appetite,
+      Value<String?> cravings,
+      Value<String?> exercise,
+      Value<String?> medication,
+      Value<String?> supplements,
+      Value<bool> intimacy,
+      Value<String> customSymptomsJson,
       Value<String?> generalNotes,
     });
 
@@ -22068,6 +24349,16 @@ class $$DailyLogsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get flow => $composableBuilder(
+    column: $table.flow,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get spotting => $composableBuilder(
+    column: $table.spotting,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get energyLevel => $composableBuilder(
     column: $table.energyLevel,
     builder: (column) => ColumnFilters(column),
@@ -22075,6 +24366,66 @@ class $$DailyLogsTableFilterComposer
 
   ColumnFilters<int> get painLevel => $composableBuilder(
     column: $table.painLevel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mood => $composableBuilder(
+    column: $table.mood,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stressLevel => $composableBuilder(
+    column: $table.stressLevel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get sleepHours => $composableBuilder(
+    column: $table.sleepHours,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sleepQuality => $composableBuilder(
+    column: $table.sleepQuality,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get waterGlasses => $composableBuilder(
+    column: $table.waterGlasses,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get appetite => $composableBuilder(
+    column: $table.appetite,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cravings => $composableBuilder(
+    column: $table.cravings,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get exercise => $composableBuilder(
+    column: $table.exercise,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get medication => $composableBuilder(
+    column: $table.medication,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supplements => $composableBuilder(
+    column: $table.supplements,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get intimacy => $composableBuilder(
+    column: $table.intimacy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customSymptomsJson => $composableBuilder(
+    column: $table.customSymptomsJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22133,6 +24484,16 @@ class $$DailyLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get flow => $composableBuilder(
+    column: $table.flow,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get spotting => $composableBuilder(
+    column: $table.spotting,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get energyLevel => $composableBuilder(
     column: $table.energyLevel,
     builder: (column) => ColumnOrderings(column),
@@ -22140,6 +24501,66 @@ class $$DailyLogsTableOrderingComposer
 
   ColumnOrderings<int> get painLevel => $composableBuilder(
     column: $table.painLevel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mood => $composableBuilder(
+    column: $table.mood,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stressLevel => $composableBuilder(
+    column: $table.stressLevel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get sleepHours => $composableBuilder(
+    column: $table.sleepHours,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sleepQuality => $composableBuilder(
+    column: $table.sleepQuality,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get waterGlasses => $composableBuilder(
+    column: $table.waterGlasses,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get appetite => $composableBuilder(
+    column: $table.appetite,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cravings => $composableBuilder(
+    column: $table.cravings,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get exercise => $composableBuilder(
+    column: $table.exercise,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get medication => $composableBuilder(
+    column: $table.medication,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supplements => $composableBuilder(
+    column: $table.supplements,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get intimacy => $composableBuilder(
+    column: $table.intimacy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customSymptomsJson => $composableBuilder(
+    column: $table.customSymptomsJson,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -22184,6 +24605,12 @@ class $$DailyLogsTableAnnotationComposer
   GeneratedColumn<DateTime> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
 
+  GeneratedColumn<String> get flow =>
+      $composableBuilder(column: $table.flow, builder: (column) => column);
+
+  GeneratedColumn<bool> get spotting =>
+      $composableBuilder(column: $table.spotting, builder: (column) => column);
+
   GeneratedColumn<int> get energyLevel => $composableBuilder(
     column: $table.energyLevel,
     builder: (column) => column,
@@ -22191,6 +24618,56 @@ class $$DailyLogsTableAnnotationComposer
 
   GeneratedColumn<int> get painLevel =>
       $composableBuilder(column: $table.painLevel, builder: (column) => column);
+
+  GeneratedColumn<String> get mood =>
+      $composableBuilder(column: $table.mood, builder: (column) => column);
+
+  GeneratedColumn<int> get stressLevel => $composableBuilder(
+    column: $table.stressLevel,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get sleepHours => $composableBuilder(
+    column: $table.sleepHours,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sleepQuality => $composableBuilder(
+    column: $table.sleepQuality,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get waterGlasses => $composableBuilder(
+    column: $table.waterGlasses,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get appetite =>
+      $composableBuilder(column: $table.appetite, builder: (column) => column);
+
+  GeneratedColumn<String> get cravings =>
+      $composableBuilder(column: $table.cravings, builder: (column) => column);
+
+  GeneratedColumn<String> get exercise =>
+      $composableBuilder(column: $table.exercise, builder: (column) => column);
+
+  GeneratedColumn<String> get medication => $composableBuilder(
+    column: $table.medication,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get supplements => $composableBuilder(
+    column: $table.supplements,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get intimacy =>
+      $composableBuilder(column: $table.intimacy, builder: (column) => column);
+
+  GeneratedColumn<String> get customSymptomsJson => $composableBuilder(
+    column: $table.customSymptomsJson,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get generalNotes => $composableBuilder(
     column: $table.generalNotes,
@@ -22234,8 +24711,22 @@ class $$DailyLogsTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
+                Value<String> flow = const Value.absent(),
+                Value<bool> spotting = const Value.absent(),
                 Value<int> energyLevel = const Value.absent(),
                 Value<int> painLevel = const Value.absent(),
+                Value<String?> mood = const Value.absent(),
+                Value<int> stressLevel = const Value.absent(),
+                Value<double?> sleepHours = const Value.absent(),
+                Value<int> sleepQuality = const Value.absent(),
+                Value<int> waterGlasses = const Value.absent(),
+                Value<String?> appetite = const Value.absent(),
+                Value<String?> cravings = const Value.absent(),
+                Value<String?> exercise = const Value.absent(),
+                Value<String?> medication = const Value.absent(),
+                Value<String?> supplements = const Value.absent(),
+                Value<bool> intimacy = const Value.absent(),
+                Value<String> customSymptomsJson = const Value.absent(),
                 Value<String?> generalNotes = const Value.absent(),
               }) => DailyLogsCompanion(
                 id: id,
@@ -22246,8 +24737,22 @@ class $$DailyLogsTableTableManager
                 schemaVersion: schemaVersion,
                 source: source,
                 date: date,
+                flow: flow,
+                spotting: spotting,
                 energyLevel: energyLevel,
                 painLevel: painLevel,
+                mood: mood,
+                stressLevel: stressLevel,
+                sleepHours: sleepHours,
+                sleepQuality: sleepQuality,
+                waterGlasses: waterGlasses,
+                appetite: appetite,
+                cravings: cravings,
+                exercise: exercise,
+                medication: medication,
+                supplements: supplements,
+                intimacy: intimacy,
+                customSymptomsJson: customSymptomsJson,
                 generalNotes: generalNotes,
               ),
           createCompanionCallback:
@@ -22260,8 +24765,22 @@ class $$DailyLogsTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 required DateTime date,
+                Value<String> flow = const Value.absent(),
+                Value<bool> spotting = const Value.absent(),
                 Value<int> energyLevel = const Value.absent(),
                 Value<int> painLevel = const Value.absent(),
+                Value<String?> mood = const Value.absent(),
+                Value<int> stressLevel = const Value.absent(),
+                Value<double?> sleepHours = const Value.absent(),
+                Value<int> sleepQuality = const Value.absent(),
+                Value<int> waterGlasses = const Value.absent(),
+                Value<String?> appetite = const Value.absent(),
+                Value<String?> cravings = const Value.absent(),
+                Value<String?> exercise = const Value.absent(),
+                Value<String?> medication = const Value.absent(),
+                Value<String?> supplements = const Value.absent(),
+                Value<bool> intimacy = const Value.absent(),
+                Value<String> customSymptomsJson = const Value.absent(),
                 Value<String?> generalNotes = const Value.absent(),
               }) => DailyLogsCompanion.insert(
                 id: id,
@@ -22272,8 +24791,22 @@ class $$DailyLogsTableTableManager
                 schemaVersion: schemaVersion,
                 source: source,
                 date: date,
+                flow: flow,
+                spotting: spotting,
                 energyLevel: energyLevel,
                 painLevel: painLevel,
+                mood: mood,
+                stressLevel: stressLevel,
+                sleepHours: sleepHours,
+                sleepQuality: sleepQuality,
+                waterGlasses: waterGlasses,
+                appetite: appetite,
+                cravings: cravings,
+                exercise: exercise,
+                medication: medication,
+                supplements: supplements,
+                intimacy: intimacy,
+                customSymptomsJson: customSymptomsJson,
                 generalNotes: generalNotes,
               ),
           withReferenceMapper: (p0) => p0
@@ -23507,10 +26040,19 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<String> source,
       required String title,
       Value<String?> description,
+      Value<String> category,
       Value<String> targetPhase,
       Value<String> recommendedEnergy,
       Value<bool> isCompleted,
       Value<DateTime?> dueDate,
+      Value<DateTime?> scheduledDate,
+      Value<int?> scheduledTimeMinutes,
+      Value<DateTime?> reminderAt,
+      Value<String?> recurrenceRule,
+      Value<String> status,
+      Value<DateTime?> completedAt,
+      Value<int> estimatedDurationMinutes,
+      Value<String?> cycleRecommendationTag,
       Value<String> priority,
     });
 typedef $$TasksTableUpdateCompanionBuilder =
@@ -23524,10 +26066,19 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<String> source,
       Value<String> title,
       Value<String?> description,
+      Value<String> category,
       Value<String> targetPhase,
       Value<String> recommendedEnergy,
       Value<bool> isCompleted,
       Value<DateTime?> dueDate,
+      Value<DateTime?> scheduledDate,
+      Value<int?> scheduledTimeMinutes,
+      Value<DateTime?> reminderAt,
+      Value<String?> recurrenceRule,
+      Value<String> status,
+      Value<DateTime?> completedAt,
+      Value<int> estimatedDurationMinutes,
+      Value<String?> cycleRecommendationTag,
       Value<String> priority,
     });
 
@@ -23584,6 +26135,11 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get targetPhase => $composableBuilder(
     column: $table.targetPhase,
     builder: (column) => ColumnFilters(column),
@@ -23601,6 +26157,46 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<DateTime> get dueDate => $composableBuilder(
     column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get scheduledTimeMinutes => $composableBuilder(
+    column: $table.scheduledTimeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrenceRule => $composableBuilder(
+    column: $table.recurrenceRule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get estimatedDurationMinutes => $composableBuilder(
+    column: $table.estimatedDurationMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cycleRecommendationTag => $composableBuilder(
+    column: $table.cycleRecommendationTag,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -23664,6 +26260,11 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get targetPhase => $composableBuilder(
     column: $table.targetPhase,
     builder: (column) => ColumnOrderings(column),
@@ -23681,6 +26282,46 @@ class $$TasksTableOrderingComposer
 
   ColumnOrderings<DateTime> get dueDate => $composableBuilder(
     column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get scheduledTimeMinutes => $composableBuilder(
+    column: $table.scheduledTimeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recurrenceRule => $composableBuilder(
+    column: $table.recurrenceRule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get estimatedDurationMinutes => $composableBuilder(
+    column: $table.estimatedDurationMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cycleRecommendationTag => $composableBuilder(
+    column: $table.cycleRecommendationTag,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -23730,6 +26371,9 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
   GeneratedColumn<String> get targetPhase => $composableBuilder(
     column: $table.targetPhase,
     builder: (column) => column,
@@ -23747,6 +26391,44 @@ class $$TasksTableAnnotationComposer
 
   GeneratedColumn<DateTime> get dueDate =>
       $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get scheduledTimeMinutes => $composableBuilder(
+    column: $table.scheduledTimeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recurrenceRule => $composableBuilder(
+    column: $table.recurrenceRule,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get estimatedDurationMinutes => $composableBuilder(
+    column: $table.estimatedDurationMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get cycleRecommendationTag => $composableBuilder(
+    column: $table.cycleRecommendationTag,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get priority =>
       $composableBuilder(column: $table.priority, builder: (column) => column);
@@ -23789,10 +26471,19 @@ class $$TasksTableTableManager
                 Value<String> source = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<String> category = const Value.absent(),
                 Value<String> targetPhase = const Value.absent(),
                 Value<String> recommendedEnergy = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
                 Value<DateTime?> dueDate = const Value.absent(),
+                Value<DateTime?> scheduledDate = const Value.absent(),
+                Value<int?> scheduledTimeMinutes = const Value.absent(),
+                Value<DateTime?> reminderAt = const Value.absent(),
+                Value<String?> recurrenceRule = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<int> estimatedDurationMinutes = const Value.absent(),
+                Value<String?> cycleRecommendationTag = const Value.absent(),
                 Value<String> priority = const Value.absent(),
               }) => TasksCompanion(
                 id: id,
@@ -23804,10 +26495,19 @@ class $$TasksTableTableManager
                 source: source,
                 title: title,
                 description: description,
+                category: category,
                 targetPhase: targetPhase,
                 recommendedEnergy: recommendedEnergy,
                 isCompleted: isCompleted,
                 dueDate: dueDate,
+                scheduledDate: scheduledDate,
+                scheduledTimeMinutes: scheduledTimeMinutes,
+                reminderAt: reminderAt,
+                recurrenceRule: recurrenceRule,
+                status: status,
+                completedAt: completedAt,
+                estimatedDurationMinutes: estimatedDurationMinutes,
+                cycleRecommendationTag: cycleRecommendationTag,
                 priority: priority,
               ),
           createCompanionCallback:
@@ -23821,10 +26521,19 @@ class $$TasksTableTableManager
                 Value<String> source = const Value.absent(),
                 required String title,
                 Value<String?> description = const Value.absent(),
+                Value<String> category = const Value.absent(),
                 Value<String> targetPhase = const Value.absent(),
                 Value<String> recommendedEnergy = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
                 Value<DateTime?> dueDate = const Value.absent(),
+                Value<DateTime?> scheduledDate = const Value.absent(),
+                Value<int?> scheduledTimeMinutes = const Value.absent(),
+                Value<DateTime?> reminderAt = const Value.absent(),
+                Value<String?> recurrenceRule = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<int> estimatedDurationMinutes = const Value.absent(),
+                Value<String?> cycleRecommendationTag = const Value.absent(),
                 Value<String> priority = const Value.absent(),
               }) => TasksCompanion.insert(
                 id: id,
@@ -23836,10 +26545,19 @@ class $$TasksTableTableManager
                 source: source,
                 title: title,
                 description: description,
+                category: category,
                 targetPhase: targetPhase,
                 recommendedEnergy: recommendedEnergy,
                 isCompleted: isCompleted,
                 dueDate: dueDate,
+                scheduledDate: scheduledDate,
+                scheduledTimeMinutes: scheduledTimeMinutes,
+                reminderAt: reminderAt,
+                recurrenceRule: recurrenceRule,
+                status: status,
+                completedAt: completedAt,
+                estimatedDurationMinutes: estimatedDurationMinutes,
+                cycleRecommendationTag: cycleRecommendationTag,
                 priority: priority,
               ),
           withReferenceMapper: (p0) => p0
@@ -23874,8 +26592,13 @@ typedef $$FocusSessionsTableCreateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String> source,
       required String title,
+      Value<int?> taskId,
+      Value<DateTime?> startedAt,
       required int durationMinutes,
-      required DateTime completedAt,
+      Value<int> breakMinutes,
+      Value<int> elapsedSeconds,
+      Value<String> status,
+      Value<DateTime?> completedAt,
     });
 typedef $$FocusSessionsTableUpdateCompanionBuilder =
     FocusSessionsCompanion Function({
@@ -23887,8 +26610,13 @@ typedef $$FocusSessionsTableUpdateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String> source,
       Value<String> title,
+      Value<int?> taskId,
+      Value<DateTime?> startedAt,
       Value<int> durationMinutes,
-      Value<DateTime> completedAt,
+      Value<int> breakMinutes,
+      Value<int> elapsedSeconds,
+      Value<String> status,
+      Value<DateTime?> completedAt,
     });
 
 class $$FocusSessionsTableFilterComposer
@@ -23940,8 +26668,33 @@ class $$FocusSessionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get durationMinutes => $composableBuilder(
     column: $table.durationMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get breakMinutes => $composableBuilder(
+    column: $table.breakMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get elapsedSeconds => $composableBuilder(
+    column: $table.elapsedSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -24000,8 +26753,33 @@ class $$FocusSessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get durationMinutes => $composableBuilder(
     column: $table.durationMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get breakMinutes => $composableBuilder(
+    column: $table.breakMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get elapsedSeconds => $composableBuilder(
+    column: $table.elapsedSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -24046,10 +26824,29 @@ class $$FocusSessionsTableAnnotationComposer
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
 
+  GeneratedColumn<int> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
   GeneratedColumn<int> get durationMinutes => $composableBuilder(
     column: $table.durationMinutes,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get breakMinutes => $composableBuilder(
+    column: $table.breakMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get elapsedSeconds => $composableBuilder(
+    column: $table.elapsedSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
 
   GeneratedColumn<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
@@ -24096,8 +26893,13 @@ class $$FocusSessionsTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 Value<String> title = const Value.absent(),
+                Value<int?> taskId = const Value.absent(),
+                Value<DateTime?> startedAt = const Value.absent(),
                 Value<int> durationMinutes = const Value.absent(),
-                Value<DateTime> completedAt = const Value.absent(),
+                Value<int> breakMinutes = const Value.absent(),
+                Value<int> elapsedSeconds = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
               }) => FocusSessionsCompanion(
                 id: id,
                 uuid: uuid,
@@ -24107,7 +26909,12 @@ class $$FocusSessionsTableTableManager
                 schemaVersion: schemaVersion,
                 source: source,
                 title: title,
+                taskId: taskId,
+                startedAt: startedAt,
                 durationMinutes: durationMinutes,
+                breakMinutes: breakMinutes,
+                elapsedSeconds: elapsedSeconds,
+                status: status,
                 completedAt: completedAt,
               ),
           createCompanionCallback:
@@ -24120,8 +26927,13 @@ class $$FocusSessionsTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 required String title,
+                Value<int?> taskId = const Value.absent(),
+                Value<DateTime?> startedAt = const Value.absent(),
                 required int durationMinutes,
-                required DateTime completedAt,
+                Value<int> breakMinutes = const Value.absent(),
+                Value<int> elapsedSeconds = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
               }) => FocusSessionsCompanion.insert(
                 id: id,
                 uuid: uuid,
@@ -24131,7 +26943,12 @@ class $$FocusSessionsTableTableManager
                 schemaVersion: schemaVersion,
                 source: source,
                 title: title,
+                taskId: taskId,
+                startedAt: startedAt,
                 durationMinutes: durationMinutes,
+                breakMinutes: breakMinutes,
+                elapsedSeconds: elapsedSeconds,
+                status: status,
                 completedAt: completedAt,
               ),
           withReferenceMapper: (p0) => p0
@@ -24170,6 +26987,13 @@ typedef $$RoutinesTableCreateCompanionBuilder =
       Value<String> source,
       required String title,
       required String frequency,
+      Value<String> weekdaysJson,
+      Value<int?> preferredTimeMinutes,
+      Value<DateTime?> reminderAt,
+      Value<int> streakCount,
+      Value<String> completionHistoryJson,
+      Value<DateTime?> pausedUntil,
+      Value<DateTime?> archivedAt,
       Value<bool> isActive,
     });
 typedef $$RoutinesTableUpdateCompanionBuilder =
@@ -24183,6 +27007,13 @@ typedef $$RoutinesTableUpdateCompanionBuilder =
       Value<String> source,
       Value<String> title,
       Value<String> frequency,
+      Value<String> weekdaysJson,
+      Value<int?> preferredTimeMinutes,
+      Value<DateTime?> reminderAt,
+      Value<int> streakCount,
+      Value<String> completionHistoryJson,
+      Value<DateTime?> pausedUntil,
+      Value<DateTime?> archivedAt,
       Value<bool> isActive,
     });
 
@@ -24237,6 +27068,41 @@ class $$RoutinesTableFilterComposer
 
   ColumnFilters<String> get frequency => $composableBuilder(
     column: $table.frequency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get weekdaysJson => $composableBuilder(
+    column: $table.weekdaysJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get preferredTimeMinutes => $composableBuilder(
+    column: $table.preferredTimeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get streakCount => $composableBuilder(
+    column: $table.streakCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get completionHistoryJson => $composableBuilder(
+    column: $table.completionHistoryJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get pausedUntil => $composableBuilder(
+    column: $table.pausedUntil,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -24300,6 +27166,41 @@ class $$RoutinesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get weekdaysJson => $composableBuilder(
+    column: $table.weekdaysJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get preferredTimeMinutes => $composableBuilder(
+    column: $table.preferredTimeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get streakCount => $composableBuilder(
+    column: $table.streakCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get completionHistoryJson => $composableBuilder(
+    column: $table.completionHistoryJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get pausedUntil => $composableBuilder(
+    column: $table.pausedUntil,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isActive => $composableBuilder(
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
@@ -24344,6 +27245,41 @@ class $$RoutinesTableAnnotationComposer
   GeneratedColumn<String> get frequency =>
       $composableBuilder(column: $table.frequency, builder: (column) => column);
 
+  GeneratedColumn<String> get weekdaysJson => $composableBuilder(
+    column: $table.weekdaysJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get preferredTimeMinutes => $composableBuilder(
+    column: $table.preferredTimeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get streakCount => $composableBuilder(
+    column: $table.streakCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get completionHistoryJson => $composableBuilder(
+    column: $table.completionHistoryJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get pausedUntil => $composableBuilder(
+    column: $table.pausedUntil,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
 }
@@ -24385,6 +27321,13 @@ class $$RoutinesTableTableManager
                 Value<String> source = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> frequency = const Value.absent(),
+                Value<String> weekdaysJson = const Value.absent(),
+                Value<int?> preferredTimeMinutes = const Value.absent(),
+                Value<DateTime?> reminderAt = const Value.absent(),
+                Value<int> streakCount = const Value.absent(),
+                Value<String> completionHistoryJson = const Value.absent(),
+                Value<DateTime?> pausedUntil = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
               }) => RoutinesCompanion(
                 id: id,
@@ -24396,6 +27339,13 @@ class $$RoutinesTableTableManager
                 source: source,
                 title: title,
                 frequency: frequency,
+                weekdaysJson: weekdaysJson,
+                preferredTimeMinutes: preferredTimeMinutes,
+                reminderAt: reminderAt,
+                streakCount: streakCount,
+                completionHistoryJson: completionHistoryJson,
+                pausedUntil: pausedUntil,
+                archivedAt: archivedAt,
                 isActive: isActive,
               ),
           createCompanionCallback:
@@ -24409,6 +27359,13 @@ class $$RoutinesTableTableManager
                 Value<String> source = const Value.absent(),
                 required String title,
                 required String frequency,
+                Value<String> weekdaysJson = const Value.absent(),
+                Value<int?> preferredTimeMinutes = const Value.absent(),
+                Value<DateTime?> reminderAt = const Value.absent(),
+                Value<int> streakCount = const Value.absent(),
+                Value<String> completionHistoryJson = const Value.absent(),
+                Value<DateTime?> pausedUntil = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
               }) => RoutinesCompanion.insert(
                 id: id,
@@ -24420,6 +27377,13 @@ class $$RoutinesTableTableManager
                 source: source,
                 title: title,
                 frequency: frequency,
+                weekdaysJson: weekdaysJson,
+                preferredTimeMinutes: preferredTimeMinutes,
+                reminderAt: reminderAt,
+                streakCount: streakCount,
+                completionHistoryJson: completionHistoryJson,
+                pausedUntil: pausedUntil,
+                archivedAt: archivedAt,
                 isActive: isActive,
               ),
           withReferenceMapper: (p0) => p0
@@ -25662,6 +28626,9 @@ typedef $$PantryItemsTableCreateCompanionBuilder =
       required String name,
       required double quantity,
       required String unit,
+      Value<String> category,
+      Value<bool> lowStock,
+      Value<DateTime?> expiryDate,
     });
 typedef $$PantryItemsTableUpdateCompanionBuilder =
     PantryItemsCompanion Function({
@@ -25675,6 +28642,9 @@ typedef $$PantryItemsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<double> quantity,
       Value<String> unit,
+      Value<String> category,
+      Value<bool> lowStock,
+      Value<DateTime?> expiryDate,
     });
 
 class $$PantryItemsTableFilterComposer
@@ -25733,6 +28703,21 @@ class $$PantryItemsTableFilterComposer
 
   ColumnFilters<String> get unit => $composableBuilder(
     column: $table.unit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get lowStock => $composableBuilder(
+    column: $table.lowStock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get expiryDate => $composableBuilder(
+    column: $table.expiryDate,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -25795,6 +28780,21 @@ class $$PantryItemsTableOrderingComposer
     column: $table.unit,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get lowStock => $composableBuilder(
+    column: $table.lowStock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get expiryDate => $composableBuilder(
+    column: $table.expiryDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PantryItemsTableAnnotationComposer
@@ -25837,6 +28837,17 @@ class $$PantryItemsTableAnnotationComposer
 
   GeneratedColumn<String> get unit =>
       $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<bool> get lowStock =>
+      $composableBuilder(column: $table.lowStock, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get expiryDate => $composableBuilder(
+    column: $table.expiryDate,
+    builder: (column) => column,
+  );
 }
 
 class $$PantryItemsTableTableManager
@@ -25880,6 +28891,9 @@ class $$PantryItemsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<double> quantity = const Value.absent(),
                 Value<String> unit = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<bool> lowStock = const Value.absent(),
+                Value<DateTime?> expiryDate = const Value.absent(),
               }) => PantryItemsCompanion(
                 id: id,
                 uuid: uuid,
@@ -25891,6 +28905,9 @@ class $$PantryItemsTableTableManager
                 name: name,
                 quantity: quantity,
                 unit: unit,
+                category: category,
+                lowStock: lowStock,
+                expiryDate: expiryDate,
               ),
           createCompanionCallback:
               ({
@@ -25904,6 +28921,9 @@ class $$PantryItemsTableTableManager
                 required String name,
                 required double quantity,
                 required String unit,
+                Value<String> category = const Value.absent(),
+                Value<bool> lowStock = const Value.absent(),
+                Value<DateTime?> expiryDate = const Value.absent(),
               }) => PantryItemsCompanion.insert(
                 id: id,
                 uuid: uuid,
@@ -25915,6 +28935,9 @@ class $$PantryItemsTableTableManager
                 name: name,
                 quantity: quantity,
                 unit: unit,
+                category: category,
+                lowStock: lowStock,
+                expiryDate: expiryDate,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -25951,6 +28974,10 @@ typedef $$ShoppingItemsTableCreateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String> source,
       required String itemName,
+      Value<String?> quantity,
+      Value<String?> unit,
+      Value<String> category,
+      Value<String?> sourceMealTitle,
       Value<bool> isPurchased,
     });
 typedef $$ShoppingItemsTableUpdateCompanionBuilder =
@@ -25963,6 +28990,10 @@ typedef $$ShoppingItemsTableUpdateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String> source,
       Value<String> itemName,
+      Value<String?> quantity,
+      Value<String?> unit,
+      Value<String> category,
+      Value<String?> sourceMealTitle,
       Value<bool> isPurchased,
     });
 
@@ -26012,6 +29043,26 @@ class $$ShoppingItemsTableFilterComposer
 
   ColumnFilters<String> get itemName => $composableBuilder(
     column: $table.itemName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceMealTitle => $composableBuilder(
+    column: $table.sourceMealTitle,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -26070,6 +29121,26 @@ class $$ShoppingItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceMealTitle => $composableBuilder(
+    column: $table.sourceMealTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isPurchased => $composableBuilder(
     column: $table.isPurchased,
     builder: (column) => ColumnOrderings(column),
@@ -26110,6 +29181,20 @@ class $$ShoppingItemsTableAnnotationComposer
 
   GeneratedColumn<String> get itemName =>
       $composableBuilder(column: $table.itemName, builder: (column) => column);
+
+  GeneratedColumn<String> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<String> get unit =>
+      $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceMealTitle => $composableBuilder(
+    column: $table.sourceMealTitle,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isPurchased => $composableBuilder(
     column: $table.isPurchased,
@@ -26156,6 +29241,10 @@ class $$ShoppingItemsTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 Value<String> itemName = const Value.absent(),
+                Value<String?> quantity = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<String?> sourceMealTitle = const Value.absent(),
                 Value<bool> isPurchased = const Value.absent(),
               }) => ShoppingItemsCompanion(
                 id: id,
@@ -26166,6 +29255,10 @@ class $$ShoppingItemsTableTableManager
                 schemaVersion: schemaVersion,
                 source: source,
                 itemName: itemName,
+                quantity: quantity,
+                unit: unit,
+                category: category,
+                sourceMealTitle: sourceMealTitle,
                 isPurchased: isPurchased,
               ),
           createCompanionCallback:
@@ -26178,6 +29271,10 @@ class $$ShoppingItemsTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 required String itemName,
+                Value<String?> quantity = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<String?> sourceMealTitle = const Value.absent(),
                 Value<bool> isPurchased = const Value.absent(),
               }) => ShoppingItemsCompanion.insert(
                 id: id,
@@ -26188,6 +29285,10 @@ class $$ShoppingItemsTableTableManager
                 schemaVersion: schemaVersion,
                 source: source,
                 itemName: itemName,
+                quantity: quantity,
+                unit: unit,
+                category: category,
+                sourceMealTitle: sourceMealTitle,
                 isPurchased: isPurchased,
               ),
           withReferenceMapper: (p0) => p0
@@ -29469,6 +32570,8 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String> source,
       Value<String> themeMode,
+      Value<String> cycleCalendarView,
+      Value<bool> hideCycleInPlanner,
       Value<bool> isAppLockEnabled,
       Value<int> autoLockInactivitySeconds,
     });
@@ -29482,6 +32585,8 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String> source,
       Value<String> themeMode,
+      Value<String> cycleCalendarView,
+      Value<bool> hideCycleInPlanner,
       Value<bool> isAppLockEnabled,
       Value<int> autoLockInactivitySeconds,
     });
@@ -29532,6 +32637,16 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get themeMode => $composableBuilder(
     column: $table.themeMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cycleCalendarView => $composableBuilder(
+    column: $table.cycleCalendarView,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hideCycleInPlanner => $composableBuilder(
+    column: $table.hideCycleInPlanner,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -29595,6 +32710,16 @@ class $$AppSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get cycleCalendarView => $composableBuilder(
+    column: $table.cycleCalendarView,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hideCycleInPlanner => $composableBuilder(
+    column: $table.hideCycleInPlanner,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isAppLockEnabled => $composableBuilder(
     column: $table.isAppLockEnabled,
     builder: (column) => ColumnOrderings(column),
@@ -29640,6 +32765,16 @@ class $$AppSettingsTableAnnotationComposer
 
   GeneratedColumn<String> get themeMode =>
       $composableBuilder(column: $table.themeMode, builder: (column) => column);
+
+  GeneratedColumn<String> get cycleCalendarView => $composableBuilder(
+    column: $table.cycleCalendarView,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get hideCycleInPlanner => $composableBuilder(
+    column: $table.hideCycleInPlanner,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isAppLockEnabled => $composableBuilder(
     column: $table.isAppLockEnabled,
@@ -29691,6 +32826,8 @@ class $$AppSettingsTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 Value<String> themeMode = const Value.absent(),
+                Value<String> cycleCalendarView = const Value.absent(),
+                Value<bool> hideCycleInPlanner = const Value.absent(),
                 Value<bool> isAppLockEnabled = const Value.absent(),
                 Value<int> autoLockInactivitySeconds = const Value.absent(),
               }) => AppSettingsCompanion(
@@ -29702,6 +32839,8 @@ class $$AppSettingsTableTableManager
                 schemaVersion: schemaVersion,
                 source: source,
                 themeMode: themeMode,
+                cycleCalendarView: cycleCalendarView,
+                hideCycleInPlanner: hideCycleInPlanner,
                 isAppLockEnabled: isAppLockEnabled,
                 autoLockInactivitySeconds: autoLockInactivitySeconds,
               ),
@@ -29715,6 +32854,8 @@ class $$AppSettingsTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 Value<String> themeMode = const Value.absent(),
+                Value<String> cycleCalendarView = const Value.absent(),
+                Value<bool> hideCycleInPlanner = const Value.absent(),
                 Value<bool> isAppLockEnabled = const Value.absent(),
                 Value<int> autoLockInactivitySeconds = const Value.absent(),
               }) => AppSettingsCompanion.insert(
@@ -29726,6 +32867,8 @@ class $$AppSettingsTableTableManager
                 schemaVersion: schemaVersion,
                 source: source,
                 themeMode: themeMode,
+                cycleCalendarView: cycleCalendarView,
+                hideCycleInPlanner: hideCycleInPlanner,
                 isAppLockEnabled: isAppLockEnabled,
                 autoLockInactivitySeconds: autoLockInactivitySeconds,
               ),

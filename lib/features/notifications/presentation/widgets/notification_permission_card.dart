@@ -5,16 +5,21 @@ import '../../../../app/theme/app_colors.dart';
 class NotificationPermissionCard extends StatelessWidget {
   final bool enabled;
   final VoidCallback onEnable;
+  final VoidCallback onDismiss;
 
   const NotificationPermissionCard({
     super.key,
     required this.enabled,
     required this.onEnable,
+    required this.onDismiss,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    if (enabled) {
+      return const SizedBox.shrink();
+    }
 
     return Card(
       child: Padding(
@@ -44,11 +49,14 @@ class NotificationPermissionCard extends StatelessWidget {
             const SizedBox(height: 14),
             Row(
               children: [
-                OutlinedButton(onPressed: () {}, child: const Text('Not now')),
+                OutlinedButton(
+                  onPressed: onDismiss,
+                  child: const Text('Not now'),
+                ),
                 const SizedBox(width: 10),
                 FilledButton(
-                  onPressed: enabled ? null : onEnable,
-                  child: Text(enabled ? 'Enabled' : 'Enable reminders'),
+                  onPressed: onEnable,
+                  child: const Text('Enable reminders'),
                 ),
               ],
             ),

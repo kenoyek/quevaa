@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../cycle/domain/cycle_engine.dart';
 import '../../../cycle/domain/models/cycle_engine_output.dart';
@@ -75,7 +76,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _DashboardHeader(onNotificationsTap: () {}),
+              _DashboardHeader(
+                onNotificationsTap: () => context.go('/notifications/settings'),
+              ),
               const SizedBox(height: 20),
 
               // Rhythm Card
@@ -101,7 +104,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               const SizedBox(height: 20),
 
               // Today's Focus
-              _TodayFocusCard(readiness: readiness),
+              _TodayFocusCard(
+                readiness: readiness,
+                onAdjustPlan: () => context.go('/plan'),
+              ),
               const SizedBox(height: 20),
 
               // Eat Well Today (Nigerian Cuisine)
@@ -116,7 +122,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               const SizedBox(height: 20),
 
               // Move Today (Workouts)
-              _MoveTodayCard(readiness: readiness),
+              _MoveTodayCard(
+                readiness: readiness,
+                onSubstitute: () => context.go('/wellness'),
+              ),
               const SizedBox(height: 20),
 
               // Reflect & Journal Prompt
@@ -499,8 +508,9 @@ class _ReadinessCard extends StatelessWidget {
 
 class _TodayFocusCard extends StatelessWidget {
   final DailyReadinessResult readiness;
+  final VoidCallback onAdjustPlan;
 
-  const _TodayFocusCard({required this.readiness});
+  const _TodayFocusCard({required this.readiness, required this.onAdjustPlan});
 
   @override
   Widget build(BuildContext context) {
@@ -520,7 +530,10 @@ class _TodayFocusCard extends StatelessWidget {
                     style: theme.textTheme.headlineMedium,
                   ),
                 ),
-                TextButton(onPressed: () {}, child: const Text('Adjust Plan')),
+                TextButton(
+                  onPressed: onAdjustPlan,
+                  child: const Text('Adjust Plan'),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -648,8 +661,9 @@ class _NigerianMealCard extends StatelessWidget {
 
 class _MoveTodayCard extends StatelessWidget {
   final DailyReadinessResult readiness;
+  final VoidCallback onSubstitute;
 
-  const _MoveTodayCard({required this.readiness});
+  const _MoveTodayCard({required this.readiness, required this.onSubstitute});
 
   @override
   Widget build(BuildContext context) {
@@ -679,7 +693,7 @@ class _MoveTodayCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: onSubstitute,
               icon: const Icon(Icons.alt_route_rounded, size: 18),
               label: const Text('Substitute Exercise'),
             ),

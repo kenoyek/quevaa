@@ -5,15 +5,16 @@ import '../../features/conception/application/conception_controller.dart';
 import '../../features/conception/application/conception_settings_provider.dart';
 import '../../features/conception/presentation/pages/conception_dashboard_page.dart';
 import '../../features/conception/presentation/pages/conception_onboarding_page.dart';
-import '../../features/conception/presentation/pages/conception_wellness_page.dart';
 import '../../features/conception/presentation/pages/fertility_log_page.dart';
 import '../../features/conception/presentation/pages/pregnancy_transition_page.dart';
-import '../../features/conception/presentation/pages/temperature_chart_page.dart';
-import '../../features/conception/presentation/pages/waiting_phase_page.dart';
+import '../../features/cycle/presentation/pages/cycle_workspace_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/notifications/presentation/notification_settings_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
+import '../../features/productivity/presentation/pages/plan_workspace_page.dart';
+import '../../features/wellness/presentation/pages/wellness_workspace_page.dart';
 import '../theme/app_colors.dart';
+import '../theme/quevaa_theme_mode.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'root',
@@ -96,12 +97,8 @@ class _ModeAwareCyclePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final conceptionModeActive = ref.watch(conceptionModeActiveProvider);
     return conceptionModeActive
-        ? const TemperatureChartPage()
-        : const PlaceholderScreen(
-            title: 'Cycle & Symptom Log',
-            subtitle: 'Estimated Cycle Windows, Range Predictions & Symptoms',
-            icon: Icons.calendar_month_rounded,
-          );
+        ? const CycleWorkspacePage()
+        : const CycleWorkspacePage();
   }
 }
 
@@ -112,12 +109,8 @@ class _ModeAwarePlanPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final conceptionModeActive = ref.watch(conceptionModeActiveProvider);
     return conceptionModeActive
-        ? const WaitingPhasePage()
-        : const PlaceholderScreen(
-            title: 'Plan & Productivity',
-            subtitle: 'Adaptive Task Suggestions Based on Energy & Symptoms',
-            icon: Icons.task_alt_rounded,
-          );
+        ? const PlanWorkspacePage()
+        : const PlanWorkspacePage();
   }
 }
 
@@ -128,12 +121,8 @@ class _ModeAwareWellnessPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final conceptionModeActive = ref.watch(conceptionModeActiveProvider);
     return conceptionModeActive
-        ? const ConceptionWellnessPage()
-        : const PlaceholderScreen(
-            title: 'Wellness & Nourish',
-            subtitle: 'Nigerian Cuisine, Guided Workouts & Private Journal',
-            icon: Icons.spa_rounded,
-          );
+        ? const WellnessWorkspacePage()
+        : const WellnessWorkspacePage();
   }
 }
 
@@ -225,6 +214,9 @@ class _NormalMePage extends ConsumerWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 14),
+              const _AppearanceSection(),
+              const SizedBox(height: 14),
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(20),
@@ -254,6 +246,132 @@ class _NormalMePage extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AppearanceSection extends ConsumerWidget {
+  const _AppearanceSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected =
+        ref.watch(quevaaThemeModeProvider).valueOrNull ??
+        QuevaaThemeMode.system;
+    final saving = ref.watch(quevaaThemeControllerProvider);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.purpleContainer,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.palette_rounded,
+                    color: AppColors.deepPlum,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Appearance',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                ),
+                if (saving)
+                  const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            for (final mode in QuevaaThemeMode.values)
+              _ThemeModeTile(
+                mode: mode,
+                selected: selected == mode,
+                onTap: saving
+                    ? null
+                    : () => ref
+                          .read(quevaaThemeControllerProvider.notifier)
+                          .setMode(mode),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeModeTile extends StatelessWidget {
+  final QuevaaThemeMode mode;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _ThemeModeTile({
+    required this.mode,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = switch (mode) {
+      QuevaaThemeMode.dark => (
+        bg: AppColors.bgWarmDark,
+        surface: AppColors.cardSurfaceDark,
+        accent: AppColors.terracottaLight,
+      ),
+      QuevaaThemeMode.light => (
+        bg: AppColors.bgWarmCream,
+        surface: AppColors.cardSurfaceLight,
+        accent: AppColors.terracottaPrimary,
+      ),
+      QuevaaThemeMode.system => (
+        bg: AppColors.deepPlumContainer,
+        surface: AppColors.cardSurfaceLight,
+        accent: AppColors.sagePrimary,
+      ),
+    };
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      onTap: onTap,
+      leading: Container(
+        width: 48,
+        height: 36,
+        decoration: BoxDecoration(
+          color: colors.bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? colors.accent : AppColors.borderLight,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Align(
+          alignment: Alignment.bottomRight,
+          child: Container(
+            width: 24,
+            height: 18,
+            margin: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ),
+      title: Text(mode.label),
+      subtitle: Text(mode.description),
+      trailing: selected
+          ? Icon(Icons.check_circle_rounded, color: colors.accent)
+          : const Icon(Icons.circle_outlined),
     );
   }
 }
@@ -406,7 +524,10 @@ class MainNavigationShell extends ConsumerWidget {
                             icon: Icons.water_drop_outlined,
                             label: 'Water',
                             color: AppColors.waterBlue,
-                            onTap: () => Navigator.pop(context),
+                            onTap: () {
+                              Navigator.pop(context);
+                              GoRouter.of(context).go('/wellness');
+                            },
                           ),
                           _QuickActionTile(
                             icon: Icons.restaurant_rounded,
@@ -430,7 +551,10 @@ class MainNavigationShell extends ConsumerWidget {
                             icon: Icons.edit_note_rounded,
                             label: 'Journal',
                             color: AppColors.purpleDark,
-                            onTap: () => Navigator.pop(context),
+                            onTap: () {
+                              Navigator.pop(context);
+                              GoRouter.of(context).go('/wellness');
+                            },
                           ),
                         ]
                       : [
@@ -438,31 +562,46 @@ class MainNavigationShell extends ConsumerWidget {
                             icon: Icons.water_drop_rounded,
                             label: 'Period',
                             color: AppColors.terracottaPrimary,
-                            onTap: () => Navigator.pop(context),
+                            onTap: () {
+                              Navigator.pop(context);
+                              GoRouter.of(context).go('/cycle');
+                            },
                           ),
                           _QuickActionTile(
                             icon: Icons.health_and_safety_rounded,
                             label: 'Symptoms',
                             color: AppColors.sagePrimary,
-                            onTap: () => Navigator.pop(context),
+                            onTap: () {
+                              Navigator.pop(context);
+                              GoRouter.of(context).go('/cycle');
+                            },
                           ),
                           _QuickActionTile(
                             icon: Icons.sentiment_satisfied_alt_rounded,
                             label: 'Mood',
                             color: AppColors.purplePrimary,
-                            onTap: () => Navigator.pop(context),
+                            onTap: () {
+                              Navigator.pop(context);
+                              GoRouter.of(context).go('/cycle');
+                            },
                           ),
                           _QuickActionTile(
                             icon: Icons.add_task_rounded,
                             label: 'Add Task',
                             color: AppColors.warmGoldPrimary,
-                            onTap: () => Navigator.pop(context),
+                            onTap: () {
+                              Navigator.pop(context);
+                              GoRouter.of(context).go('/plan');
+                            },
                           ),
                           _QuickActionTile(
                             icon: Icons.water_drop_outlined,
                             label: 'Water',
                             color: AppColors.waterBlue,
-                            onTap: () => Navigator.pop(context),
+                            onTap: () {
+                              Navigator.pop(context);
+                              GoRouter.of(context).go('/wellness');
+                            },
                           ),
                           _QuickActionTile(
                             icon: Icons.restaurant_rounded,
@@ -486,7 +625,10 @@ class MainNavigationShell extends ConsumerWidget {
                             icon: Icons.edit_note_rounded,
                             label: 'Journal',
                             color: AppColors.purpleDark,
-                            onTap: () => Navigator.pop(context),
+                            onTap: () {
+                              Navigator.pop(context);
+                              GoRouter.of(context).go('/wellness');
+                            },
                           ),
                         ],
                 ),
@@ -604,98 +746,6 @@ class _QuickActionTile extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  const PlaceholderScreen({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  color: AppColors.terracottaContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 44, color: AppColors.terracottaPrimary),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                title,
-                style: theme.textTheme.displaySmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: isDark
-                      ? AppColors.textSecondaryDark
-                      : AppColors.textSecondaryLight,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? AppColors.cardSurfaceDark
-                      : AppColors.cardSurfaceLight,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark
-                        ? const Color(0xFF2E2A27)
-                        : const Color(0xFFEFEBE4),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.verified_user_rounded,
-                      size: 18,
-                      color: AppColors.sagePrimary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Quevaa System Active',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: AppColors.sageDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

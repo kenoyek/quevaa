@@ -39,6 +39,18 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
     });
   }
 
+  Future<void> dismissPermissionInvitation() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final repository = ref.read(notificationRepositoryProvider);
+      final preferences = await repository.loadPreferences();
+      await repository.savePreferences(
+        preferences.copyWith(permissionInvitationSeen: true),
+      );
+      ref.invalidate(notificationPreferencesProvider);
+    });
+  }
+
   Future<void> savePreferences(
     QuevaaNotificationPreferences preferences,
   ) async {

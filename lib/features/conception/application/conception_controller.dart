@@ -1,10 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/entities/basal_temperature.dart';
-import '../domain/entities/cervical_mucus_entry.dart';
 import '../domain/entities/conception_profile.dart';
 import '../domain/entities/fertility_observation.dart';
-import '../domain/entities/ovulation_test.dart';
 
 class ConceptionState {
   final ConceptionProfile profile;
@@ -41,7 +38,7 @@ class ConceptionController extends StateNotifier<ConceptionState> {
     : super(
         ConceptionState(
           profile: ConceptionProfile.defaultSample(),
-          observations: _sampleObservations(),
+          observations: const [],
         ),
       );
 
@@ -101,49 +98,6 @@ class ConceptionController extends StateNotifier<ConceptionState> {
       updated.add(permission);
     }
     state = state.copyWith(partnerSharePermissions: updated);
-  }
-
-  static List<FertilityObservation> _sampleObservations() {
-    final today = DateTime.now();
-    final day = DateTime(today.year, today.month, today.day);
-
-    return [
-      FertilityObservation(
-        date: day,
-        cervicalMucus: CervicalMucusEntry(
-          date: day,
-          type: CervicalMucusType.clearSlipperyStretchy,
-        ),
-        ovulationTest: OvulationTestEntry(
-          testedAt: day.add(const Duration(hours: 10)),
-          result: OvulationTestResult.high,
-          brand: 'Digital strip',
-        ),
-        prenatalSupplement: true,
-      ),
-      FertilityObservation(
-        date: day.subtract(const Duration(days: 1)),
-        cervicalMucus: CervicalMucusEntry(
-          date: day.subtract(const Duration(days: 1)),
-          type: CervicalMucusType.watery,
-        ),
-        basalTemperature: BasalTemperatureEntry(
-          measuredAt: day.subtract(const Duration(days: 1, hours: -6)),
-          temperature: 36.42,
-        ),
-      ),
-      FertilityObservation(
-        date: day.subtract(const Duration(days: 2)),
-        ovulationTest: OvulationTestEntry(
-          testedAt: day.subtract(const Duration(days: 2, hours: -11)),
-          result: OvulationTestResult.negative,
-        ),
-        basalTemperature: BasalTemperatureEntry(
-          measuredAt: day.subtract(const Duration(days: 2, hours: -6)),
-          temperature: 36.35,
-        ),
-      ),
-    ];
   }
 }
 

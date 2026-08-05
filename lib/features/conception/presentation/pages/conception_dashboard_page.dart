@@ -26,7 +26,7 @@ class ConceptionDashboardPage extends ConsumerWidget {
           'Conception dashboard for fertility observations, care planning and calm next steps.',
       trailing: IconButton(
         tooltip: 'Notifications',
-        onPressed: () {},
+        onPressed: () => context.go('/notifications/settings'),
         icon: const Icon(Icons.notifications_none_rounded),
       ),
       children: [

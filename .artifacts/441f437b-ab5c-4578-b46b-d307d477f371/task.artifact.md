@@ -1,0 +1,5 @@
+- [ ] Dependency Synchronization (`flutter pub get`)
+- [ ] Code Generation (`build_runner`)
+- [ ] Static Analysis (`flutter analyze`)
+- [ ] APK Compilation (`flutter build apk`)
+- [ ] Verify APK existence

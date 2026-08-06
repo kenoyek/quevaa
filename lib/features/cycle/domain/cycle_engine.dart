@@ -1,4 +1,7 @@
+import '../../../../core/models/prediction_confidence.dart';
 import 'models/cycle_engine_output.dart';
+import 'models/date_range.dart';
+import 'models/period_prediction.dart';
 
 class CyclePeriodRecord {
   final DateTime startDate;
@@ -40,14 +43,10 @@ class CycleEngine {
     }
 
     if (sortedPeriods.isEmpty) {
-      // Default fallback when no period history exists
-      final periodStart = normalizedTarget.subtract(const Duration(days: 10));
-      return _buildDefaultOutput(
-        periodStart: periodStart,
+      return _buildEmptyHistoryOutput(
         targetDate: normalizedTarget,
         cycleLength: userConfiguredAverageCycleLength,
         periodLength: userConfiguredPeriodLength,
-        confidence: PredictionConfidence.low,
         mode: mode,
         disclaimer: acogDisclaimer,
       );
@@ -96,30 +95,54 @@ class CycleEngine {
     );
 
     // 4. Calculate Current Cycle Day & Phase
-    final lastPeriodStart = sortedPeriods.last.startDate;
-    final int currentCycleDay =
-        normalizedTarget.difference(lastPeriodStart).inDays + 1;
+    // Find the most recent period START date that is <= normalizedTarget
+    final lastPeriodStartBeforeTarget = sortedPeriods
+        .where((p) => !p.startDate.isAfter(normalizedTarget))
+        .lastOrNull
+        ?.startDate;
 
-    // 5. Compute Next Period & Ovulation Range Estimates
+    final int currentCycleDay = lastPeriodStartBeforeTarget == null
+        ? 1
+        : normalizedTarget.difference(lastPeriodStartBeforeTarget).inDays + 1;
+
+    // 5. Compute Future Projections (e.g., 6 cycles ahead from the absolute latest period)
+    final absoluteLatestPeriodStart = sortedPeriods.last.startDate;
+    final List<ProjectedPeriod> projections = [];
+    final List<PeriodPrediction> periodPredictions = [];
     final int baseLength = medianCycle.round();
-    final DateTime nextPeriodCenter = lastPeriodStart.add(
+    final int expectedDuration = avgPeriodDuration.round().clamp(1, 14);
+
+    for (int i = 1; i <= 6; i++) {
+      final center = absoluteLatestPeriodStart.add(Duration(days: baseLength * i));
+      final int margin = (confidence == PredictionConfidence.high)
+          ? 1
+          : (confidence == PredictionConfidence.moderate)
+              ? 2
+              : (mode == CycleMode.irregular)
+                  ? 5
+                  : 3;
+      projections.add(ProjectedPeriod(
+        min: center.subtract(Duration(days: margin)),
+        max: center.add(Duration(days: margin)),
+      ));
+      periodPredictions.add(PeriodPrediction.fromEstimate(
+        estimatedStartDate: center,
+        possibleStartRange: DateRange(
+          start: center.subtract(Duration(days: margin)),
+          end: center.add(Duration(days: margin)),
+        ),
+        expectedDurationDays: expectedDuration,
+        confidence: confidence,
+      ));
+    }
+
+    final firstProjection = projections.first;
+    final firstPrediction = periodPredictions.first;
+
+    // Estimated Ovulation: typically 14 days before next expected period center
+    final DateTime nextPeriodCenter = absoluteLatestPeriodStart.add(
       Duration(days: baseLength),
     );
-
-    final int margin = (confidence == PredictionConfidence.high)
-        ? 1
-        : (confidence == PredictionConfidence.moderate)
-        ? 2
-        : (mode == CycleMode.irregular)
-        ? 5
-        : 3;
-
-    final DateTime periodMin = nextPeriodCenter.subtract(
-      Duration(days: margin),
-    );
-    final DateTime periodMax = nextPeriodCenter.add(Duration(days: margin));
-
-    // Estimated Ovulation: typically 14 days before next expected period
     final DateTime ovulationCenter = nextPeriodCenter.subtract(
       const Duration(days: 14),
     );
@@ -143,18 +166,20 @@ class CycleEngine {
       mode: mode,
     );
 
-    final int daysLate = normalizedTarget.isAfter(periodMax)
-        ? normalizedTarget.difference(periodMax).inDays
+    final int daysLate = normalizedTarget.isAfter(firstProjection.max)
+        ? normalizedTarget.difference(firstProjection.max).inDays
         : 0;
 
     final bool isIrregularPattern =
         variability >= 4.5 || mode == CycleMode.irregular;
 
     return CycleEngineOutput(
-      currentCycleDay: currentCycleDay < 1 ? 1 : currentCycleDay,
+      currentCycleDay: currentCycleDay,
       estimatedPhase: currentPhase,
-      estimatedPeriodStartMin: periodMin,
-      estimatedPeriodStartMax: periodMax,
+      estimatedPeriodStartMin: firstPrediction.estimatedStartDate,
+      estimatedPeriodStartMax: firstPrediction.estimatedStartDate.add(
+        Duration(days: expectedDuration - 1),
+      ),
       estimatedOvulationStart: ovulationMin,
       estimatedOvulationEnd: ovulationMax,
       fertileWindowStart: fertileStart,
@@ -170,6 +195,8 @@ class CycleEngine {
       isIrregularPattern: isIrregularPattern,
       mode: mode,
       disclaimer: acogDisclaimer,
+      nextCycles: projections,
+      periodPredictions: periodPredictions,
     );
   }
 
@@ -282,37 +309,32 @@ class CycleEngine {
     );
   }
 
-  static CycleEngineOutput _buildDefaultOutput({
-    required DateTime periodStart,
+  static CycleEngineOutput _buildEmptyHistoryOutput({
     required DateTime targetDate,
     required int cycleLength,
     required int periodLength,
-    required PredictionConfidence confidence,
     required CycleMode mode,
     required String disclaimer,
   }) {
-    final nextMin = periodStart.add(Duration(days: cycleLength - 2));
-    final nextMax = periodStart.add(Duration(days: cycleLength + 2));
-    final ovCenter = periodStart.add(Duration(days: cycleLength - 14));
-
     return CycleEngineOutput(
-      currentCycleDay: targetDate.difference(periodStart).inDays + 1,
-      estimatedPhase: 'Follicular',
-      estimatedPeriodStartMin: nextMin,
-      estimatedPeriodStartMax: nextMax,
-      estimatedOvulationStart: ovCenter.subtract(const Duration(days: 1)),
-      estimatedOvulationEnd: ovCenter.add(const Duration(days: 1)),
-      fertileWindowStart: ovCenter.subtract(const Duration(days: 5)),
-      fertileWindowEnd: ovCenter.add(const Duration(days: 1)),
+      currentCycleDay: 0,
+      estimatedPhase: 'Phase unavailable',
+      estimatedPeriodStartMin: targetDate,
+      estimatedPeriodStartMax: targetDate.add(Duration(days: cycleLength)),
+      estimatedOvulationStart: targetDate,
+      estimatedOvulationEnd: targetDate,
+      fertileWindowStart: targetDate,
+      fertileWindowEnd: targetDate,
       averageCycleLength: cycleLength.toDouble(),
       medianCycleLength: cycleLength.toDouble(),
       averagePeriodDuration: periodLength.toDouble(),
       cycleLengthVariability: 0,
-      confidence: confidence,
+      confidence: PredictionConfidence.low,
       daysLate: 0,
       isIrregularPattern: false,
       mode: mode,
       disclaimer: disclaimer,
+      hasEnoughData: false,
     );
   }
 }

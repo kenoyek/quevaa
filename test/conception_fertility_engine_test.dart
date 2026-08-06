@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:quevaa/core/models/prediction_confidence.dart';
 import 'package:quevaa/features/conception/application/conception_controller.dart';
 import 'package:quevaa/features/conception/domain/engines/fertility_engine.dart';
 import 'package:quevaa/features/conception/domain/entities/cervical_mucus_entry.dart';

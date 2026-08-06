@@ -1,25 +1,49 @@
-# Implementation Plan - Build APK
+# Implementation Plan - Calendar Fixes and Robust Cycle Predictions
 
-This plan outlines the steps to build an Android APK for the Quevaa Flutter project.
+This plan addresses the "Calendar not working" report by improving the cycle engine's prediction logic, making it date-aware for historical browsing, and enhancing the "Year" and "Three-month" views with multiple future projections.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> The build process will use the `debug` signing configuration for the `release` build type as currently configured in `android/app/build.gradle.kts`. This means the APK will be runnable but not suitable for Play Store distribution without a proper release keystore.
+> - The calendar will now show projected periods for the next 6 months, ensuring that the "Year" view doesn't look empty.
+> - The "Cycle Day" calculation will now be relative to the selected date, meaning it will show correct data when browsing past cycles.
+> - "Start/End Period" buttons in the day details will now be context-sensitive (e.g., you won't see "End period" if there isn't one ongoing).
 
 ## Proposed Changes
 
-No changes to the source code are expected, but the following commands will be executed:
+### 1. Cycle Engine Enhancements
 
-### Build Process
+#### [MODIFY] [cycle_engine_output.dart](file:///Users/okaguakenneth/Downloads/quevaa/lib/features/cycle/domain/models/cycle_engine_output.dart)
+- Add `ProjectedPeriod` class to hold range-based predictions.
+- Add `List<ProjectedPeriod> nextCycles` to `CycleEngineOutput`.
 
-1.  **Dependency Synchronization**: Run `flutter pub get` to ensure all packages are available.
-2.  **Code Generation**: Run `flutter pub run build_runner build --delete-conflicting-outputs` to update generated files for Riverpod, Drift, and Freezed.
-3.  **Static Analysis**: Run `flutter analyze` to ensure there are no breaking issues before building.
-4.  **APK Compilation**: Run `flutter build apk` to generate the release APK.
+#### [MODIFY] [cycle_engine.dart](file:///Users/okaguakenneth/Downloads/quevaa/lib/features/cycle/domain/cycle_engine.dart)
+- Update `calculate` to find the most recent period *before or on* the `targetDate`.
+- Implement logic to project multiple future cycles based on the weighted median cycle length.
+- Ensure special modes (Pregnancy/Postpartum) also return logical (though static) projections if appropriate.
+
+### 2. Calendar UI Improvements
+
+#### [MODIFY] [cycle_workspace_page.dart](file:///Users/okaguakenneth/Downloads/quevaa/lib/features/cycle/presentation/pages/cycle_workspace_page.dart)
+- **Multi-cycle Markers**: Update `_calendarState` to check if a date falls within *any* of the `nextCycles` projections.
+- **Context-Aware Actions**:
+    - Update `_showDayDetails` to hide "Start period" if a confirmed period already exists on that date.
+    - Hide "End period" if there is no ongoing period to end.
+    - Improve labels for clarity.
+
+### 3. State Management
+
+#### [MODIFY] [cycle_workspace_provider.dart](file:///Users/okaguakenneth/Downloads/quevaa/lib/features/cycle/application/cycle_workspace_provider.dart)
+- Ensure providers correctly invalidate and refresh when the underlying database tables change (this should already work via Drift StreamProviders).
 
 ## Verification Plan
 
+### Automated Tests
+- Update `test/cycle_engine_test.dart` to verify:
+    - Cycle Day calculation for historical dates.
+    - Existence of multiple projected periods in the output.
+
 ### Manual Verification
-- Verify the existence of the APK at `build/app/outputs/flutter-apk/app-release.apk`.
-- Provide the path to the user.
+- **Year View**: Verify that multiple terracotta-colored ranges appear in future months.
+- **Historical Browsing**: Select a date from last month's period and verify the "Cycle Day" in the header is correct (e.g., Day 5 of that past cycle).
+- **Logging**: Verify that starting a period removes the projected markers for that range.

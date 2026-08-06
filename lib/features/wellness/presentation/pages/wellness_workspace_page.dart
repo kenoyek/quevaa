@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/quevaa_layout.dart';
+import '../../../../app/theme/quevaa_spacing.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../nutrition/data/nigerian_recipe_database.dart';
 import '../../../workouts/domain/entities/workout_entity.dart';
@@ -21,47 +23,43 @@ class WellnessWorkspacePage extends ConsumerWidget {
         child: CustomScrollView(
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(vertical: QuevaaSpacing.m),
               sliver: SliverToBoxAdapter(
                 child: _WellnessHeader(recommendation: recommendation),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverToBoxAdapter(
-                child: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                      value: 'For You',
-                      label: Text('For You'),
-                      icon: Icon(Icons.auto_awesome_rounded),
-                    ),
-                    ButtonSegment(
-                      value: 'Meals',
-                      label: Text('Meals'),
-                      icon: Icon(Icons.restaurant_rounded),
-                    ),
-                    ButtonSegment(
-                      value: 'Movement',
-                      label: Text('Move'),
-                      icon: Icon(Icons.fitness_center_rounded),
-                    ),
-                    ButtonSegment(
-                      value: 'Mind',
-                      label: Text('Mind'),
-                      icon: Icon(Icons.edit_note_rounded),
-                    ),
-                    ButtonSegment(
-                      value: 'Progress',
-                      label: Text('Progress'),
-                      icon: Icon(Icons.insights_rounded),
-                    ),
-                  ],
-                  selected: {section},
-                  onSelectionChanged: (value) =>
-                      ref.read(wellnessSectionProvider.notifier).state =
-                          value.first,
-                ),
+            SliverToBoxAdapter(
+              child: QuevaaSectionTabs(
+                segments: const [
+                  (
+                    value: 'For You',
+                    label: 'For You',
+                    icon: Icons.auto_awesome_rounded,
+                  ),
+                  (
+                    value: 'Meals',
+                    label: 'Meals',
+                    icon: Icons.restaurant_rounded,
+                  ),
+                  (
+                    value: 'Movement',
+                    label: 'Move',
+                    icon: Icons.fitness_center_rounded,
+                  ),
+                  (
+                    value: 'Mind',
+                    label: 'Mind',
+                    icon: Icons.edit_note_rounded,
+                  ),
+                  (
+                    value: 'Progress',
+                    label: 'Progress',
+                    icon: Icons.insights_rounded,
+                  ),
+                ],
+                selected: section,
+                onSelectionChanged: (value) =>
+                    ref.read(wellnessSectionProvider.notifier).state = value,
               ),
             ),
             SliverPadding(
@@ -94,20 +92,34 @@ class _WellnessHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: _panelDecoration(context),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: QuevaaSpacing.l),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Wellness', style: Theme.of(context).textTheme.displaySmall),
-          const SizedBox(height: 8),
+          Text('Wellness', style: theme.textTheme.displaySmall),
+          const SizedBox(height: QuevaaSpacing.m),
           Text(
-            'Today’s focus: ${recommendation.focus}',
-            style: Theme.of(context).textTheme.headlineMedium,
+            'Today’s focus',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.terracottaPrimary,
+            ),
           ),
-          const SizedBox(height: 6),
-          Text(recommendation.reason),
+          Text(
+            recommendation.focus,
+            style: theme.textTheme.headlineMedium,
+          ),
+          const SizedBox(height: QuevaaSpacing.xxs),
+          Text(
+            recommendation.reason,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+            ),
+          ),
         ],
       ),
     );
@@ -221,11 +233,67 @@ class _MindWorkspace extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final journalStream = ref.watch(journalStreamProvider);
     final count = ref.watch(journalEntryCountProvider).valueOrNull ?? 0;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _JournalPrompt(prompt: prompt),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Your reflections',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            FilledButton.icon(
+              onPressed: () => _showJournalSheet(context, ref),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('New Entry'),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
+        journalStream.when(
+          data: (entries) {
+            if (entries.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: _panelDecoration(context),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.edit_note_rounded,
+                      size: 48,
+                      color: AppColors.purplePrimary,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No private reflections saved yet',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Tap "New Entry" or pick today\'s prompt above to write a private reflection.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            }
+            return Column(
+              children: [
+                for (final entry in entries)
+                  _JournalEntryTile(entry: entry),
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => const Text('Could not load journal entries.'),
+        ),
+        const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: _panelDecoration(context),
@@ -235,13 +303,95 @@ class _MindWorkspace extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  '$count private journal entries are stored locally.',
+                  '$count private journal entries are encrypted and stored locally.',
                 ),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _JournalEntryTile extends ConsumerWidget {
+  final JournalEntry entry;
+
+  const _JournalEntryTile({required this.entry});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dateStr = DateFormat.yMMMd().add_jm().format(entry.createdAt);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    entry.title?.isNotEmpty == true
+                        ? entry.title!
+                        : 'Private Reflection',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+                if (entry.mood != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.purpleContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      entry.mood!,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppColors.purpleDark,
+                          ),
+                    ),
+                  ),
+                PopupMenuButton<String>(
+                  onSelected: (val) async {
+                    if (val == 'edit') {
+                      _showJournalSheet(context, ref, entry: entry);
+                    } else if (val == 'delete') {
+                      await ref
+                          .read(wellnessWorkspaceControllerProvider.notifier)
+                          .deleteJournalEntry(entry.id);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              entry.encryptedContent,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              dateStr,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -287,79 +437,152 @@ class _MealRecommendationCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: QuevaaSpacing.m),
+      padding: const EdgeInsets.all(QuevaaSpacing.m),
       decoration: _panelDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 54,
-                height: 54,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  color: AppColors.terracottaContainer,
-                  borderRadius: BorderRadius.circular(14),
+                  color: AppColors.terracottaContainer.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(QuevaaSpacing.s),
                 ),
                 child: const Icon(
                   Icons.restaurant_rounded,
                   color: AppColors.terracottaPrimary,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: QuevaaSpacing.m),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       compactTitle ?? 'Recommended meal',
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: AppColors.terracottaPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       recipe.title,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    Text(
-                      '${recipe.mealType} • ${recipe.region} • ${recipe.keyNutrients}',
+                      style: theme.textTheme.titleLarge,
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(recipe.description),
-          const SizedBox(height: 12),
+          const SizedBox(height: QuevaaSpacing.s),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: QuevaaSpacing.xs,
+            runSpacing: QuevaaSpacing.xxs,
             children: [
-              FilledButton.tonalIcon(
-                onPressed: () => ref
-                    .read(wellnessWorkspaceControllerProvider.notifier)
-                    .planMeal(DateTime.now(), recipe),
-                icon: const Icon(Icons.bookmark_add_rounded),
-                label: const Text('Save'),
+              _MetadataChip(label: recipe.mealType),
+              _MetadataChip(label: recipe.region),
+              const _MetadataChip(label: '30 min'), // Placeholder for duration if not in entity
+            ],
+          ),
+          const SizedBox(height: QuevaaSpacing.s),
+          Text(
+            recipe.description,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+            ),
+          ),
+          const SizedBox(height: QuevaaSpacing.s),
+          Text(
+            'Nutrients: ${recipe.keyNutrients}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontStyle: FontStyle.italic,
+              color: AppColors.sagePrimary,
+            ),
+          ),
+          const SizedBox(height: QuevaaSpacing.m),
+          Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => ref
+                      .read(wellnessWorkspaceControllerProvider.notifier)
+                      .markMealPrepared(recipe),
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Mark as Prepared'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.terracottaPrimary,
+                  ),
+                ),
               ),
-              OutlinedButton.icon(
-                onPressed: () => ref
-                    .read(wellnessWorkspaceControllerProvider.notifier)
-                    .markMealPrepared(recipe),
-                icon: const Icon(Icons.check_rounded),
-                label: const Text('Prepared'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => ref
-                    .read(wellnessWorkspaceControllerProvider.notifier)
-                    .addRecipeToShoppingList(recipe),
-                icon: const Icon(Icons.shopping_bag_rounded),
-                label: const Text('Add ingredients'),
+              const SizedBox(height: QuevaaSpacing.xs),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => ref
+                          .read(wellnessWorkspaceControllerProvider.notifier)
+                          .planMeal(DateTime.now(), recipe),
+                      icon: const Icon(Icons.bookmark_add_rounded, size: 18),
+                      label: const Text('Save'),
+                    ),
+                  ),
+                  const SizedBox(width: QuevaaSpacing.xs),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => ref
+                          .read(wellnessWorkspaceControllerProvider.notifier)
+                          .addRecipeToShoppingList(recipe),
+                      icon: const Icon(Icons.shopping_bag_rounded, size: 18),
+                      label: const Text('Ingredients'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MetadataChip extends StatelessWidget {
+  final String label;
+
+  const _MetadataChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: QuevaaSpacing.xs,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white10 : AppColors.bgWarmCream,
+        borderRadius: BorderRadius.circular( QuevaaSpacing.xxs),
+        border: Border.all(
+          color: isDark ? Colors.white24 : AppColors.borderLight,
+        ),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -373,30 +596,54 @@ class _WorkoutCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(QuevaaSpacing.m),
       decoration: _panelDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Today’s movement',
-            style: Theme.of(context).textTheme.labelLarge,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: AppColors.sagePrimary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(workout.title, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 4),
+          const SizedBox(height: QuevaaSpacing.xxs),
+          Text(workout.title, style: theme.textTheme.titleLarge),
+          const SizedBox(height: QuevaaSpacing.xs),
+          Wrap(
+            spacing: QuevaaSpacing.xs,
+            runSpacing: QuevaaSpacing.xxs,
+            children: [
+              _MetadataChip(label: '${workout.durationMinutes} min'),
+              _MetadataChip(label: workout.intensity),
+              _MetadataChip(label: workout.equipmentRequired.join(', ')),
+            ],
+          ),
+          const SizedBox(height: QuevaaSpacing.s),
           Text(
-            '${workout.durationMinutes} min • ${workout.intensity} • ${workout.equipmentRequired.join(', ')}',
-          ),
-          const SizedBox(height: 8),
-          const Text(
             'Suggested as a movement option based on today’s logged energy, pain, sleep, and recent activity.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+            ),
           ),
           if (expanded) ...[
-            const SizedBox(height: 12),
-            const Text(WorkoutEntity.preWorkoutSafetyPrompt),
-            const SizedBox(height: 10),
+            const SizedBox(height: QuevaaSpacing.m),
+            Text(
+              'Preparation',
+              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: QuevaaSpacing.xxs),
+            const Text(
+              WorkoutEntity.preWorkoutSafetyPrompt,
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: QuevaaSpacing.s),
             for (final exercise in [
               ...workout.warmup,
               ...workout.mainExercises,
@@ -404,42 +651,63 @@ class _WorkoutCard extends ConsumerWidget {
             ])
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.play_circle_outline_rounded),
+                dense: true,
+                leading: const Icon(
+                  Icons.play_circle_outline_rounded,
+                  size: 20,
+                  color: AppColors.sagePrimary,
+                ),
                 title: Text(exercise.name),
                 subtitle: Text(
                   '${exercise.durationOrReps}. ${exercise.modification}',
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
           ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
+          const SizedBox(height: QuevaaSpacing.m),
+          Column(
             children: [
-              FilledButton.icon(
-                onPressed: () => ref
-                    .read(wellnessWorkspaceControllerProvider.notifier)
-                    .completeWorkout(workout),
-                icon: const Icon(Icons.check_rounded),
-                label: const Text('Complete'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _showWorkoutAlternatives(context, ref),
-                icon: const Icon(Icons.swap_horiz_rounded),
-                label: const Text('Replace'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await ref
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => ref
                       .read(wellnessWorkspaceControllerProvider.notifier)
-                      .markRestDay();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Rest day saved.')),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.self_improvement_rounded),
-                label: const Text('Rest day'),
+                      .completeWorkout(workout),
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Start Workout'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.sagePrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: QuevaaSpacing.xs),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showWorkoutAlternatives(context, ref),
+                      icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                      label: const Text('Replace'),
+                    ),
+                  ),
+                  const SizedBox(width: QuevaaSpacing.xs),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await ref
+                            .read(wellnessWorkspaceControllerProvider.notifier)
+                            .markRestDay();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Rest day saved.')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.self_improvement_rounded, size: 18),
+                      label: const Text('Rest Day'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -502,23 +770,136 @@ class _JournalPrompt extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Mind and journal',
+            'Daily reflection prompt',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           Text(prompt),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: () => ref
-                .read(wellnessWorkspaceControllerProvider.notifier)
-                .addJournalPrompt(prompt),
-            icon: const Icon(Icons.edit_note_rounded),
-            label: const Text('Save private reflection prompt'),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: () => _showJournalSheet(
+                  context,
+                  ref,
+                  initialContent: prompt,
+                ),
+                icon: const Icon(Icons.edit_note_rounded),
+                label: const Text('Write Reflection'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => ref
+                    .read(wellnessWorkspaceControllerProvider.notifier)
+                    .addJournalPrompt(prompt),
+                icon: const Icon(Icons.bookmark_add_rounded),
+                label: const Text('Save Prompt'),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+void _showJournalSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  JournalEntry? entry,
+  String? initialContent,
+}) {
+  final titleController = TextEditingController(text: entry?.title ?? '');
+  final contentController = TextEditingController(
+    text: entry?.encryptedContent ?? initialContent ?? '',
+  );
+  var mood = entry?.mood ?? 'Calm';
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            0,
+            20,
+            20 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  entry == null ? 'New journal entry' : 'Edit journal entry',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Title (optional)',
+                    hintText: 'e.g. Quiet moment, Evening reflection',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: mood,
+                  decoration: const InputDecoration(labelText: 'Mood'),
+                  items: const [
+                    'Calm',
+                    'Reflective',
+                    'Grateful',
+                    'Hopeful',
+                    'Anxious',
+                    'Tired',
+                    'Energized',
+                  ].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                  onChanged: (val) => setState(() => mood = val ?? mood),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contentController,
+                  maxLines: 6,
+                  decoration: const InputDecoration(
+                    labelText: 'Reflection notes',
+                    hintText: 'Write your private thoughts...',
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      if (contentController.text.trim().isEmpty) return;
+                      await ref
+                          .read(wellnessWorkspaceControllerProvider.notifier)
+                          .saveJournalEntry(
+                            id: entry?.id,
+                            title: titleController.text,
+                            content: contentController.text,
+                            mood: mood,
+                          );
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.check_rounded),
+                    label: Text(entry == null ? 'Save Entry' : 'Update Entry'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  ).whenComplete(() {
+    titleController.dispose();
+    contentController.dispose();
+  });
 }
 
 class _MealPlanPanel extends StatelessWidget {

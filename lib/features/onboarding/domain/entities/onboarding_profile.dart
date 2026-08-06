@@ -27,6 +27,10 @@ class OnboardingProfile {
   final bool enableBiometrics;
   final bool enableDiscreetNotifications;
 
+  // Personalization
+  final String userName;
+  final int? age;
+
   const OnboardingProfile({
     this.lastPeriodStartDate,
     this.averagePeriodDuration = 5,
@@ -46,6 +50,8 @@ class OnboardingProfile {
     this.lowImpactOnly = false,
     this.enableBiometrics = false,
     this.enableDiscreetNotifications = true,
+    this.userName = 'Adaora',
+    this.age,
   });
 
   OnboardingProfile copyWith({
@@ -67,6 +73,8 @@ class OnboardingProfile {
     bool? lowImpactOnly,
     bool? enableBiometrics,
     bool? enableDiscreetNotifications,
+    String? userName,
+    int? age,
   }) {
     return OnboardingProfile(
       lastPeriodStartDate: lastPeriodStartDate ?? this.lastPeriodStartDate,
@@ -89,6 +97,8 @@ class OnboardingProfile {
       enableBiometrics: enableBiometrics ?? this.enableBiometrics,
       enableDiscreetNotifications:
           enableDiscreetNotifications ?? this.enableDiscreetNotifications,
+      userName: userName ?? this.userName,
+      age: age ?? this.age,
     );
   }
 }

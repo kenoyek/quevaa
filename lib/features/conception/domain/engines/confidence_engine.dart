@@ -1,7 +1,7 @@
+import '../../../../core/models/prediction_confidence.dart';
 import '../entities/basal_temperature.dart';
 import '../entities/cervical_mucus_entry.dart';
 import '../entities/conception_profile.dart';
-import '../entities/fertility_assessment.dart';
 import '../entities/fertility_observation.dart';
 import '../entities/ovulation_test.dart';
 

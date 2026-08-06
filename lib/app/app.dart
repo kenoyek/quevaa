@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 import 'theme/quevaa_theme_mode.dart';
+import 'startup/app_startup_provider.dart';
+import '../core/notifications/notification_routing_provider.dart';
+import '../core/security/widgets/app_lock_wrapper.dart';
 
 class QuevaaApp extends ConsumerWidget {
   const QuevaaApp({super.key});
@@ -35,6 +38,17 @@ class QuevaaApp extends ConsumerWidget {
             systemNavigationBarIconBrightness: Brightness.dark,
           );
 
+    final router = ref.watch(routerProvider);
+    ref.watch(appStartupProvider);
+
+    // Listen for notification taps
+    ref.listen(notificationRoutingProvider, (previous, next) {
+      if (next != null) {
+        router.go(next.route);
+        ref.read(notificationRoutingProvider.notifier).consume();
+      }
+    });
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlay,
       child: MaterialApp.router(
@@ -43,7 +57,8 @@ class QuevaaApp extends ConsumerWidget {
         theme: AppTheme.lightTheme(),
         darkTheme: AppTheme.darkTheme(),
         themeMode: selectedMode.materialMode,
-        routerConfig: appRouter,
+        routerConfig: router,
+        builder: (context, child) => AppLockWrapper(child: child!),
       ),
     );
   }

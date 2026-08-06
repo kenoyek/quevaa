@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/providers/database_provider.dart';
 import '../../cycle/application/cycle_workspace_provider.dart';
+import '../../notifications/application/notification_preferences_provider.dart';
+import '../../notifications/domain/services/notification_scheduler.dart';
 import '../../nutrition/data/nigerian_recipe_database.dart';
 import '../../workouts/domain/entities/workout_entity.dart';
 import '../../workouts/domain/workout_recommendation_engine.dart';
@@ -60,6 +64,14 @@ final workoutSessionStreamProvider = StreamProvider<List<WorkoutSession>>((
   return (db.select(db.workoutSessions)
         ..where((tbl) => tbl.deletedAt.isNull())
         ..orderBy([(tbl) => OrderingTerm.desc(tbl.completedAt)]))
+      .watch();
+});
+
+final journalStreamProvider = StreamProvider<List<JournalEntry>>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return (db.select(db.journalEntries)
+        ..where((tbl) => tbl.deletedAt.isNull())
+        ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
       .watch();
 });
 
@@ -173,6 +185,10 @@ class WellnessWorkspaceController extends Notifier<bool> {
             glassesDrank: Value(glasses),
           ),
         );
+    // Reconcile notifications after logging water
+    await ref.read(notificationSchedulerProvider).reconcileNotifications(
+      NotificationReconciliationReason.mealPlanChanged, // Closest match or wellness
+    );
   }
 
   Future<void> planMeal(DateTime date, NigerianRecipe recipe) async {
@@ -291,6 +307,10 @@ class WellnessWorkspaceController extends Notifier<bool> {
             perceivedExertion: exertion,
           ),
         );
+    // Reconcile notifications after completing a workout
+    await ref.read(notificationSchedulerProvider).reconcileNotifications(
+      NotificationReconciliationReason.workoutPlanChanged,
+    );
   }
 
   Future<void> markRestDay() async {
@@ -322,22 +342,70 @@ class WellnessWorkspaceController extends Notifier<bool> {
             perceivedExertion: 1,
           ),
         );
+    // Reconcile notifications after marking a rest day
+    await ref.read(notificationSchedulerProvider).reconcileNotifications(
+      NotificationReconciliationReason.workoutPlanChanged,
+    );
+  }
+
+  Future<void> saveJournalEntry({
+    int? id,
+    required String title,
+    required String content,
+    String? mood,
+    List<String>? tags,
+  }) async {
+    final now = DateTime.now();
+    final tagsStr = jsonEncode(tags ?? ['reflection']);
+    if (id == null) {
+      await _db.into(_db.journalEntries).insert(
+            JournalEntriesCompanion.insert(
+              uuid: localUuid('journal'),
+              createdAt: now,
+              updatedAt: now,
+              title: Value(
+                title.trim().isEmpty ? 'Private Reflection' : title.trim(),
+              ),
+              encryptedContent: content.trim(),
+              mood: Value(mood ?? 'Calm'),
+              tagsJson: Value(tagsStr),
+            ),
+          );
+    } else {
+      await (_db.update(_db.journalEntries)..where((tbl) => tbl.id.equals(id)))
+          .write(
+        JournalEntriesCompanion(
+          title: Value(
+            title.trim().isEmpty ? 'Private Reflection' : title.trim(),
+          ),
+          encryptedContent: Value(content.trim()),
+          mood: Value(mood ?? 'Calm'),
+          tagsJson: Value(tagsStr),
+          updatedAt: Value(now),
+        ),
+      );
+    }
+    await ref.read(notificationSchedulerProvider).reconcileNotifications(
+      NotificationReconciliationReason.journalChanged,
+    );
+  }
+
+  Future<void> deleteJournalEntry(int id) async {
+    final now = DateTime.now();
+    await (_db.update(_db.journalEntries)..where((tbl) => tbl.id.equals(id)))
+        .write(JournalEntriesCompanion(deletedAt: Value(now)));
+    await ref.read(notificationSchedulerProvider).reconcileNotifications(
+      NotificationReconciliationReason.journalChanged,
+    );
   }
 
   Future<void> addJournalPrompt(String prompt) async {
-    final now = DateTime.now();
-    await _db
-        .into(_db.journalEntries)
-        .insert(
-          JournalEntriesCompanion.insert(
-            uuid: localUuid('journal'),
-            createdAt: now,
-            updatedAt: now,
-            title: const Value('Daily reflection'),
-            encryptedContent: prompt,
-            tagsJson: const Value('["wellness"]'),
-          ),
-        );
+    await saveJournalEntry(
+      title: 'Daily Reflection Prompt',
+      content: prompt,
+      mood: 'Reflective',
+      tags: ['prompt', 'reflection'],
+    );
   }
 }
 

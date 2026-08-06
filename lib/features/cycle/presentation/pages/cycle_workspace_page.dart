@@ -6,8 +6,11 @@ import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../../core/models/prediction_confidence.dart';
 import '../../../conception/application/conception_settings_provider.dart';
 import '../../application/cycle_workspace_provider.dart';
+import '../../domain/models/cycle_engine_output.dart';
+import '../../domain/models/estimated_cycle_phase.dart';
 
 class CycleWorkspacePage extends ConsumerWidget {
   const CycleWorkspacePage({super.key});
@@ -48,7 +51,7 @@ class CycleWorkspacePage extends ConsumerWidget {
                     ),
                     cycleDay: output.currentCycleDay,
                     phase: output.estimatedPhase,
-                    confidence: output.confidence.name,
+                    confidence: formatPredictionConfidence(output.confidence),
                   ),
                 ),
               ),
@@ -90,14 +93,31 @@ class CycleWorkspacePage extends ConsumerWidget {
                           _showDayDetails(context, ref, date);
                         },
                       ),
-                      loading: () => const _LoadingPanel(),
-                      error: (error, stack) => const _ErrorPanel(
-                        message: 'Cycle symptoms could not be loaded.',
+                      loading: () => _CycleCalendar(
+                        view: view,
+                        dailyLogs: const [],
+                        symptoms: const [],
+                        periods: periods,
+                        ttcEnabled: ttcEnabled,
+                        onSelectDate: (date) {},
+                      ),
+                      error: (error, stack) => _CycleCalendar(
+                        view: view,
+                        dailyLogs: const [],
+                        symptoms: const [],
+                        periods: periods,
+                        ttcEnabled: ttcEnabled,
+                        onSelectDate: (date) {},
                       ),
                     ),
                     loading: () => const _LoadingPanel(),
-                    error: (error, stack) => const _ErrorPanel(
-                      message: 'Cycle calendar could not be loaded.',
+                    error: (error, stack) => _CycleCalendar(
+                      view: view,
+                      dailyLogs: const [],
+                      symptoms: const [],
+                      periods: periods,
+                      ttcEnabled: ttcEnabled,
+                      onSelectDate: (date) {},
                     ),
                   ),
                 ),
@@ -209,7 +229,7 @@ class _CycleHeader extends StatelessWidget {
 }
 
 class _OverviewCards extends StatelessWidget {
-  final dynamic output;
+  final CycleEngineOutput output;
   final List<CyclePeriod> periods;
 
   const _OverviewCards({required this.output, required this.periods});
@@ -238,14 +258,17 @@ class _OverviewCards extends StatelessWidget {
         _InfoCard(
           icon: Icons.event_available_rounded,
           title: 'Next period',
-          body:
-              'Estimated ${date.format(output.estimatedPeriodStartMin)}-${date.format(output.estimatedPeriodStartMax)}',
-          foot: 'Confidence: ${_titleCase(output.confidence.name)}',
+          body: output.hasEnoughData
+              ? 'Estimated ${date.format(output.estimatedPeriodStartMin)}-${date.format(output.estimatedPeriodStartMax)}'
+              : 'Add period history to estimate',
+          foot: 'Confidence: ${formatPredictionConfidence(output.confidence)}',
         ),
         _InfoCard(
           icon: Icons.timeline_rounded,
           title: 'Current cycle',
-          body: 'Day ${output.currentCycleDay}',
+          body: output.hasEnoughData
+              ? 'Day ${output.currentCycleDay}'
+              : 'Data needed',
           foot: 'Estimated ${output.medianCycleLength.round()}-day cycle',
         ),
         _InfoCard(
@@ -363,7 +386,7 @@ class _MonthGrid extends StatelessWidget {
   final List<DailyLog> dailyLogs;
   final List<SymptomEntry> symptoms;
   final List<CyclePeriod> periods;
-  final dynamic output;
+  final CycleEngineOutput output;
   final bool ttcEnabled;
   final ValueChanged<DateTime> onSelectDate;
 
@@ -384,7 +407,7 @@ class _MonthGrid extends StatelessWidget {
     final firstDayOffset = localizations.firstDayOfWeekIndex;
     final first = DateTime(month.year, month.month);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
-    final leading = (first.weekday % 7 - firstDayOffset) % 7;
+    final leading = ((first.weekday % 7 - firstDayOffset) % 7 + 7) % 7;
     final cellCount = ((leading + daysInMonth) / 7).ceil() * 7;
     final logsByDate = {
       for (final log in dailyLogs) normalizeDate(log.date): log,
@@ -568,10 +591,20 @@ void _showDayDetails(BuildContext context, WidgetRef ref, DateTime date) {
     showDragHandle: true,
     builder: (context) => Consumer(
       builder: (context, ref, child) {
-        final output = ref.watch(currentCycleOutputProvider);
+        final selectedSnapshot = ref.watch(selectedDayCycleSnapshotProvider);
         final log = ref.watch(selectedDayLogProvider).valueOrNull;
         final symptoms =
             ref.watch(selectedDaySymptomsProvider).valueOrNull ?? const [];
+        final periods = ref.watch(periodHistoryProvider).valueOrNull ?? const [];
+
+        final hasConfirmedPeriodOnDate = periods.any((p) {
+          final start = normalizeDate(p.startDate);
+          final end = normalizeDate(p.endDate ?? DateTime.now());
+          return !date.isBefore(start) && !date.isAfter(end);
+        });
+
+        final hasOngoingPeriod = periods.any((p) => p.isOngoing);
+
         return SafeArea(
           child: Padding(
             padding: EdgeInsets.fromLTRB(
@@ -592,9 +625,14 @@ void _showDayDetails(BuildContext context, WidgetRef ref, DateTime date) {
                   const SizedBox(height: 12),
                   _DetailWrap(
                     items: [
-                      'Cycle day ${output.currentCycleDay}',
-                      'Estimated ${output.estimatedPhase}',
-                      'Confidence ${_titleCase(output.confidence.name)}',
+                      if (selectedSnapshot.hasEnoughData) ...[
+                        'Cycle day ${selectedSnapshot.cycleDay}',
+                        'Estimated ${selectedSnapshot.phase.label}',
+                        'Confidence ${formatPredictionConfidence(selectedSnapshot.confidence)}',
+                      ] else ...[
+                        'Add period history for predictions',
+                      ],
+                      if (hasConfirmedPeriodOnDate) 'Confirmed Period',
                       log?.flow ?? 'No flow logged',
                       if (log?.spotting ?? false) 'Spotting',
                       if (symptoms.isNotEmpty) '${symptoms.length} symptoms',
@@ -618,20 +656,28 @@ void _showDayDetails(BuildContext context, WidgetRef ref, DateTime date) {
                         icon: const Icon(Icons.edit_note_rounded),
                         label: Text(log == null ? 'Log this day' : 'Edit log'),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => ref
-                            .read(cycleWorkspaceControllerProvider.notifier)
-                            .startPeriod(date),
-                        icon: const Icon(Icons.water_drop_rounded),
-                        label: const Text('Start period'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => ref
-                            .read(cycleWorkspaceControllerProvider.notifier)
-                            .endLatestPeriod(date),
-                        icon: const Icon(Icons.stop_circle_rounded),
-                        label: const Text('End period'),
-                      ),
+                      if (!hasConfirmedPeriodOnDate)
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            ref
+                                .read(cycleWorkspaceControllerProvider.notifier)
+                                .startPeriod(date);
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.water_drop_rounded),
+                          label: const Text('Start period'),
+                        ),
+                      if (hasOngoingPeriod)
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            ref
+                                .read(cycleWorkspaceControllerProvider.notifier)
+                                .endLatestPeriod(date);
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.stop_circle_rounded),
+                          label: const Text('End period'),
+                        ),
                       OutlinedButton.icon(
                         onPressed: () => ref
                             .read(cycleWorkspaceControllerProvider.notifier)
@@ -1156,34 +1202,11 @@ class _LoadingPanel extends StatelessWidget {
   }
 }
 
-class _ErrorPanel extends StatelessWidget {
-  final String message;
-
-  const _ErrorPanel({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: _panelDecoration(context),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            color: AppColors.terracottaPrimary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(message)),
-        ],
-      ),
-    );
-  }
-}
 
 _CalendarDayState _calendarState(
   DateTime date,
   List<CyclePeriod> periods,
-  dynamic output,
+  CycleEngineOutput output,
   bool ttcEnabled,
   DailyLog? log,
   List<SymptomEntry> symptoms,
@@ -1193,21 +1216,59 @@ _CalendarDayState _calendarState(
     final end = normalizeDate(period.endDate ?? DateTime.now());
     return !date.isBefore(start) && !date.isAfter(end);
   });
-  final predictedPeriod =
-      !date.isBefore(normalizeDate(output.estimatedPeriodStartMin)) &&
-      !date.isAfter(normalizeDate(output.estimatedPeriodStartMax));
-  final fertile =
-      ttcEnabled &&
-      !date.isBefore(normalizeDate(output.fertileWindowStart)) &&
-      !date.isAfter(normalizeDate(output.fertileWindowEnd));
-  final ovulation =
-      ttcEnabled &&
-      !date.isBefore(normalizeDate(output.estimatedOvulationStart)) &&
-      !date.isAfter(normalizeDate(output.estimatedOvulationEnd));
+
+  bool predictedPeriod = false;
+  bool fertile = false;
+  bool ovulation = false;
+
+  final hasEnoughData = output.hasEnoughData;
+
+  if (hasEnoughData) {
+    // 1. Current cycle predictions
+    predictedPeriod = !confirmedPeriod &&
+        output.nextCycles.any((p) {
+          final pMin = normalizeDate(p.min);
+          final pMax = normalizeDate(p.max);
+          return !date.isBefore(pMin) && !date.isAfter(pMax);
+        });
+
+    fertile = ttcEnabled &&
+        !date.isBefore(normalizeDate(output.fertileWindowStart)) &&
+        !date.isAfter(normalizeDate(output.fertileWindowEnd));
+
+    ovulation = ttcEnabled &&
+        !date.isBefore(normalizeDate(output.estimatedOvulationStart)) &&
+        !date.isAfter(normalizeDate(output.estimatedOvulationEnd));
+
+    // 2. Future projected cycles fertile & ovulation windows
+    if (ttcEnabled && !fertile && !confirmedPeriod) {
+      for (final p in output.nextCycles) {
+        final pMin = normalizeDate(p.min);
+        final pMax = normalizeDate(p.max);
+        final projCenter =
+            pMin.add(Duration(days: pMax.difference(pMin).inDays ~/ 2));
+        final projOvulation = projCenter.subtract(const Duration(days: 14));
+        final projOvuStart = projOvulation.subtract(const Duration(days: 1));
+        final projOvuEnd = projOvulation.add(const Duration(days: 1));
+        final projFertileStart =
+            projOvulation.subtract(const Duration(days: 5));
+        final projFertileEnd = projOvulation.add(const Duration(days: 1));
+
+        if (!date.isBefore(projFertileStart) && !date.isAfter(projFertileEnd)) {
+          fertile = true;
+        }
+        if (!date.isBefore(projOvuStart) && !date.isAfter(projOvuEnd)) {
+          ovulation = true;
+        }
+      }
+    }
+  }
+
   final severity = [
     if (log != null) log.painLevel,
     ...symptoms.map((symptom) => symptom.severity),
   ].fold<int>(0, (max, value) => value > max ? value : max);
+
   final labels = [
     if (confirmedPeriod) 'confirmed period',
     if (predictedPeriod) 'predicted period range',
@@ -1216,6 +1277,7 @@ _CalendarDayState _calendarState(
     if (log != null) 'daily log saved',
     if (severity > 0) 'symptom severity $severity',
   ];
+
   return _CalendarDayState(
     confirmedPeriod: confirmedPeriod,
     predictedPeriod: predictedPeriod,

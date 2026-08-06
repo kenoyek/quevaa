@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/providers/database_provider.dart';
 import '../../cycle/application/cycle_workspace_provider.dart';
+import '../../notifications/application/notification_preferences_provider.dart';
+import '../../notifications/domain/services/notification_scheduler.dart';
 import '../domain/entities/task_entity.dart';
 import '../domain/productivity_engine.dart';
 
@@ -33,8 +35,7 @@ final todayTasksProvider = Provider<List<Task>>((ref) {
         ? null
         : normalizeDate(task.scheduledDate!);
     final due = task.dueDate == null ? null : normalizeDate(task.dueDate!);
-    return task.status != 'Completed' &&
-        (scheduled == today || due == today || task.status == 'Planned');
+    return scheduled == today || due == today || task.status == 'Planned';
   }).toList();
 });
 
@@ -195,6 +196,10 @@ class PlanWorkspaceController extends Notifier<bool> {
           _db.tasks,
         )..where((tbl) => tbl.id.equals(id))).write(companion);
       }
+      // Reconcile notifications after saving a task
+      await ref.read(notificationSchedulerProvider).reconcileNotifications(
+        NotificationReconciliationReason.taskChanged,
+      );
     } finally {
       state = false;
     }
@@ -210,6 +215,10 @@ class PlanWorkspaceController extends Notifier<bool> {
         updatedAt: Value(now),
       ),
     );
+    // Reconcile notifications after completing a task
+    await ref.read(notificationSchedulerProvider).reconcileNotifications(
+      NotificationReconciliationReason.taskChanged,
+    );
   }
 
   Future<void> archiveTask(Task task) async {
@@ -218,6 +227,10 @@ class PlanWorkspaceController extends Notifier<bool> {
         status: const Value('Archived'),
         deletedAt: Value(DateTime.now()),
       ),
+    );
+    // Reconcile notifications after archiving a task
+    await ref.read(notificationSchedulerProvider).reconcileNotifications(
+      NotificationReconciliationReason.taskChanged,
     );
   }
 
@@ -290,6 +303,10 @@ class PlanWorkspaceController extends Notifier<bool> {
         streakCount: Value(routine.streakCount + 1),
         updatedAt: Value(DateTime.now()),
       ),
+    );
+    // Reconcile notifications after completing a routine
+    await ref.read(notificationSchedulerProvider).reconcileNotifications(
+      NotificationReconciliationReason.taskChanged,
     );
   }
 

@@ -3,11 +3,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/theme/app_colors.dart';
-import '../../../cycle/domain/cycle_engine.dart';
+import '../../../../core/models/prediction_confidence.dart';
+import '../../../cycle/application/cycle_workspace_provider.dart';
 import '../../../cycle/domain/models/cycle_engine_output.dart';
 import '../../../dashboard/domain/readiness_calculator.dart';
 import '../../../insights/domain/insight_generator.dart';
 import '../../../nutrition/data/nigerian_recipe_database.dart';
+import '../../../../core/providers/user_profile_provider.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -27,14 +29,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final cycleOutput = CycleEngine.calculate(
-      periodHistory: [
-        CyclePeriodRecord(
-          startDate: DateTime.now().subtract(const Duration(days: 10)),
-        ),
-      ],
-      targetDate: DateTime.now(),
-    );
+    final cycleOutput = ref.watch(currentCycleOutputProvider);
 
     final readiness = ReadinessCalculator.calculate(
       selfReportedEnergy: _selectedEnergy,
@@ -147,18 +142,27 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 }
 
-class _DashboardHeader extends StatelessWidget {
+class _DashboardHeader extends ConsumerWidget {
   final VoidCallback onNotificationsTap;
 
   const _DashboardHeader({required this.onNotificationsTap});
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final secondaryText = isDark
         ? AppColors.textSecondaryDark
         : AppColors.textSecondaryLight;
+    final profile = ref.watch(userProfileProvider).valueOrNull;
+    final name = profile?.userName ?? 'Adaora';
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -178,7 +182,7 @@ class _DashboardHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Good morning, Adaora',
+                  '${_getGreeting()}, $name',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.headlineMedium?.copyWith(
@@ -260,7 +264,9 @@ class _RhythmCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Cycle Day ${output.currentCycleDay}',
+                  output.hasEnoughData
+                      ? 'Cycle Day ${output.currentCycleDay}'
+                      : 'Cycle Tracker',
                   style: const TextStyle(
                     color: AppColors.terracottaLight,
                     fontWeight: FontWeight.bold,
@@ -278,7 +284,7 @@ class _RhythmCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  'Confidence: ${output.confidence.name.toUpperCase()}',
+                  'Confidence: ${formatPredictionConfidence(output.confidence).toUpperCase()}',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,

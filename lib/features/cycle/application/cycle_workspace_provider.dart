@@ -5,7 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/providers/database_provider.dart';
+import '../../../core/providers/user_profile_provider.dart';
+import '../../conception/application/conception_settings_provider.dart';
+import '../../notifications/application/notification_preferences_provider.dart';
+import '../../notifications/domain/services/notification_scheduler.dart';
 import '../domain/cycle_engine.dart';
+import '../domain/models/current_cycle_snapshot.dart';
 import '../domain/models/cycle_engine_output.dart';
 
 DateTime normalizeDate(DateTime date) =>
@@ -13,6 +18,10 @@ DateTime normalizeDate(DateTime date) =>
 
 String localUuid(String prefix) =>
     '$prefix-${DateTime.now().microsecondsSinceEpoch}';
+
+final localTodayProvider = Provider<DateTime>((ref) {
+  return normalizeDate(DateTime.now());
+});
 
 final selectedCycleDateProvider = StateProvider<DateTime>(
   (ref) => normalizeDate(DateTime.now()),
@@ -38,15 +47,81 @@ final periodHistoryProvider = StreamProvider<List<CyclePeriod>>((ref) {
       .watch();
 });
 
+final currentCycleSnapshotProvider = Provider<CurrentCycleSnapshot>((ref) {
+  final history = ref.watch(periodHistoryProvider).valueOrNull ?? const [];
+  final today = ref.watch(localTodayProvider);
+  final userProfile = ref.watch(userProfileProvider).valueOrNull;
+  final isTtcEnabled = ref.watch(conceptionModeActiveProvider);
+
+  final activePeriod =
+      history.where((p) => p.isOngoing || p.endDate == null).lastOrNull;
+  final currentPeriodStart =
+      activePeriod?.startDate ?? history.lastOrNull?.startDate;
+  final currentPeriodEnd =
+      activePeriod?.endDate ?? history.lastOrNull?.endDate;
+
+  final output = CycleEngine.calculate(
+    periodHistory: [
+      for (final period in history)
+        CyclePeriodRecord(
+          startDate: period.startDate,
+          endDate: period.endDate,
+        ),
+    ],
+    targetDate: today,
+    userConfiguredAverageCycleLength: userProfile?.averageCycleLength ?? 28,
+    userConfiguredPeriodLength: userProfile?.averagePeriodLength ?? 5,
+  );
+
+  return output.toSnapshot(
+    today,
+    currentPeriodStart: currentPeriodStart,
+    currentPeriodEnd: currentPeriodEnd,
+    isPeriodActive: activePeriod != null,
+    isTtcEnabled: isTtcEnabled,
+  );
+});
+
 final currentCycleOutputProvider = Provider<CycleEngineOutput>((ref) {
   final history = ref.watch(periodHistoryProvider).valueOrNull ?? const [];
-  final targetDate = ref.watch(selectedCycleDateProvider);
+  final today = ref.watch(localTodayProvider);
+  final userProfile = ref.watch(userProfileProvider).valueOrNull;
   return CycleEngine.calculate(
     periodHistory: [
       for (final period in history)
-        CyclePeriodRecord(startDate: period.startDate, endDate: period.endDate),
+        CyclePeriodRecord(
+          startDate: period.startDate,
+          endDate: period.endDate,
+        ),
     ],
-    targetDate: targetDate,
+    targetDate: today,
+    userConfiguredAverageCycleLength: userProfile?.averageCycleLength ?? 28,
+    userConfiguredPeriodLength: userProfile?.averagePeriodLength ?? 5,
+  );
+});
+
+final selectedDayCycleSnapshotProvider = Provider<CurrentCycleSnapshot>((ref) {
+  final history = ref.watch(periodHistoryProvider).valueOrNull ?? const [];
+  final selectedDate = ref.watch(selectedCycleDateProvider);
+  final userProfile = ref.watch(userProfileProvider).valueOrNull;
+  final isTtcEnabled = ref.watch(conceptionModeActiveProvider);
+
+  final output = CycleEngine.calculate(
+    periodHistory: [
+      for (final period in history)
+        CyclePeriodRecord(
+          startDate: period.startDate,
+          endDate: period.endDate,
+        ),
+    ],
+    targetDate: selectedDate,
+    userConfiguredAverageCycleLength: userProfile?.averageCycleLength ?? 28,
+    userConfiguredPeriodLength: userProfile?.averagePeriodLength ?? 5,
+  );
+
+  return output.toSnapshot(
+    selectedDate,
+    isTtcEnabled: isTtcEnabled,
   );
 });
 
@@ -221,6 +296,10 @@ class CycleWorkspaceController extends Notifier<bool> {
               ),
             );
       }
+      // Reconcile notifications after logging data
+      await ref.read(notificationSchedulerProvider).reconcileNotifications(
+        NotificationReconciliationReason.cycleDataChanged,
+      );
     } finally {
       state = false;
     }
@@ -231,18 +310,39 @@ class CycleWorkspaceController extends Notifier<bool> {
     state = true;
     try {
       final now = DateTime.now();
-      await _db
-          .into(_db.cyclePeriods)
-          .insert(
+      final normalized = normalizeDate(date);
+
+      // Close any existing ongoing periods first
+      final ongoing = await (_db.select(_db.cyclePeriods)
+            ..where((tbl) => tbl.deletedAt.isNull() & tbl.isOngoing.equals(true))
+            ..get())
+          .get();
+
+      for (final period in ongoing) {
+        await (_db.update(_db.cyclePeriods)..where((tbl) => tbl.id.equals(period.id)))
+            .write(
+          CyclePeriodsCompanion(
+            isOngoing: const Value(false),
+            endDate: Value(normalized.subtract(const Duration(days: 1))),
+            updatedAt: Value(now),
+          ),
+        );
+      }
+
+      await _db.into(_db.cyclePeriods).insert(
             CyclePeriodsCompanion.insert(
               uuid: localUuid('period'),
               createdAt: now,
               updatedAt: now,
-              startDate: normalizeDate(date),
+              startDate: normalized,
               isOngoing: const Value(true),
               flowIntensity: const Value(3),
             ),
           );
+      // Reconcile notifications after starting a period
+      await ref.read(notificationSchedulerProvider).reconcileNotifications(
+        NotificationReconciliationReason.cycleDataChanged,
+      );
     } finally {
       state = false;
     }
@@ -269,6 +369,10 @@ class CycleWorkspaceController extends Notifier<bool> {
           isOngoing: const Value(false),
           updatedAt: Value(DateTime.now()),
         ),
+      );
+      // Reconcile notifications after ending a period
+      await ref.read(notificationSchedulerProvider).reconcileNotifications(
+        NotificationReconciliationReason.cycleDataChanged,
       );
     } finally {
       state = false;

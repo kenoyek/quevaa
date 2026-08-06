@@ -20,6 +20,7 @@ mixin AuditColumns on Table {
 // 1. UserProfiles
 class UserProfiles extends Table with AuditColumns {
   TextColumn get userName => text().withDefault(const Constant('Adaora'))();
+  IntColumn get age => integer().nullable()();
   IntColumn get averageCycleLength =>
       integer().withDefault(const Constant(28))();
   IntColumn get averagePeriodLength =>

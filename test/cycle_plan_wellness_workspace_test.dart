@@ -2,19 +2,52 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quevaa/core/database/app_database.dart';
+import 'package:quevaa/core/models/prediction_confidence.dart';
 import 'package:quevaa/core/providers/database_provider.dart';
 import 'package:quevaa/features/cycle/application/cycle_workspace_provider.dart';
 import 'package:quevaa/features/productivity/application/plan_workspace_provider.dart';
 import 'package:quevaa/features/wellness/application/wellness_workspace_provider.dart';
+import 'package:quevaa/features/notifications/application/notification_preferences_provider.dart';
+import 'package:quevaa/features/notifications/domain/services/notification_scheduler.dart';
+import 'package:quevaa/features/notifications/domain/services/smart_notification_engine.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockNotificationScheduler extends Mock implements NotificationScheduler {}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    registerFallbackValue(NotificationReconciliationReason.manualRefresh);
+    registerFallbackValue(const NotificationSourceSnapshot());
+  });
+
   late AppDatabase db;
   late ProviderContainer container;
+  late MockNotificationScheduler mockScheduler;
 
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
+    mockScheduler = MockNotificationScheduler();
+    
+    // Stub the reconcileNotifications call
+    when(() => mockScheduler.reconcileNotifications(any(), snapshot: any(named: 'snapshot')))
+        .thenAnswer((_) async => const NotificationReconciliationResult(
+              reason: NotificationReconciliationReason.manualRefresh,
+              desiredCount: 0,
+              scheduledCount: 0,
+              cancelledCount: 0,
+              unchangedCount: 0,
+              permissionGranted: true,
+              timezone: 'UTC',
+            ));
+
     container = ProviderContainer(
-      overrides: [appDatabaseProvider.overrideWithValue(db)],
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        notificationSchedulerProvider.overrideWithValue(mockScheduler),
+        localTodayProvider.overrideWithValue(DateTime(2026, 8, 5)),
+      ],
     );
   });
 
@@ -59,6 +92,14 @@ void main() {
       expect(periods.single.startDate, DateTime(2026, 8, 5));
       expect(periods.single.endDate, DateTime(2026, 8, 9));
       expect(periods.single.isOngoing, isFalse);
+
+      container.invalidate(periodHistoryProvider);
+      await container.read(periodHistoryProvider.future);
+      final snapshot = container.read(currentCycleSnapshotProvider);
+      final output = container.read(currentCycleOutputProvider);
+      expect(snapshot.hasEnoughData, isTrue);
+      expect(snapshot.confidence.label, isNotNull);
+      expect(output.hasEnoughData, isTrue);
     },
   );
 
@@ -135,6 +176,44 @@ void main() {
       expect(mealLogs.single.mealTitle, recommendation.meal.title);
       expect(shopping, isNotEmpty);
       expect(workouts.single.perceivedExertion, 4);
+    },
+  );
+
+  test(
+    'Wellness workspace persists, updates, and deletes journal entries',
+    () async {
+      final controller = container.read(
+        wellnessWorkspaceControllerProvider.notifier,
+      );
+
+      await controller.saveJournalEntry(
+        title: 'Morning thought',
+        content: 'Felt calm and clear today.',
+        mood: 'Calm',
+        tags: ['morning', 'mindfulness'],
+      );
+
+      final entries = await db.select(db.journalEntries).get();
+      expect(entries.length, 1);
+      expect(entries.single.title, 'Morning thought');
+      expect(entries.single.encryptedContent, 'Felt calm and clear today.');
+      expect(entries.single.mood, 'Calm');
+
+      await controller.saveJournalEntry(
+        id: entries.single.id,
+        title: 'Updated morning thought',
+        content: 'Felt calm, clear, and focused today.',
+        mood: 'Energized',
+      );
+
+      final updated = await db.select(db.journalEntries).get();
+      expect(updated.single.title, 'Updated morning thought');
+      expect(updated.single.mood, 'Energized');
+
+      await controller.deleteJournalEntry(entries.single.id);
+      container.invalidate(journalStreamProvider);
+      final activeEntries = await container.read(journalStreamProvider.future);
+      expect(activeEntries, isEmpty);
     },
   );
 }

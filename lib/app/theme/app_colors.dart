@@ -59,4 +59,26 @@ class AppColors {
   // Water Hydration
   static const Color waterBlue = Color(0xFF5B9BD5);
   static const Color waterContainer = Color(0xFFEBF3FA);
+
+  // ── Cycle Phase Semantic Tokens (Light) ──────────────────────────
+  static const Color cycleMenstrualConfirmedLight = terracottaPrimary;
+  static const Color cycleMenstrualConfirmedTextLight = Color(0xFFFFFFFF);
+  static const Color cycleMenstrualPredictedLight = Color(0xFFFCE4DE);
+  static const Color cycleMenstrualPredictedBorderLight = Color(0xFFE8A090);
+  static const Color cycleFollicularLight = Color(0xFFEBF4ED);
+  static const Color cycleFertileWindowLight = Color(0xFFE3F1F0);
+  static const Color cycleOvulationLight = Color(0xFFF5ECD8);
+  static const Color cycleOvulationBorderLight = Color(0xFF8B6A50);
+  static const Color cycleLutealLight = Color(0xFFEDE6F0);
+
+  // ── Cycle Phase Semantic Tokens (Dark) ────────────────────────────
+  static const Color cycleMenstrualConfirmedDark = Color(0xFFA85843);
+  static const Color cycleMenstrualConfirmedTextDark = Color(0xFFF8F5F7);
+  static const Color cycleMenstrualPredictedDark = Color(0xFF3D2228);
+  static const Color cycleMenstrualPredictedBorderDark = Color(0xFF8B5040);
+  static const Color cycleFollicularDark = Color(0xFF1E2E23);
+  static const Color cycleFertileWindowDark = Color(0xFF1C2D2C);
+  static const Color cycleOvulationDark = Color(0xFF332C1E);
+  static const Color cycleOvulationBorderDark = Color(0xFFB89870);
+  static const Color cycleLutealDark = Color(0xFF2A2030);
 }

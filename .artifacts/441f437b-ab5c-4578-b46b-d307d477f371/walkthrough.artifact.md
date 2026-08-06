@@ -1,19 +1,31 @@
-# Walkthrough - Build APK
+# Walkthrough - Calendar and Prediction Fixes
 
-The Android APK for the Quevaa project has been successfully built.
+I have resolved the issues with the cycle calendar and improved the prediction engine to handle historical browsing and multi-month projections.
 
-## Changes and Actions
+## Changes Made
 
-- **Dependency Synchronization**: Performed `flutter pub get` to ensure all packages are up to date.
-- **Code Generation**: Executed `dart run build_runner build --delete-conflicting-outputs` to generate necessary code for Riverpod and Drift.
-- **Troubleshooting**: Encountered a Gradle build failure related to conflicting environment variables (`ANDROID_PREFS_ROOT` and `ANDROID_USER_HOME`). This was resolved by unsetting `ANDROID_PREFS_ROOT` during the build process.
-- **Compilation**: Successfully compiled the release APK using `flutter build apk`.
+### 1. Multi-Month Future Projections
+- **Engine Update**: Updated the `CycleEngine` to project periods 6 months into the future based on the user's weighted median cycle length.
+- **Visuals**: Future projected ranges now appear as light terracotta markers on the calendar across the Year and Three-month views, ensuring the calendar doesn't look "empty" in future months.
+
+### 2. Date-Aware Header and Projections
+- **Contextual Data**: The "Cycle Day" displayed in the header is now relative to the selected date. If you select a date from a past cycle, the header will correctly show which day of *that* cycle you are viewing (e.g., "Cycle Day 5" in January).
+- **Projections**: The engine now identifies the most recent period relative to the selected date to provide accurate phase estimates (Menstrual, Follicular, etc.) during historical browsing.
+
+### 3. Smart UI Actions
+- **Context-Sensitive Buttons**:
+    - The "Start period" button is now hidden if a confirmed period already exists on the selected date.
+    - The "End period" button only appears if there is an active, ongoing period to end.
+- **Improved Details**: Added a "Confirmed Period" indicator in the day details bottom sheet for clarity.
 
 ## Verification Results
 
-### Build Output
-The release APK is available at the following path:
-- [app-release.apk](file:///Users/okaguakenneth/Downloads/quevaa/build/app/outputs/flutter-apk/app-release.apk) (66MB)
+### Automated Tests
+- **Cycle Day Calculation**: Verified that selecting past dates returns the correct historical cycle day.
+- **Projections**: Verified that 6 months of future cycles are generated in the engine output.
+- **Leap Year/Boundaries**: Existing boundary tests continue to pass.
 
-> [!TIP]
-> This APK was built using the `debug` signing key. It is suitable for testing on devices but should be resigned with a production key before releasing to the Google Play Store.
+### Manual Verification
+1.  **Future Projections**: Navigated to the "Year" view and confirmed that multiple future months show predicted period ranges.
+2.  **Historical Browsing**: Selected a date from a past month and confirmed the header updated to show the correct cycle day and phase for that time.
+3.  **Action Logic**: Verified that "Start period" disappears when tapping a date that is already part of a logged period.

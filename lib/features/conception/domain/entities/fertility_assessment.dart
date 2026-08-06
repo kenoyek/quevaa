@@ -1,3 +1,5 @@
+import '../../../../core/models/prediction_confidence.dart';
+
 enum FertilityStatus {
   period,
   fertilityPreparing,
@@ -8,7 +10,6 @@ enum FertilityStatus {
   waitingAndTesting,
 }
 
-enum PredictionConfidence { low, moderate, high }
 
 extension FertilityStatusLabel on FertilityStatus {
   String get label {
@@ -31,18 +32,8 @@ extension FertilityStatusLabel on FertilityStatus {
   }
 }
 
-extension PredictionConfidenceLabel on PredictionConfidence {
-  String get label {
-    switch (this) {
-      case PredictionConfidence.low:
-        return 'Low';
-      case PredictionConfidence.moderate:
-        return 'Moderate';
-      case PredictionConfidence.high:
-        return 'High';
-    }
-  }
-}
+
+
 
 class FertilityAssessment {
   final int cycleDay;

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/quevaa_layout.dart';
+import '../../../../app/theme/quevaa_spacing.dart';
 import '../../../../core/database/app_database.dart';
 import '../../application/plan_workspace_provider.dart';
 
@@ -19,55 +21,55 @@ class PlanWorkspacePage extends ConsumerWidget {
     final plannedCount = todayTasks.length;
     return Scaffold(
       backgroundColor: _pageBg(context),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showTaskSheet(context, ref),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('New Task'),
+      ),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(vertical: QuevaaSpacing.m),
               sliver: SliverToBoxAdapter(
                 child: _PlanHeader(
                   plannedCount: plannedCount,
                   saving: saving,
-                  onAdd: () => _showTaskSheet(context, ref),
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverToBoxAdapter(
-                child: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                      value: 'Today',
-                      label: Text('Today'),
-                      icon: Icon(Icons.today_rounded),
-                    ),
-                    ButtonSegment(
-                      value: 'Upcoming',
-                      label: Text('Upcoming'),
-                      icon: Icon(Icons.view_week_rounded),
-                    ),
-                    ButtonSegment(
-                      value: 'Routines',
-                      label: Text('Routines'),
-                      icon: Icon(Icons.repeat_rounded),
-                    ),
-                    ButtonSegment(
-                      value: 'Focus',
-                      label: Text('Focus'),
-                      icon: Icon(Icons.timer_rounded),
-                    ),
-                    ButtonSegment(
-                      value: 'Completed',
-                      label: Text('Done'),
-                      icon: Icon(Icons.check_circle_rounded),
-                    ),
-                  ],
-                  selected: {section},
-                  onSelectionChanged: (value) =>
-                      ref.read(planSectionProvider.notifier).state =
-                          value.first,
-                ),
+            SliverToBoxAdapter(
+              child: QuevaaSectionTabs(
+                segments: const [
+                  (
+                    value: 'Today',
+                    label: 'Today',
+                    icon: Icons.today_rounded,
+                  ),
+                  (
+                    value: 'Upcoming',
+                    label: 'Upcoming',
+                    icon: Icons.view_week_rounded,
+                  ),
+                  (
+                    value: 'Routines',
+                    label: 'Routines',
+                    icon: Icons.repeat_rounded,
+                  ),
+                  (
+                    value: 'Focus',
+                    label: 'Focus',
+                    icon: Icons.timer_rounded,
+                  ),
+                  (
+                    value: 'Completed',
+                    label: 'Done',
+                    icon: Icons.check_circle_rounded,
+                  ),
+                ],
+                selected: section,
+                onSelectionChanged: (value) =>
+                    ref.read(planSectionProvider.notifier).state = value,
               ),
             ),
             SliverPadding(
@@ -93,56 +95,65 @@ class PlanWorkspacePage extends ConsumerWidget {
   }
 }
 
-class _PlanHeader extends StatelessWidget {
+class _PlanHeader extends ConsumerWidget {
   final int plannedCount;
   final bool saving;
-  final VoidCallback onAdd;
 
   const _PlanHeader({
     required this.plannedCount,
     required this.saving,
-    required this.onAdd,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final today = DateFormat.yMMMMEEEEd().format(DateTime.now());
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: _panelDecoration(context),
-      child: Row(
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: QuevaaSpacing.l),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Plan', style: Theme.of(context).textTheme.displaySmall),
-                const SizedBox(height: 6),
-                Text(today),
-                const SizedBox(height: 8),
-                Text(
-                  plannedCount == 0
-                      ? 'Balanced day'
-                      : '$plannedCount planned tasks',
-                  style: Theme.of(context).textTheme.headlineMedium,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text('Plan', style: theme.textTheme.displaySmall),
+              ),
+              if (saving)
+                const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Recommendations consider energy, pain, sleep, stress, due dates, and priority.',
-                ),
-              ],
+              IconButton.filled(
+                onPressed: () => _showTaskSheet(context, ref),
+                icon: const Icon(Icons.add_rounded),
+                tooltip: 'Add Task',
+              ),
+            ],
+          ),
+          const SizedBox(height: QuevaaSpacing.xxs),
+          Text(
+            today,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
             ),
           ),
-          const SizedBox(width: 12),
-          FilledButton.icon(
-            onPressed: saving ? null : onAdd,
-            icon: saving
-                ? const SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.add_rounded),
-            label: const Text('Task'),
+          const SizedBox(height: QuevaaSpacing.m),
+          Text(
+            plannedCount == 0 ? 'Balanced day' : '$plannedCount planned tasks',
+            style: theme.textTheme.headlineMedium,
+          ),
+          const SizedBox(height: QuevaaSpacing.xxs),
+          Text(
+            'Recommendations consider your energy, sleep and priorities.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+            ),
           ),
         ],
       ),
@@ -158,34 +169,118 @@ class _TodayPlan extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = tasks.take(3).toList();
-    final other = tasks.skip(3).toList();
-    final lowEnergy = tasks
+    final active = tasks
+        .where((t) => !t.isCompleted && t.status != 'Completed')
+        .toList();
+    final completed = tasks
+        .where((t) => t.isCompleted || t.status == 'Completed')
+        .toList();
+
+    final top = active.take(3).toList();
+    final other = active.skip(3).toList();
+    final lowEnergy = active
         .where((task) => task.recommendedEnergy.toLowerCase() == 'low')
         .toList();
+
+    if (tasks.isEmpty) {
+      return Column(
+        children: [
+          _WeeklyReview(summary: summary),
+          const SizedBox(height: QuevaaSpacing.xl),
+          const _PlanEmptyState(),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _WeeklyReview(summary: summary),
-        const SizedBox(height: 14),
+        const SizedBox(height: QuevaaSpacing.m),
         _TaskGroup(
           title: 'Top priorities',
-          empty: 'Your plan is clear. Add a task when you are ready.',
+          empty: 'No active tasks for today.',
           tasks: top,
         ),
-        const SizedBox(height: 14),
-        _TaskGroup(
-          title: 'Other tasks',
-          empty: 'No lower-priority tasks planned.',
-          tasks: other,
-        ),
-        const SizedBox(height: 14),
-        _TaskGroup(
-          title: 'Low-energy options',
-          empty: 'Tag tasks as low energy to see gentler options here.',
-          tasks: lowEnergy,
-        ),
+        if (other.isNotEmpty) ...[
+          const SizedBox(height: QuevaaSpacing.m),
+          _TaskGroup(
+            title: 'Other tasks',
+            empty: '',
+            tasks: other,
+          ),
+        ],
+        if (lowEnergy.isNotEmpty) ...[
+          const SizedBox(height: QuevaaSpacing.m),
+          _TaskGroup(
+            title: 'Low-energy options',
+            empty: '',
+            tasks: lowEnergy,
+          ),
+        ],
+        if (completed.isNotEmpty) ...[
+          const SizedBox(height: QuevaaSpacing.m),
+          _TaskGroup(
+            title: 'Completed today',
+            empty: '',
+            tasks: completed,
+            showCompleted: true,
+          ),
+        ],
       ],
+    );
+  }
+}
+
+class _PlanEmptyState extends ConsumerWidget {
+  const _PlanEmptyState();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(QuevaaSpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(QuevaaSpacing.xl),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white10 : AppColors.terracottaContainer,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.task_alt_rounded,
+                size: 64,
+                color: AppColors.terracottaPrimary,
+              ),
+            ),
+            const SizedBox(height: QuevaaSpacing.xl),
+            Text(
+              'Your plan is clear',
+              style: theme.textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: QuevaaSpacing.xs),
+            Text(
+              'Add your first task or let Quevaa help organise your day.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: QuevaaSpacing.l),
+            FilledButton.icon(
+              onPressed: () => _showTaskSheet(context, ref),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add your first task'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -371,15 +466,24 @@ class _TaskGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(QuevaaSpacing.m),
       decoration: _panelDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 10),
+          const SizedBox(height: QuevaaSpacing.xs),
           if (tasks.isEmpty)
-            Text(empty)
+            if (empty.isNotEmpty)
+              Text(
+                empty,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              )
+            else
+              const SizedBox.shrink()
           else
             for (final task in tasks)
               _TaskTile(
@@ -420,7 +524,19 @@ class _TaskTile extends ConsumerWidget {
                 .read(planWorkspaceControllerProvider.notifier)
                 .completeTask(task, completed: value ?? false),
           ),
-          title: Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+          title: Text(
+            task.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              decoration: completed ? TextDecoration.lineThrough : null,
+              color: completed
+                  ? (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white38
+                      : Colors.black38)
+                  : null,
+            ),
+          ),
           subtitle: Text(
             [
               task.category,
@@ -556,18 +672,77 @@ class _WeeklyReview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final metrics = [
+      (label: 'completed', value: '${summary.completedTasks}'),
+      (label: 'focus min', value: '${summary.focusMinutes}'),
+      (label: 'planned', value: '${summary.plannedTasks}'),
+    ];
+
+    final hasProgress = summary.completedTasks > 0 ||
+        summary.focusMinutes > 0 ||
+        summary.plannedTasks > 0;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(QuevaaSpacing.m),
       decoration: _panelDecoration(context),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.auto_graph_rounded, color: AppColors.purplePrimary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'This week: ${summary.completedTasks} tasks completed, ${summary.focusMinutes} focus minutes, ${summary.plannedTasks} tasks planned.',
-            ),
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_graph_rounded,
+                color: AppColors.purplePrimary,
+                size: 20,
+              ),
+              const SizedBox(width: QuevaaSpacing.xs),
+              Text(
+                'This week',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.purpleLight : AppColors.purpleDark,
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: QuevaaSpacing.s),
+          if (!hasProgress)
+            Text(
+              'Your weekly progress will appear here.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+              ),
+            )
+          else
+            Wrap(
+              spacing: QuevaaSpacing.m,
+              runSpacing: QuevaaSpacing.xs,
+              children: metrics.map((m) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      m.value,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: QuevaaSpacing.xxs),
+                    Text(
+                      m.label,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isDark
+                            ? Colors.white60
+                            : AppColors.textSecondaryLight,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
         ],
       ),
     );

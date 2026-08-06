@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/models/prediction_confidence.dart';
 import '../../application/conception_controller.dart';
 import '../../application/fertility_dashboard_provider.dart';
 import '../../domain/entities/fertility_assessment.dart';
@@ -169,7 +170,7 @@ class _HeroAssessmentCard extends StatelessWidget {
               const Spacer(),
               TinyPill(
                 icon: Icons.insights_rounded,
-                label: 'Confidence: ${assessment.confidence.label}',
+                label: 'Confidence: ${formatPredictionConfidence(assessment.confidence)}',
                 color: AppColors.sageLight,
               ),
             ],

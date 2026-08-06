@@ -98,6 +98,15 @@ class $UserProfilesTable extends UserProfiles
     requiredDuringInsert: false,
     defaultValue: const Constant('Adaora'),
   );
+  static const VerificationMeta _ageMeta = const VerificationMeta('age');
+  @override
+  late final GeneratedColumn<int> age = GeneratedColumn<int>(
+    'age',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _averageCycleLengthMeta =
       const VerificationMeta('averageCycleLength');
   @override
@@ -193,6 +202,7 @@ class $UserProfilesTable extends UserProfiles
     schemaVersion,
     source,
     userName,
+    age,
     averageCycleLength,
     averagePeriodLength,
     lastPeriodStartDate,
@@ -265,6 +275,12 @@ class $UserProfilesTable extends UserProfiles
       context.handle(
         _userNameMeta,
         userName.isAcceptableOrUnknown(data['user_name']!, _userNameMeta),
+      );
+    }
+    if (data.containsKey('age')) {
+      context.handle(
+        _ageMeta,
+        age.isAcceptableOrUnknown(data['age']!, _ageMeta),
       );
     }
     if (data.containsKey('average_cycle_length')) {
@@ -371,6 +387,10 @@ class $UserProfilesTable extends UserProfiles
         DriftSqlType.string,
         data['${effectivePrefix}user_name'],
       )!,
+      age: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}age'],
+      ),
       averageCycleLength: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}average_cycle_length'],
@@ -417,6 +437,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   final int schemaVersion;
   final String source;
   final String userName;
+  final int? age;
   final int averageCycleLength;
   final int averagePeriodLength;
   final DateTime? lastPeriodStartDate;
@@ -433,6 +454,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     required this.schemaVersion,
     required this.source,
     required this.userName,
+    this.age,
     required this.averageCycleLength,
     required this.averagePeriodLength,
     this.lastPeriodStartDate,
@@ -454,6 +476,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     map['schema_version'] = Variable<int>(schemaVersion);
     map['source'] = Variable<String>(source);
     map['user_name'] = Variable<String>(userName);
+    if (!nullToAbsent || age != null) {
+      map['age'] = Variable<int>(age);
+    }
     map['average_cycle_length'] = Variable<int>(averageCycleLength);
     map['average_period_length'] = Variable<int>(averagePeriodLength);
     if (!nullToAbsent || lastPeriodStartDate != null) {
@@ -480,6 +505,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       schemaVersion: Value(schemaVersion),
       source: Value(source),
       userName: Value(userName),
+      age: age == null && nullToAbsent ? const Value.absent() : Value(age),
       averageCycleLength: Value(averageCycleLength),
       averagePeriodLength: Value(averagePeriodLength),
       lastPeriodStartDate: lastPeriodStartDate == null && nullToAbsent
@@ -508,6 +534,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       schemaVersion: serializer.fromJson<int>(json['schemaVersion']),
       source: serializer.fromJson<String>(json['source']),
       userName: serializer.fromJson<String>(json['userName']),
+      age: serializer.fromJson<int?>(json['age']),
       averageCycleLength: serializer.fromJson<int>(json['averageCycleLength']),
       averagePeriodLength: serializer.fromJson<int>(
         json['averagePeriodLength'],
@@ -533,6 +560,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       'schemaVersion': serializer.toJson<int>(schemaVersion),
       'source': serializer.toJson<String>(source),
       'userName': serializer.toJson<String>(userName),
+      'age': serializer.toJson<int?>(age),
       'averageCycleLength': serializer.toJson<int>(averageCycleLength),
       'averagePeriodLength': serializer.toJson<int>(averagePeriodLength),
       'lastPeriodStartDate': serializer.toJson<DateTime?>(lastPeriodStartDate),
@@ -552,6 +580,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     int? schemaVersion,
     String? source,
     String? userName,
+    Value<int?> age = const Value.absent(),
     int? averageCycleLength,
     int? averagePeriodLength,
     Value<DateTime?> lastPeriodStartDate = const Value.absent(),
@@ -568,6 +597,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     schemaVersion: schemaVersion ?? this.schemaVersion,
     source: source ?? this.source,
     userName: userName ?? this.userName,
+    age: age.present ? age.value : this.age,
     averageCycleLength: averageCycleLength ?? this.averageCycleLength,
     averagePeriodLength: averagePeriodLength ?? this.averagePeriodLength,
     lastPeriodStartDate: lastPeriodStartDate.present
@@ -590,6 +620,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           : this.schemaVersion,
       source: data.source.present ? data.source.value : this.source,
       userName: data.userName.present ? data.userName.value : this.userName,
+      age: data.age.present ? data.age.value : this.age,
       averageCycleLength: data.averageCycleLength.present
           ? data.averageCycleLength.value
           : this.averageCycleLength,
@@ -625,6 +656,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('source: $source, ')
           ..write('userName: $userName, ')
+          ..write('age: $age, ')
           ..write('averageCycleLength: $averageCycleLength, ')
           ..write('averagePeriodLength: $averagePeriodLength, ')
           ..write('lastPeriodStartDate: $lastPeriodStartDate, ')
@@ -646,6 +678,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     schemaVersion,
     source,
     userName,
+    age,
     averageCycleLength,
     averagePeriodLength,
     lastPeriodStartDate,
@@ -666,6 +699,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           other.schemaVersion == this.schemaVersion &&
           other.source == this.source &&
           other.userName == this.userName &&
+          other.age == this.age &&
           other.averageCycleLength == this.averageCycleLength &&
           other.averagePeriodLength == this.averagePeriodLength &&
           other.lastPeriodStartDate == this.lastPeriodStartDate &&
@@ -684,6 +718,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   final Value<int> schemaVersion;
   final Value<String> source;
   final Value<String> userName;
+  final Value<int?> age;
   final Value<int> averageCycleLength;
   final Value<int> averagePeriodLength;
   final Value<DateTime?> lastPeriodStartDate;
@@ -700,6 +735,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     this.schemaVersion = const Value.absent(),
     this.source = const Value.absent(),
     this.userName = const Value.absent(),
+    this.age = const Value.absent(),
     this.averageCycleLength = const Value.absent(),
     this.averagePeriodLength = const Value.absent(),
     this.lastPeriodStartDate = const Value.absent(),
@@ -717,6 +753,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     this.schemaVersion = const Value.absent(),
     this.source = const Value.absent(),
     this.userName = const Value.absent(),
+    this.age = const Value.absent(),
     this.averageCycleLength = const Value.absent(),
     this.averagePeriodLength = const Value.absent(),
     this.lastPeriodStartDate = const Value.absent(),
@@ -736,6 +773,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     Expression<int>? schemaVersion,
     Expression<String>? source,
     Expression<String>? userName,
+    Expression<int>? age,
     Expression<int>? averageCycleLength,
     Expression<int>? averagePeriodLength,
     Expression<DateTime>? lastPeriodStartDate,
@@ -753,6 +791,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       if (schemaVersion != null) 'schema_version': schemaVersion,
       if (source != null) 'source': source,
       if (userName != null) 'user_name': userName,
+      if (age != null) 'age': age,
       if (averageCycleLength != null)
         'average_cycle_length': averageCycleLength,
       if (averagePeriodLength != null)
@@ -776,6 +815,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     Value<int>? schemaVersion,
     Value<String>? source,
     Value<String>? userName,
+    Value<int?>? age,
     Value<int>? averageCycleLength,
     Value<int>? averagePeriodLength,
     Value<DateTime?>? lastPeriodStartDate,
@@ -793,6 +833,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       schemaVersion: schemaVersion ?? this.schemaVersion,
       source: source ?? this.source,
       userName: userName ?? this.userName,
+      age: age ?? this.age,
       averageCycleLength: averageCycleLength ?? this.averageCycleLength,
       averagePeriodLength: averagePeriodLength ?? this.averagePeriodLength,
       lastPeriodStartDate: lastPeriodStartDate ?? this.lastPeriodStartDate,
@@ -829,6 +870,9 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     }
     if (userName.present) {
       map['user_name'] = Variable<String>(userName.value);
+    }
+    if (age.present) {
+      map['age'] = Variable<int>(age.value);
     }
     if (averageCycleLength.present) {
       map['average_cycle_length'] = Variable<int>(averageCycleLength.value);
@@ -867,6 +911,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('source: $source, ')
           ..write('userName: $userName, ')
+          ..write('age: $age, ')
           ..write('averageCycleLength: $averageCycleLength, ')
           ..write('averagePeriodLength: $averagePeriodLength, ')
           ..write('lastPeriodStartDate: $lastPeriodStartDate, ')
@@ -22819,6 +22864,7 @@ typedef $$UserProfilesTableCreateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String> source,
       Value<String> userName,
+      Value<int?> age,
       Value<int> averageCycleLength,
       Value<int> averagePeriodLength,
       Value<DateTime?> lastPeriodStartDate,
@@ -22837,6 +22883,7 @@ typedef $$UserProfilesTableUpdateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String> source,
       Value<String> userName,
+      Value<int?> age,
       Value<int> averageCycleLength,
       Value<int> averagePeriodLength,
       Value<DateTime?> lastPeriodStartDate,
@@ -22892,6 +22939,11 @@ class $$UserProfilesTableFilterComposer
 
   ColumnFilters<String> get userName => $composableBuilder(
     column: $table.userName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get age => $composableBuilder(
+    column: $table.age,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22980,6 +23032,11 @@ class $$UserProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get age => $composableBuilder(
+    column: $table.age,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get averageCycleLength => $composableBuilder(
     column: $table.averageCycleLength,
     builder: (column) => ColumnOrderings(column),
@@ -23050,6 +23107,9 @@ class $$UserProfilesTableAnnotationComposer
 
   GeneratedColumn<String> get userName =>
       $composableBuilder(column: $table.userName, builder: (column) => column);
+
+  GeneratedColumn<int> get age =>
+      $composableBuilder(column: $table.age, builder: (column) => column);
 
   GeneratedColumn<int> get averageCycleLength => $composableBuilder(
     column: $table.averageCycleLength,
@@ -23126,6 +23186,7 @@ class $$UserProfilesTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 Value<String> userName = const Value.absent(),
+                Value<int?> age = const Value.absent(),
                 Value<int> averageCycleLength = const Value.absent(),
                 Value<int> averagePeriodLength = const Value.absent(),
                 Value<DateTime?> lastPeriodStartDate = const Value.absent(),
@@ -23142,6 +23203,7 @@ class $$UserProfilesTableTableManager
                 schemaVersion: schemaVersion,
                 source: source,
                 userName: userName,
+                age: age,
                 averageCycleLength: averageCycleLength,
                 averagePeriodLength: averagePeriodLength,
                 lastPeriodStartDate: lastPeriodStartDate,
@@ -23160,6 +23222,7 @@ class $$UserProfilesTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 Value<String> userName = const Value.absent(),
+                Value<int?> age = const Value.absent(),
                 Value<int> averageCycleLength = const Value.absent(),
                 Value<int> averagePeriodLength = const Value.absent(),
                 Value<DateTime?> lastPeriodStartDate = const Value.absent(),
@@ -23176,6 +23239,7 @@ class $$UserProfilesTableTableManager
                 schemaVersion: schemaVersion,
                 source: source,
                 userName: userName,
+                age: age,
                 averageCycleLength: averageCycleLength,
                 averagePeriodLength: averagePeriodLength,
                 lastPeriodStartDate: lastPeriodStartDate,

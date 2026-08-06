@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../application/providers/onboarding_provider.dart';
 import '../widgets/cycle_care_hero.dart';
@@ -31,7 +32,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   ];
 
   void _nextPage() {
-    if (_currentStep < 6) {
+    if (_currentStep < 7) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOut,
@@ -69,7 +70,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          if (_currentStep > 0 && _currentStep < 6)
+          if (_currentStep > 0 && _currentStep < 7)
             TextButton(
               onPressed: _skipPage,
               child: const Text(
@@ -92,7 +93,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 vertical: 8.0,
               ),
               child: Row(
-                children: List.generate(7, (index) {
+                children: List.generate(8, (index) {
                   return Expanded(
                     child: Container(
                       height: 4,
@@ -118,6 +119,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 },
                 children: [
                   _buildWelcomeStep(theme),
+                  _buildNameStep(theme),
                   _buildCycleProfileStep(theme),
                   _buildProductivityStep(theme),
                   _buildMealStep(theme),
@@ -300,6 +302,73 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     );
   }
 
+  Widget _buildNameStep(ThemeData theme) {
+    final profile = ref.watch(onboardingProfileProvider);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Personalize Your Space', style: theme.textTheme.displaySmall),
+          const SizedBox(height: 8),
+          Text(
+            'How should Quevaa address you?',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
+          ),
+          const SizedBox(height: 28),
+          TextFormField(
+            initialValue: profile.userName,
+            decoration: const InputDecoration(
+              labelText: 'Your Name',
+              hintText: 'Enter your name or nickname',
+            ),
+            onChanged: (value) {
+              ref
+                  .read(onboardingProfileProvider.notifier)
+                  .updateProfile(profile.copyWith(userName: value));
+            },
+          ),
+          const SizedBox(height: 20),
+          TextFormField(
+            initialValue: profile.age?.toString() ?? '',
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Age (optional)',
+              hintText: 'Enter your age in years',
+            ),
+            onChanged: (value) {
+              final parsed = int.tryParse(value.trim());
+              ref
+                  .read(onboardingProfileProvider.notifier)
+                  .updateProfile(profile.copyWith(age: parsed));
+            },
+          ),
+          const SizedBox(height: 40),
+          ElevatedButton(
+            onPressed: _nextPage,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.terracottaPrimary,
+              minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Text(
+              'Continue',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCycleProfileStep(ThemeData theme) {
     final profile = ref.watch(onboardingProfileProvider);
     final isDark = theme.brightness == Brightness.dark;
@@ -312,14 +381,167 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Cycle Profile', style: theme.textTheme.displaySmall),
+          Text('Cycle & Rhythm Profile', style: theme.textTheme.displaySmall),
           const SizedBox(height: 8),
           Text(
-            'Help Quevaa estimate your rhythm (all questions are optional).',
+            'Help Quevaa estimate your cycle dates and phases accurately (all optional).',
             style: theme.textTheme.bodyMedium?.copyWith(color: secondaryText),
           ),
           const SizedBox(height: 24),
-          Text('What is your primary goal?', style: theme.textTheme.titleLarge),
+          // Last Period Start Date
+          Text('When did your last period start?', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: profile.lastPeriodStartDate ?? DateTime.now(),
+                firstDate: DateTime.now().subtract(const Duration(days: 180)),
+                lastDate: DateTime.now(),
+              );
+              if (picked != null) {
+                ref
+                    .read(onboardingProfileProvider.notifier)
+                    .updateProfile(profile.copyWith(lastPeriodStartDate: picked));
+              }
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: profile.lastPeriodStartDate != null
+                      ? AppColors.terracottaPrimary
+                      : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_month_rounded, color: AppColors.terracottaPrimary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      profile.lastPeriodStartDate != null
+                          ? DateFormat('EEEE, d MMMM yyyy').format(profile.lastPeriodStartDate!)
+                          : 'Tap to select last period date',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: profile.lastPeriodStartDate != null
+                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                            : secondaryText,
+                        fontWeight: profile.lastPeriodStartDate != null ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Average Period Duration
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Period Duration', style: theme.textTheme.titleMedium),
+                  Text('Typical bleeding days', style: theme.textTheme.bodySmall?.copyWith(color: secondaryText)),
+                ],
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove_rounded, size: 20),
+                      onPressed: profile.averagePeriodDuration > 1
+                          ? () {
+                              ref
+                                  .read(onboardingProfileProvider.notifier)
+                                  .updateProfile(profile.copyWith(averagePeriodDuration: profile.averagePeriodDuration - 1));
+                            }
+                          : null,
+                    ),
+                    Text(
+                      '${profile.averagePeriodDuration} days',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_rounded, size: 20),
+                      onPressed: profile.averagePeriodDuration < 15
+                          ? () {
+                              ref
+                                  .read(onboardingProfileProvider.notifier)
+                                  .updateProfile(profile.copyWith(averagePeriodDuration: profile.averagePeriodDuration + 1));
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Average Cycle Length
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Cycle Length', style: theme.textTheme.titleMedium),
+                  Text('Days between period starts', style: theme.textTheme.bodySmall?.copyWith(color: secondaryText)),
+                ],
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove_rounded, size: 20),
+                      onPressed: profile.averageCycleLength > 15
+                          ? () {
+                              ref
+                                  .read(onboardingProfileProvider.notifier)
+                                  .updateProfile(profile.copyWith(averageCycleLength: profile.averageCycleLength - 1));
+                            }
+                          : null,
+                    ),
+                    Text(
+                      '${profile.averageCycleLength} days',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_rounded, size: 20),
+                      onPressed: profile.averageCycleLength < 60
+                          ? () {
+                              ref
+                                  .read(onboardingProfileProvider.notifier)
+                                  .updateProfile(profile.copyWith(averageCycleLength: profile.averageCycleLength + 1));
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+
+          Text('What is your primary goal?', style: theme.textTheme.titleMedium),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,

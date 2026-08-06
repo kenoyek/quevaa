@@ -1,6 +1,8 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../features/conception/application/conception_controller.dart';
 import '../../features/conception/application/conception_settings_provider.dart';
 import '../../features/conception/presentation/pages/conception_dashboard_page.dart';
@@ -13,6 +15,9 @@ import '../../features/notifications/presentation/notification_settings_page.dar
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/productivity/presentation/pages/plan_workspace_page.dart';
 import '../../features/wellness/presentation/pages/wellness_workspace_page.dart';
+import '../../core/database/app_database.dart';
+import '../../core/providers/database_provider.dart';
+import '../../core/providers/user_profile_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/quevaa_theme_mode.dart';
 
@@ -23,60 +28,81 @@ final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'shell',
 );
 
-final GoRouter appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
-  initialLocation: '/onboarding',
-  routes: [
-    GoRoute(
-      path: '/onboarding',
-      builder: (context, state) => const OnboardingPage(),
-    ),
-    GoRoute(
-      path: '/conception/onboarding',
-      builder: (context, state) => const ConceptionOnboardingPage(),
-    ),
-    GoRoute(
-      path: '/conception/log',
-      builder: (context, state) => const FertilityLogPage(),
-    ),
-    GoRoute(
-      path: '/notifications/settings',
-      builder: (context, state) => const NotificationSettingsPage(),
-    ),
-    ShellRoute(
-      navigatorKey: _shellNavigatorKey,
-      builder: (context, state, child) {
-        return MainNavigationShell(child: child);
-      },
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const _ModeAwareHomePage(),
-        ),
-        GoRoute(
-          path: '/cycle',
-          builder: (context, state) => const _ModeAwareCyclePage(),
-        ),
-        GoRoute(
-          path: '/plan',
-          builder: (context, state) => const _ModeAwarePlanPage(),
-        ),
-        GoRoute(
-          path: '/wellness',
-          builder: (context, state) => const _ModeAwareWellnessPage(),
-        ),
-        GoRoute(
-          path: '/me',
-          builder: (context, state) => const _ModeAwareMePage(),
-        ),
-        GoRoute(
-          path: '/classic',
-          builder: (context, state) => const DashboardPage(),
-        ),
-      ],
-    ),
-  ],
-);
+final routerProvider = Provider<GoRouter>((ref) {
+  final userProfile = ref.watch(userProfileProvider);
+
+  return GoRouter(
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: '/',
+    redirect: (context, state) {
+      final profile = userProfile.valueOrNull;
+      final onboardingLocation = state.matchedLocation == '/onboarding';
+
+      if (profile == null) {
+        // If profile doesn't exist and we aren't already going to onboarding, go there.
+        if (!onboardingLocation) {
+          return '/onboarding';
+        }
+      } else {
+        // If profile exists and we are trying to go to onboarding, redirect to home.
+        if (onboardingLocation) {
+          return '/';
+        }
+      }
+      return null;
+    },
+    routes: [
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingPage(),
+      ),
+      GoRoute(
+        path: '/conception/onboarding',
+        builder: (context, state) => const ConceptionOnboardingPage(),
+      ),
+      GoRoute(
+        path: '/conception/log',
+        builder: (context, state) => const FertilityLogPage(),
+      ),
+      GoRoute(
+        path: '/notifications/settings',
+        builder: (context, state) => const NotificationSettingsPage(),
+      ),
+      ShellRoute(
+        navigatorKey: _shellNavigatorKey,
+        builder: (context, state, child) {
+          return MainNavigationShell(child: child);
+        },
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const _ModeAwareHomePage(),
+          ),
+          GoRoute(
+            path: '/cycle',
+            builder: (context, state) => const _ModeAwareCyclePage(),
+          ),
+          GoRoute(
+            path: '/plan',
+            builder: (context, state) => const _ModeAwarePlanPage(),
+          ),
+          GoRoute(
+            path: '/wellness',
+            builder: (context, state) => const _ModeAwareWellnessPage(),
+          ),
+          GoRoute(
+            path: '/me',
+            builder: (context, state) => const _ModeAwareMePage(),
+          ),
+          GoRoute(
+            path: '/classic',
+            builder: (context, state) => const DashboardPage(),
+          ),
+        ],
+      ),
+    ],
+  );
+});
 
 class _ModeAwareHomePage extends ConsumerWidget {
   const _ModeAwareHomePage();
@@ -215,7 +241,11 @@ class _NormalMePage extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 14),
+              const _PersonalProfileSection(),
+              const SizedBox(height: 14),
               const _AppearanceSection(),
+              const SizedBox(height: 14),
+              const _SecuritySection(),
               const SizedBox(height: 14),
               const Card(
                 child: Padding(
@@ -246,6 +276,76 @@ class _NormalMePage extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SecuritySection extends ConsumerWidget {
+  const _SecuritySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(userProfileProvider);
+    final theme = Theme.of(context);
+
+    return profileAsync.when(
+      data: (profile) {
+        if (profile == null) return const SizedBox.shrink();
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.sageContainer,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.security_rounded,
+                        color: AppColors.sagePrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Security & Privacy',
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Biometric Authentication'),
+                  subtitle: const Text(
+                    'Require Face ID or Fingerprint to unlock Quevaa after inactivity.',
+                  ),
+                  value: profile.isBiometricEnabled,
+                  onChanged: (value) async {
+                    final db = ref.read(appDatabaseProvider);
+                    await (db.update(db.userProfiles)
+                          ..where((tbl) => tbl.id.equals(profile.id)))
+                        .write(
+                      UserProfilesCompanion(
+                        isBiometricEnabled: Value(value),
+                        updatedAt: Value(DateTime.now()),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }
@@ -648,13 +748,16 @@ class MainNavigationShell extends ConsumerWidget {
 
     return Scaffold(
       body: child,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () =>
-            _showQuickActionBottomSheet(context, conceptionModeActive),
-        backgroundColor: AppColors.terracottaPrimary,
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add_rounded, size: 32, color: Colors.white),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: FloatingActionButton(
+          onPressed: () =>
+              _showQuickActionBottomSheet(context, conceptionModeActive),
+          backgroundColor: AppColors.terracottaPrimary,
+          elevation: 4,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add_rounded, size: 32, color: Colors.white),
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: Container(
@@ -746,6 +849,417 @@ class _QuickActionTile extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PersonalProfileSection extends ConsumerWidget {
+  const _PersonalProfileSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(userProfileProvider);
+    final theme = Theme.of(context);
+
+    return profileAsync.when(
+      data: (profile) {
+        if (profile == null) return const SizedBox.shrink();
+        final lastPeriodStr = profile.lastPeriodStartDate != null
+            ? DateFormat('d MMM yyyy').format(profile.lastPeriodStartDate!)
+            : 'Not set';
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.terracottaContainer,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: AppColors.terracottaPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Personal & Cycle Profile',
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, color: AppColors.terracottaPrimary),
+                      tooltip: 'Edit Profile',
+                      onPressed: () => _showEditProfileModal(context, ref, profile),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _ProfileDetailRow(
+                  label: 'Name',
+                  value: profile.userName,
+                ),
+                const Divider(height: 20),
+                _ProfileDetailRow(
+                  label: 'Age',
+                  value: profile.age != null ? '${profile.age} years old' : 'Not set',
+                ),
+                const Divider(height: 20),
+                _ProfileDetailRow(
+                  label: 'Average Period Duration',
+                  value: '${profile.averagePeriodLength} days',
+                ),
+                const Divider(height: 20),
+                _ProfileDetailRow(
+                  label: 'Average Cycle Length',
+                  value: '${profile.averageCycleLength} days',
+                ),
+                const Divider(height: 20),
+                _ProfileDetailRow(
+                  label: 'Last Period Start',
+                  value: lastPeriodStr,
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () => _showEditProfileModal(context, ref, profile),
+                  icon: const Icon(Icons.edit_note_rounded),
+                  label: const Text('Edit Profile & Cycle Parameters'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  void _showEditProfileModal(BuildContext context, WidgetRef ref, UserProfile profile) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? AppColors.cardSurfaceDark
+          : AppColors.cardSurfaceLight,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return _EditProfileBottomSheet(profile: profile);
+      },
+    );
+  }
+}
+
+class _ProfileDetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ProfileDetailRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+          ),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditProfileBottomSheet extends ConsumerStatefulWidget {
+  final UserProfile profile;
+
+  const _EditProfileBottomSheet({required this.profile});
+
+  @override
+  ConsumerState<_EditProfileBottomSheet> createState() => _EditProfileBottomSheetState();
+}
+
+class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet> {
+  late TextEditingController _nameController;
+  late TextEditingController _ageController;
+  late int _periodLength;
+  late int _cycleLength;
+  DateTime? _lastPeriodDate;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.profile.userName);
+    _ageController = TextEditingController(text: widget.profile.age?.toString() ?? '');
+    _periodLength = widget.profile.averagePeriodLength;
+    _cycleLength = widget.profile.averageCycleLength;
+    _lastPeriodDate = widget.profile.lastPeriodStartDate;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _ageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    final db = ref.read(appDatabaseProvider);
+    final ageParsed = int.tryParse(_ageController.text.trim());
+
+    await (db.update(db.userProfiles)..where((tbl) => tbl.id.equals(widget.profile.id))).write(
+      UserProfilesCompanion(
+        userName: Value(_nameController.text.trim().isEmpty ? 'Adaora' : _nameController.text.trim()),
+        age: Value(ageParsed),
+        averagePeriodLength: Value(_periodLength),
+        averageCycleLength: Value(_cycleLength),
+        lastPeriodStartDate: Value(_lastPeriodDate),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+
+    if (_lastPeriodDate != null) {
+      final existingPeriod = await (db.select(db.cyclePeriods)..limit(1)).getSingleOrNull();
+      if (existingPeriod != null) {
+        await (db.update(db.cyclePeriods)..where((tbl) => tbl.id.equals(existingPeriod.id))).write(
+          CyclePeriodsCompanion(
+            startDate: Value(_lastPeriodDate!),
+            endDate: Value(_lastPeriodDate!.add(Duration(days: _periodLength - 1))),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+      } else {
+        await db.into(db.cyclePeriods).insert(
+          CyclePeriodsCompanion.insert(
+            startDate: _lastPeriodDate!,
+            endDate: Value(_lastPeriodDate!.add(Duration(days: _periodLength - 1))),
+            uuid: DateTime.now().millisecondsSinceEpoch.toString(),
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ),
+        );
+      }
+    }
+
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final secondaryText = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Edit Profile & Cycle', style: theme.textTheme.headlineMedium),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                hintText: 'Enter your name',
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _ageController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Age',
+                hintText: 'Enter age in years',
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Period length
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Period Duration', style: theme.textTheme.titleMedium),
+                    Text('Typical bleeding days', style: theme.textTheme.bodySmall?.copyWith(color: secondaryText)),
+                  ],
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_rounded, size: 20),
+                        onPressed: _periodLength > 1 ? () => setState(() => _periodLength--) : null,
+                      ),
+                      Text(
+                        '$_periodLength days',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_rounded, size: 20),
+                        onPressed: _periodLength < 15 ? () => setState(() => _periodLength++) : null,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Cycle length
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Cycle Length', style: theme.textTheme.titleMedium),
+                    Text('Days between period starts', style: theme.textTheme.bodySmall?.copyWith(color: secondaryText)),
+                  ],
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_rounded, size: 20),
+                        onPressed: _cycleLength > 15 ? () => setState(() => _cycleLength--) : null,
+                      ),
+                      Text(
+                        '$_cycleLength days',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_rounded, size: 20),
+                        onPressed: _cycleLength < 60 ? () => setState(() => _cycleLength++) : null,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            // Last period start date
+            Text('Last Period Start Date', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _lastPeriodDate ?? DateTime.now(),
+                  firstDate: DateTime.now().subtract(const Duration(days: 180)),
+                  lastDate: DateTime.now(),
+                );
+                if (picked != null) {
+                  setState(() => _lastPeriodDate = picked);
+                }
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _lastPeriodDate != null
+                        ? AppColors.terracottaPrimary
+                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_month_rounded, color: AppColors.terracottaPrimary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _lastPeriodDate != null
+                            ? DateFormat('EEEE, d MMMM yyyy').format(_lastPeriodDate!)
+                            : 'Select date',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: _lastPeriodDate != null
+                              ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                              : secondaryText,
+                          fontWeight: _lastPeriodDate != null ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+            ElevatedButton(
+              onPressed: _isSaving ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.terracottaPrimary,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: _isSaving
+                  ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Save Changes', style: TextStyle(color: Colors.white, fontSize: 16)),
+            ),
+          ],
+        ),
       ),
     );
   }

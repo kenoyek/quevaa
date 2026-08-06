@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:quevaa/core/models/prediction_confidence.dart';
 import 'package:quevaa/features/cycle/domain/cycle_engine.dart';
 import 'package:quevaa/features/cycle/domain/models/cycle_engine_output.dart';
 
@@ -120,6 +121,60 @@ void main() {
       );
 
       expect(output.confidence, PredictionConfidence.high);
+    });
+
+    test('Correctly calculates historical Cycle Day during browsing', () {
+      final history = [
+        CyclePeriodRecord(startDate: DateTime(2026, 1, 1)),
+        CyclePeriodRecord(startDate: DateTime(2026, 1, 29)),
+      ];
+
+      // Browsing a date during the FIRST cycle
+      final pastOutput = CycleEngine.calculate(
+        periodHistory: history,
+        targetDate: DateTime(2026, 1, 15),
+      );
+      expect(pastOutput.currentCycleDay, 15);
+
+      // Browsing a date during the SECOND cycle
+      final presentOutput = CycleEngine.calculate(
+        periodHistory: history,
+        targetDate: DateTime(2026, 2, 5),
+      );
+      expect(presentOutput.currentCycleDay, 8);
+    });
+
+    test('Generates 6 months of future projections', () {
+      final history = [CyclePeriodRecord(startDate: DateTime(2026, 1, 1))];
+      final output = CycleEngine.calculate(
+        periodHistory: history,
+        targetDate: DateTime(2026, 1, 1),
+      );
+
+      expect(output.nextCycles.length, 6);
+      expect(output.nextCycles[0].min.isAfter(DateTime(2026, 1, 1)), true);
+      expect(output.nextCycles[5].min.isAfter(output.nextCycles[0].min), true);
+    });
+
+    test('PredictionConfidence presentation extension returns valid labels', () {
+      expect(PredictionConfidence.low.label, 'Low');
+      expect(PredictionConfidence.moderate.label, 'Moderate');
+      expect(PredictionConfidence.high.label, 'High');
+      expect(PredictionConfidencePresentation.fromString('high'), PredictionConfidence.high);
+      expect(PredictionConfidencePresentation.fromString(null), PredictionConfidence.low);
+    });
+
+    test('Empty period history returns hasEnoughData = false', () {
+      final output = CycleEngine.calculate(
+        periodHistory: [],
+        targetDate: DateTime(2026, 4, 1),
+      );
+      expect(output.hasEnoughData, false);
+      expect(output.estimatedPhase, 'Phase unavailable');
+
+      final snapshot = output.toSnapshot(DateTime(2026, 4, 1));
+      expect(snapshot.hasEnoughData, false);
+      expect(snapshot.cycleDay, null);
     });
   });
 }

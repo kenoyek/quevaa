@@ -389,7 +389,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           ),
           const SizedBox(height: 24),
           // Last Period Start Date
-          Text('When did your last period start?', style: theme.textTheme.titleMedium),
+          Text(
+            'When did your last period start?',
+            style: theme.textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           InkWell(
             onTap: () async {
@@ -402,14 +405,18 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               if (picked != null) {
                 ref
                     .read(onboardingProfileProvider.notifier)
-                    .updateProfile(profile.copyWith(lastPeriodStartDate: picked));
+                    .updateProfile(
+                      profile.copyWith(lastPeriodStartDate: picked),
+                    );
               }
             },
             borderRadius: BorderRadius.circular(16),
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: profile.lastPeriodStartDate != null
@@ -419,18 +426,27 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_month_rounded, color: AppColors.terracottaPrimary),
+                  const Icon(
+                    Icons.calendar_month_rounded,
+                    color: AppColors.terracottaPrimary,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       profile.lastPeriodStartDate != null
-                          ? DateFormat('EEEE, d MMMM yyyy').format(profile.lastPeriodStartDate!)
+                          ? DateFormat(
+                              'EEEE, d MMMM yyyy',
+                            ).format(profile.lastPeriodStartDate!)
                           : 'Tap to select last period date',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: profile.lastPeriodStartDate != null
-                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                            ? (isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimaryLight)
                             : secondaryText,
-                        fontWeight: profile.lastPeriodStartDate != null ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: profile.lastPeriodStartDate != null
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -449,14 +465,25 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Period Duration', style: theme.textTheme.titleMedium),
-                  Text('Typical bleeding days', style: theme.textTheme.bodySmall?.copyWith(color: secondaryText)),
+                  Text(
+                    'Typical bleeding days',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: secondaryText,
+                    ),
+                  ),
                 ],
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                  border: Border.all(
+                    color: isDark
+                        ? AppColors.borderDark
+                        : AppColors.borderLight,
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -466,13 +493,20 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                           ? () {
                               ref
                                   .read(onboardingProfileProvider.notifier)
-                                  .updateProfile(profile.copyWith(averagePeriodDuration: profile.averagePeriodDuration - 1));
+                                  .updateProfile(
+                                    profile.copyWith(
+                                      averagePeriodDuration:
+                                          profile.averagePeriodDuration - 1,
+                                    ),
+                                  );
                             }
                           : null,
                     ),
                     Text(
                       '${profile.averagePeriodDuration} days',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.add_rounded, size: 20),
@@ -480,7 +514,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                           ? () {
                               ref
                                   .read(onboardingProfileProvider.notifier)
-                                  .updateProfile(profile.copyWith(averagePeriodDuration: profile.averagePeriodDuration + 1));
+                                  .updateProfile(
+                                    profile.copyWith(
+                                      averagePeriodDuration:
+                                          profile.averagePeriodDuration + 1,
+                                    ),
+                                  );
                             }
                           : null,
                     ),
@@ -499,14 +538,25 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Cycle Length', style: theme.textTheme.titleMedium),
-                  Text('Days between period starts', style: theme.textTheme.bodySmall?.copyWith(color: secondaryText)),
+                  Text(
+                    'Days between period starts',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: secondaryText,
+                    ),
+                  ),
                 ],
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                  border: Border.all(
+                    color: isDark
+                        ? AppColors.borderDark
+                        : AppColors.borderLight,
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -516,13 +566,20 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                           ? () {
                               ref
                                   .read(onboardingProfileProvider.notifier)
-                                  .updateProfile(profile.copyWith(averageCycleLength: profile.averageCycleLength - 1));
+                                  .updateProfile(
+                                    profile.copyWith(
+                                      averageCycleLength:
+                                          profile.averageCycleLength - 1,
+                                    ),
+                                  );
                             }
                           : null,
                     ),
                     Text(
                       '${profile.averageCycleLength} days',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.add_rounded, size: 20),
@@ -530,7 +587,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                           ? () {
                               ref
                                   .read(onboardingProfileProvider.notifier)
-                                  .updateProfile(profile.copyWith(averageCycleLength: profile.averageCycleLength + 1));
+                                  .updateProfile(
+                                    profile.copyWith(
+                                      averageCycleLength:
+                                          profile.averageCycleLength + 1,
+                                    ),
+                                  );
                             }
                           : null,
                     ),
@@ -541,7 +603,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           ),
           const SizedBox(height: 28),
 
-          Text('What is your primary goal?', style: theme.textTheme.titleMedium),
+          Text(
+            'What is your primary goal?',
+            style: theme.textTheme.titleMedium,
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,

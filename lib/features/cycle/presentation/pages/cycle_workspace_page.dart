@@ -9,8 +9,10 @@ import '../../../../core/database/app_database.dart';
 import '../../../../core/models/prediction_confidence.dart';
 import '../../../conception/application/conception_settings_provider.dart';
 import '../../application/cycle_workspace_provider.dart';
+import '../../domain/cycle_engine.dart';
+import '../../domain/models/cycle_calendar_phase.dart';
 import '../../domain/models/cycle_engine_output.dart';
-import '../../domain/models/estimated_cycle_phase.dart';
+import '../../domain/models/period_prediction.dart';
 
 class CycleWorkspacePage extends ConsumerWidget {
   const CycleWorkspacePage({super.key});
@@ -236,8 +238,38 @@ class _OverviewCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date = DateFormat('d MMM');
-    final enough = periods.length >= 2;
+    final df = DateFormat('d MMM');
+    final primaryPred = output.periodPredictions.firstOrNull;
+    final enough = output.hasEnoughData && periods.length >= 2;
+
+    final String nextPeriodBody;
+    final String nextPeriodFoot;
+
+    if (primaryPred != null) {
+      final bleedingStartStr = df.format(
+        primaryPred.predictedBleedingRange.start,
+      );
+      final bleedingEndStr = df.format(primaryPred.predictedBleedingRange.end);
+      final possibleStartStr =
+          '${df.format(primaryPred.possibleStartRange.start)}–${df.format(primaryPred.possibleStartRange.end)}';
+
+      nextPeriodBody =
+          'Expected: $bleedingStartStr\nDuration: ${primaryPred.expectedDurationDays} days ($bleedingStartStr–$bleedingEndStr)';
+      if (output.confidence == PredictionConfidence.low ||
+          primaryPred.possibleStartRange.start !=
+              primaryPred.estimatedStartDate) {
+        nextPeriodFoot =
+            'Possible start: $possibleStartStr • Confidence: ${formatPredictionConfidence(output.confidence)}';
+      } else {
+        nextPeriodFoot =
+            'Confidence: ${formatPredictionConfidence(output.confidence)}';
+      }
+    } else {
+      nextPeriodBody = 'Add period history to estimate';
+      nextPeriodFoot =
+          'Confidence: ${formatPredictionConfidence(output.confidence)}';
+    }
+
     final lastThree = <int>[];
     for (var i = 0; i < periods.length - 1; i++) {
       lastThree.add(
@@ -252,16 +284,14 @@ class _OverviewCards extends StatelessWidget {
         crossAxisCount: 2,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 1.45,
+        childAspectRatio: 0.9,
       ),
       children: [
         _InfoCard(
           icon: Icons.event_available_rounded,
           title: 'Next period',
-          body: output.hasEnoughData
-              ? 'Estimated ${date.format(output.estimatedPeriodStartMin)}-${date.format(output.estimatedPeriodStartMax)}'
-              : 'Add period history to estimate',
-          foot: 'Confidence: ${formatPredictionConfidence(output.confidence)}',
+          body: nextPeriodBody,
+          foot: nextPeriodFoot,
         ),
         _InfoCard(
           icon: Icons.timeline_rounded,
@@ -276,10 +306,10 @@ class _OverviewCards extends StatelessWidget {
           title: 'Typical cycle',
           body: enough
               ? '${output.averageCycleLength.round()} days average'
-              : 'More logs needed',
+              : 'Based on cycle settings',
           foot: enough
               ? 'Variation: ${output.cycleLengthVariability.toStringAsFixed(1)}'
-              : 'Add at least 2 periods',
+              : 'Predictions will improve as you log more periods',
         ),
         _InfoCard(
           icon: Icons.history_rounded,
@@ -497,38 +527,103 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final today = _sameDate(date, DateTime.now());
-    final bg = state.confirmedPeriod
-        ? AppColors.terracottaPrimary
-        : state.predictedPeriod
-        ? AppColors.terracottaContainer
-        : state.fertile
-        ? AppColors.sageContainer
-        : Colors.transparent;
-    final fg = state.confirmedPeriod
-        ? Colors.white
-        : Theme.of(context).colorScheme.onSurface;
+
+    Color bg;
+    Color fg;
+    BorderRadius borderRadius = BorderRadius.circular(12);
+
+    if (state.confirmedPeriod) {
+      bg = isDark
+          ? AppColors.cycleMenstrualConfirmedDark
+          : AppColors.cycleMenstrualConfirmedLight;
+      fg = isDark
+          ? AppColors.cycleMenstrualConfirmedTextDark
+          : AppColors.cycleMenstrualConfirmedTextLight;
+    } else if (state.predictedPeriod) {
+      bg = isDark
+          ? AppColors.cycleMenstrualPredictedDark
+          : AppColors.cycleMenstrualPredictedLight;
+      fg = theme.colorScheme.onSurface;
+
+      if (state.isStartEdge && state.isEndEdge) {
+        borderRadius = BorderRadius.circular(12);
+      } else if (state.isStartEdge) {
+        borderRadius = const BorderRadius.only(
+          topLeft: Radius.circular(12),
+          bottomLeft: Radius.circular(12),
+        );
+      } else if (state.isEndEdge) {
+        borderRadius = const BorderRadius.only(
+          topRight: Radius.circular(12),
+          bottomRight: Radius.circular(12),
+        );
+      } else {
+        borderRadius = BorderRadius.zero;
+      }
+    } else {
+      fg = theme.colorScheme.onSurface;
+      bg = switch (state.phase) {
+        CycleCalendarPhase.estimatedOvulation =>
+          isDark ? AppColors.cycleOvulationDark : AppColors.cycleOvulationLight,
+        CycleCalendarPhase.fertileWindow =>
+          isDark
+              ? AppColors.cycleFertileWindowDark
+              : AppColors.cycleFertileWindowLight,
+        CycleCalendarPhase.follicular =>
+          isDark
+              ? AppColors.cycleFollicularDark
+              : AppColors.cycleFollicularLight,
+        CycleCalendarPhase.luteal =>
+          isDark ? AppColors.cycleLutealDark : AppColors.cycleLutealLight,
+        CycleCalendarPhase.menstrual =>
+          isDark
+              ? AppColors.cycleMenstrualPredictedDark
+              : AppColors.cycleMenstrualPredictedLight,
+        CycleCalendarPhase.unknown => Colors.transparent,
+      };
+    }
+
+    Color borderColor = Colors.transparent;
+    double borderWidth = 1.4;
+
+    if (selected) {
+      borderColor = isDark ? AppColors.textPrimaryDark : AppColors.deepPlum;
+      borderWidth = 2.2;
+    } else if (today) {
+      borderColor = AppColors.terracottaPrimary;
+      borderWidth = 1.8;
+    } else if (state.predictedPeriod) {
+      borderColor = isDark
+          ? AppColors.cycleMenstrualPredictedBorderDark
+          : AppColors.cycleMenstrualPredictedBorderLight;
+      borderWidth = 1.2;
+    } else if (state.phase == CycleCalendarPhase.estimatedOvulation) {
+      borderColor = isDark
+          ? AppColors.cycleOvulationBorderDark
+          : AppColors.cycleOvulationBorderLight;
+      borderWidth = 1.2;
+    } else if (state.isUncertainty) {
+      borderColor = isDark
+          ? AppColors.borderDark
+          : AppColors.terracottaLight.withValues(alpha: 0.5);
+      borderWidth = 1.0;
+    }
+
     return Semantics(
       button: true,
       selected: selected,
       label: '${DateFormat.yMMMMd().format(date)}. ${state.semanticLabel}',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: borderRadius,
         child: Container(
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? AppColors.deepPlum
-                  : today
-                  ? AppColors.warmGoldPrimary
-                  : state.ovulation
-                  ? AppColors.purplePrimary
-                  : Colors.transparent,
-              width: selected ? 2 : 1.4,
-            ),
+            borderRadius: borderRadius,
+            border: Border.all(color: borderColor, width: borderWidth),
           ),
           child: Stack(
             children: [
@@ -543,23 +638,36 @@ class _DayCell extends StatelessWidget {
                   ),
                 ),
               ),
+              if (state.phase == CycleCalendarPhase.estimatedOvulation)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: const BoxDecoration(
+                      color: AppColors.warmGoldPrimary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
               if (state.hasLog)
                 const Positioned(
-                  right: 5,
-                  top: 5,
+                  right: 4,
+                  top: 4,
                   child: Icon(
                     Icons.edit_note_rounded,
-                    size: 12,
+                    size: 11,
                     color: AppColors.deepPlum,
                   ),
                 ),
               if (state.symptomSeverity > 0)
                 Positioned(
-                  left: 5,
-                  bottom: 5,
+                  left: 4,
+                  bottom: 4,
                   child: Container(
-                    width: 6 + state.symptomSeverity.toDouble(),
-                    height: 4,
+                    width: 5 + state.symptomSeverity.toDouble(),
+                    height: 3,
                     decoration: BoxDecoration(
                       color: AppColors.purplePrimary,
                       borderRadius: BorderRadius.circular(999),
@@ -568,11 +676,11 @@ class _DayCell extends StatelessWidget {
                 ),
               if (state.spotting)
                 const Positioned(
-                  right: 5,
-                  bottom: 5,
+                  right: 4,
+                  bottom: 4,
                   child: Icon(
                     Icons.circle,
-                    size: 7,
+                    size: 6,
                     color: AppColors.terracottaDark,
                   ),
                 ),
@@ -592,10 +700,19 @@ void _showDayDetails(BuildContext context, WidgetRef ref, DateTime date) {
     builder: (context) => Consumer(
       builder: (context, ref, child) {
         final selectedSnapshot = ref.watch(selectedDayCycleSnapshotProvider);
+        final output = ref.watch(currentCycleOutputProvider);
         final log = ref.watch(selectedDayLogProvider).valueOrNull;
         final symptoms =
             ref.watch(selectedDaySymptomsProvider).valueOrNull ?? const [];
-        final periods = ref.watch(periodHistoryProvider).valueOrNull ?? const [];
+        final periods =
+            ref.watch(periodHistoryProvider).valueOrNull ?? const [];
+
+        final historyRecords = periods
+            .map(
+              (p) =>
+                  CyclePeriodRecord(startDate: p.startDate, endDate: p.endDate),
+            )
+            .toList();
 
         final hasConfirmedPeriodOnDate = periods.any((p) {
           final start = normalizeDate(p.startDate);
@@ -604,6 +721,70 @@ void _showDayDetails(BuildContext context, WidgetRef ref, DateTime date) {
         });
 
         final hasOngoingPeriod = periods.any((p) => p.isOngoing);
+
+        final d = DateTime(date.year, date.month, date.day);
+        PeriodPrediction? matchingPred;
+        for (final pred in output.periodPredictions) {
+          if (pred.isBleedingDay(d)) {
+            matchingPred = pred;
+            break;
+          }
+        }
+
+        final phase = output.getCalendarPhase(d, history: historyRecords);
+
+        final detailChips = <String>[];
+
+        if (hasConfirmedPeriodOnDate) {
+          detailChips.add('Confirmed Period');
+          detailChips.add('Estimated menstrual phase');
+        } else if (matchingPred != null) {
+          final dayNum =
+              d.difference(matchingPred.predictedBleedingRange.start).inDays +
+              1;
+          detailChips.add('Predicted period day $dayNum');
+          detailChips.add('Estimated menstrual phase');
+        } else {
+          switch (phase) {
+            case CycleCalendarPhase.estimatedOvulation:
+              detailChips.add('Estimated ovulation');
+              detailChips.add('Within your estimated fertile window');
+            case CycleCalendarPhase.fertileWindow:
+              detailChips.add('Estimated fertile window');
+            case CycleCalendarPhase.follicular:
+              detailChips.add('Estimated follicular phase');
+            case CycleCalendarPhase.luteal:
+              detailChips.add('Estimated luteal phase');
+            case CycleCalendarPhase.menstrual:
+              detailChips.add('Estimated menstrual phase');
+            case CycleCalendarPhase.unknown:
+              if (selectedSnapshot.hasEnoughData) {
+                detailChips.add('Cycle day ${selectedSnapshot.cycleDay}');
+              }
+          }
+        }
+
+        if (selectedSnapshot.hasEnoughData &&
+            selectedSnapshot.cycleDay != null) {
+          detailChips.add('Cycle day ${selectedSnapshot.cycleDay}');
+        }
+
+        detailChips.add(
+          'Confidence ${formatPredictionConfidence(output.confidence)}',
+        );
+
+        if (log != null && log.flow != 'None') {
+          detailChips.add(log.flow);
+        }
+        if (log?.spotting ?? false) {
+          detailChips.add('Spotting');
+        }
+        if (symptoms.isNotEmpty) {
+          detailChips.add('${symptoms.length} symptoms');
+        }
+        if ((log?.waterGlasses ?? 0) > 0) {
+          detailChips.add('${log!.waterGlasses} glasses water');
+        }
 
         return SafeArea(
           child: Padding(
@@ -623,23 +804,7 @@ void _showDayDetails(BuildContext context, WidgetRef ref, DateTime date) {
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 12),
-                  _DetailWrap(
-                    items: [
-                      if (selectedSnapshot.hasEnoughData) ...[
-                        'Cycle day ${selectedSnapshot.cycleDay}',
-                        'Estimated ${selectedSnapshot.phase.label}',
-                        'Confidence ${formatPredictionConfidence(selectedSnapshot.confidence)}',
-                      ] else ...[
-                        'Add period history for predictions',
-                      ],
-                      if (hasConfirmedPeriodOnDate) 'Confirmed Period',
-                      log?.flow ?? 'No flow logged',
-                      if (log?.spotting ?? false) 'Spotting',
-                      if (symptoms.isNotEmpty) '${symptoms.length} symptoms',
-                      if ((log?.waterGlasses ?? 0) > 0)
-                        '${log!.waterGlasses} glasses water',
-                    ],
-                  ),
+                  _DetailWrap(items: detailChips),
                   const SizedBox(height: 16),
                   Text(
                     log?.generalNotes?.isNotEmpty == true
@@ -1030,26 +1195,33 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: _panelDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, color: AppColors.terracottaPrimary),
-          const Spacer(),
-          Text(title, style: Theme.of(context).textTheme.labelLarge),
+          Icon(icon, size: 20, color: AppColors.terracottaPrimary),
           const SizedBox(height: 4),
-          Text(
-            body,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleMedium,
+          Text(title, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 2),
+          Expanded(
+            child: Text(
+              body,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
           ),
           Text(
             foot,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
           ),
         ],
       ),
@@ -1107,31 +1279,61 @@ class _CalendarLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = [
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final periodAndFertilityItems = [
       (
         Icons.water_drop_rounded,
         'Confirmed period',
-        AppColors.terracottaPrimary,
+        isDark
+            ? AppColors.cycleMenstrualConfirmedDark
+            : AppColors.cycleMenstrualConfirmedLight,
       ),
-      (Icons.trip_origin_rounded, 'Predicted range', AppColors.terracottaDark),
-      (Icons.eco_rounded, 'Fertile window', AppColors.sagePrimary),
+      (
+        Icons.calendar_today_rounded,
+        'Predicted period',
+        isDark
+            ? AppColors.cycleMenstrualPredictedBorderDark
+            : AppColors.cycleMenstrualPredictedBorderLight,
+      ),
+      (
+        Icons.eco_rounded,
+        'Fertile window',
+        isDark ? AppColors.cycleFertileWindowDark : AppColors.sagePrimary,
+      ),
       (
         Icons.radio_button_checked_rounded,
         'Estimated ovulation',
-        AppColors.purplePrimary,
+        AppColors.warmGoldPrimary,
+      ),
+    ];
+
+    final phaseItems = [
+      (
+        Icons.circle_outlined,
+        'Follicular phase',
+        isDark ? AppColors.sageLight : AppColors.sageDark,
+      ),
+      (
+        Icons.shield_moon_outlined,
+        'Luteal phase',
+        isDark ? AppColors.purpleLight : AppColors.purplePrimary,
       ),
       (Icons.edit_note_rounded, 'Log', AppColors.deepPlum),
       if (ttcEnabled)
         (Icons.science_rounded, 'TTC signs', AppColors.warmGoldPrimary),
     ];
+
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 6,
+      runSpacing: 6,
       children: [
-        for (final item in items)
+        for (final item in [...periodAndFertilityItems, ...phaseItems])
           Chip(
-            avatar: Icon(item.$1, size: 16, color: item.$3),
-            label: Text(item.$2),
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            avatar: Icon(item.$1, size: 14, color: item.$3),
+            label: Text(item.$2, style: const TextStyle(fontSize: 12)),
           ),
       ],
     );
@@ -1202,7 +1404,6 @@ class _LoadingPanel extends StatelessWidget {
   }
 }
 
-
 _CalendarDayState _calendarState(
   DateTime date,
   List<CyclePeriod> periods,
@@ -1211,58 +1412,47 @@ _CalendarDayState _calendarState(
   DailyLog? log,
   List<SymptomEntry> symptoms,
 ) {
+  final d = DateTime(date.year, date.month, date.day);
+
   final confirmedPeriod = periods.any((period) {
     final start = normalizeDate(period.startDate);
     final end = normalizeDate(period.endDate ?? DateTime.now());
-    return !date.isBefore(start) && !date.isAfter(end);
+    return !d.isBefore(start) && !d.isAfter(end);
   });
 
-  bool predictedPeriod = false;
-  bool fertile = false;
-  bool ovulation = false;
+  PeriodPrediction? matchingPred;
+  for (final pred in output.periodPredictions) {
+    if (pred.isBleedingDay(d)) {
+      matchingPred = pred;
+      break;
+    }
+  }
 
-  final hasEnoughData = output.hasEnoughData;
+  final bool predictedPeriod = matchingPred != null && !confirmedPeriod;
+  bool isStartEdge = false;
+  bool isEndEdge = false;
 
-  if (hasEnoughData) {
-    // 1. Current cycle predictions
-    predictedPeriod = !confirmedPeriod &&
-        output.nextCycles.any((p) {
-          final pMin = normalizeDate(p.min);
-          final pMax = normalizeDate(p.max);
-          return !date.isBefore(pMin) && !date.isAfter(pMax);
-        });
+  if (matchingPred != null && !confirmedPeriod) {
+    final start = normalizeDate(matchingPred.predictedBleedingRange.start);
+    final end = normalizeDate(matchingPred.predictedBleedingRange.end);
+    isStartEdge = _sameDate(d, start);
+    isEndEdge = _sameDate(d, end);
+  }
 
-    fertile = ttcEnabled &&
-        !date.isBefore(normalizeDate(output.fertileWindowStart)) &&
-        !date.isAfter(normalizeDate(output.fertileWindowEnd));
-
-    ovulation = ttcEnabled &&
-        !date.isBefore(normalizeDate(output.estimatedOvulationStart)) &&
-        !date.isAfter(normalizeDate(output.estimatedOvulationEnd));
-
-    // 2. Future projected cycles fertile & ovulation windows
-    if (ttcEnabled && !fertile && !confirmedPeriod) {
-      for (final p in output.nextCycles) {
-        final pMin = normalizeDate(p.min);
-        final pMax = normalizeDate(p.max);
-        final projCenter =
-            pMin.add(Duration(days: pMax.difference(pMin).inDays ~/ 2));
-        final projOvulation = projCenter.subtract(const Duration(days: 14));
-        final projOvuStart = projOvulation.subtract(const Duration(days: 1));
-        final projOvuEnd = projOvulation.add(const Duration(days: 1));
-        final projFertileStart =
-            projOvulation.subtract(const Duration(days: 5));
-        final projFertileEnd = projOvulation.add(const Duration(days: 1));
-
-        if (!date.isBefore(projFertileStart) && !date.isAfter(projFertileEnd)) {
-          fertile = true;
-        }
-        if (!date.isBefore(projOvuStart) && !date.isAfter(projOvuEnd)) {
-          ovulation = true;
-        }
+  bool isUncertainty = false;
+  if (!confirmedPeriod && !predictedPeriod) {
+    for (final pred in output.periodPredictions) {
+      if (pred.isUncertaintyDay(d)) {
+        isUncertainty = true;
+        break;
       }
     }
   }
+
+  final historyRecords = periods
+      .map((p) => CyclePeriodRecord(startDate: p.startDate, endDate: p.endDate))
+      .toList();
+  final phase = output.getCalendarPhase(d, history: historyRecords);
 
   final severity = [
     if (log != null) log.painLevel,
@@ -1271,9 +1461,9 @@ _CalendarDayState _calendarState(
 
   final labels = [
     if (confirmedPeriod) 'confirmed period',
-    if (predictedPeriod) 'predicted period range',
-    if (fertile) 'estimated fertile window',
-    if (ovulation) 'estimated ovulation range',
+    if (predictedPeriod) 'predicted period day',
+    if (isUncertainty) 'possible start window',
+    phase.displayName,
     if (log != null) 'daily log saved',
     if (severity > 0) 'symptom severity $severity',
   ];
@@ -1281,8 +1471,10 @@ _CalendarDayState _calendarState(
   return _CalendarDayState(
     confirmedPeriod: confirmedPeriod,
     predictedPeriod: predictedPeriod,
-    fertile: fertile,
-    ovulation: ovulation,
+    isStartEdge: isStartEdge,
+    isEndEdge: isEndEdge,
+    isUncertainty: isUncertainty,
+    phase: phase,
     hasLog: log != null,
     spotting: log?.spotting ?? false,
     symptomSeverity: severity,
@@ -1293,8 +1485,10 @@ _CalendarDayState _calendarState(
 class _CalendarDayState {
   final bool confirmedPeriod;
   final bool predictedPeriod;
-  final bool fertile;
-  final bool ovulation;
+  final bool isStartEdge;
+  final bool isEndEdge;
+  final bool isUncertainty;
+  final CycleCalendarPhase phase;
   final bool hasLog;
   final bool spotting;
   final int symptomSeverity;
@@ -1303,8 +1497,10 @@ class _CalendarDayState {
   const _CalendarDayState({
     required this.confirmedPeriod,
     required this.predictedPeriod,
-    required this.fertile,
-    required this.ovulation,
+    this.isStartEdge = false,
+    this.isEndEdge = false,
+    this.isUncertainty = false,
+    required this.phase,
     required this.hasLog,
     required this.spotting,
     required this.symptomSeverity,

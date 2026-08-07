@@ -32,20 +32,13 @@ class PlanWorkspacePage extends ConsumerWidget {
             SliverPadding(
               padding: const EdgeInsets.symmetric(vertical: QuevaaSpacing.m),
               sliver: SliverToBoxAdapter(
-                child: _PlanHeader(
-                  plannedCount: plannedCount,
-                  saving: saving,
-                ),
+                child: _PlanHeader(plannedCount: plannedCount, saving: saving),
               ),
             ),
             SliverToBoxAdapter(
               child: QuevaaSectionTabs(
                 segments: const [
-                  (
-                    value: 'Today',
-                    label: 'Today',
-                    icon: Icons.today_rounded,
-                  ),
+                  (value: 'Today', label: 'Today', icon: Icons.today_rounded),
                   (
                     value: 'Upcoming',
                     label: 'Upcoming',
@@ -56,11 +49,7 @@ class PlanWorkspacePage extends ConsumerWidget {
                     label: 'Routines',
                     icon: Icons.repeat_rounded,
                   ),
-                  (
-                    value: 'Focus',
-                    label: 'Focus',
-                    icon: Icons.timer_rounded,
-                  ),
+                  (value: 'Focus', label: 'Focus', icon: Icons.timer_rounded),
                   (
                     value: 'Completed',
                     label: 'Done',
@@ -99,10 +88,7 @@ class _PlanHeader extends ConsumerWidget {
   final int plannedCount;
   final bool saving;
 
-  const _PlanHeader({
-    required this.plannedCount,
-    required this.saving,
-  });
+  const _PlanHeader({required this.plannedCount, required this.saving});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -204,19 +190,11 @@ class _TodayPlan extends StatelessWidget {
         ),
         if (other.isNotEmpty) ...[
           const SizedBox(height: QuevaaSpacing.m),
-          _TaskGroup(
-            title: 'Other tasks',
-            empty: '',
-            tasks: other,
-          ),
+          _TaskGroup(title: 'Other tasks', empty: '', tasks: other),
         ],
         if (lowEnergy.isNotEmpty) ...[
           const SizedBox(height: QuevaaSpacing.m),
-          _TaskGroup(
-            title: 'Low-energy options',
-            empty: '',
-            tasks: lowEnergy,
-          ),
+          _TaskGroup(title: 'Low-energy options', empty: '', tasks: lowEnergy),
         ],
         if (completed.isNotEmpty) ...[
           const SizedBox(height: QuevaaSpacing.m),
@@ -479,7 +457,9 @@ class _TaskGroup extends StatelessWidget {
               Text(
                 empty,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondaryLight,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
                 ),
               )
             else
@@ -532,8 +512,8 @@ class _TaskTile extends ConsumerWidget {
               decoration: completed ? TextDecoration.lineThrough : null,
               color: completed
                   ? (Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white38
-                      : Colors.black38)
+                        ? Colors.white38
+                        : Colors.black38)
                   : null,
             ),
           ),
@@ -681,7 +661,8 @@ class _WeeklyReview extends StatelessWidget {
       (label: 'planned', value: '${summary.plannedTasks}'),
     ];
 
-    final hasProgress = summary.completedTasks > 0 ||
+    final hasProgress =
+        summary.completedTasks > 0 ||
         summary.focusMinutes > 0 ||
         summary.plannedTasks > 0;
 

@@ -329,9 +329,9 @@ class _SecuritySection extends ConsumerWidget {
                   value: profile.isBiometricEnabled,
                   onChanged: (value) async {
                     final db = ref.read(appDatabaseProvider);
-                    await (db.update(db.userProfiles)
-                          ..where((tbl) => tbl.id.equals(profile.id)))
-                        .write(
+                    await (db.update(
+                      db.userProfiles,
+                    )..where((tbl) => tbl.id.equals(profile.id))).write(
                       UserProfilesCompanion(
                         isBiometricEnabled: Value(value),
                         updatedAt: Value(DateTime.now()),
@@ -896,21 +896,24 @@ class _PersonalProfileSection extends ConsumerWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.edit_rounded, color: AppColors.terracottaPrimary),
+                      icon: const Icon(
+                        Icons.edit_rounded,
+                        color: AppColors.terracottaPrimary,
+                      ),
                       tooltip: 'Edit Profile',
-                      onPressed: () => _showEditProfileModal(context, ref, profile),
+                      onPressed: () =>
+                          _showEditProfileModal(context, ref, profile),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                _ProfileDetailRow(
-                  label: 'Name',
-                  value: profile.userName,
-                ),
+                _ProfileDetailRow(label: 'Name', value: profile.userName),
                 const Divider(height: 20),
                 _ProfileDetailRow(
                   label: 'Age',
-                  value: profile.age != null ? '${profile.age} years old' : 'Not set',
+                  value: profile.age != null
+                      ? '${profile.age} years old'
+                      : 'Not set',
                 ),
                 const Divider(height: 20),
                 _ProfileDetailRow(
@@ -949,7 +952,11 @@ class _PersonalProfileSection extends ConsumerWidget {
     );
   }
 
-  void _showEditProfileModal(BuildContext context, WidgetRef ref, UserProfile profile) {
+  void _showEditProfileModal(
+    BuildContext context,
+    WidgetRef ref,
+    UserProfile profile,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -983,7 +990,9 @@ class _ProfileDetailRow extends StatelessWidget {
         Text(
           label,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
           ),
         ),
         Text(
@@ -1003,10 +1012,12 @@ class _EditProfileBottomSheet extends ConsumerStatefulWidget {
   const _EditProfileBottomSheet({required this.profile});
 
   @override
-  ConsumerState<_EditProfileBottomSheet> createState() => _EditProfileBottomSheetState();
+  ConsumerState<_EditProfileBottomSheet> createState() =>
+      _EditProfileBottomSheetState();
 }
 
-class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet> {
+class _EditProfileBottomSheetState
+    extends ConsumerState<_EditProfileBottomSheet> {
   late TextEditingController _nameController;
   late TextEditingController _ageController;
   late int _periodLength;
@@ -1018,7 +1029,9 @@ class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.profile.userName);
-    _ageController = TextEditingController(text: widget.profile.age?.toString() ?? '');
+    _ageController = TextEditingController(
+      text: widget.profile.age?.toString() ?? '',
+    );
     _periodLength = widget.profile.averagePeriodLength;
     _cycleLength = widget.profile.averageCycleLength;
     _lastPeriodDate = widget.profile.lastPeriodStartDate;
@@ -1036,9 +1049,15 @@ class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet
     final db = ref.read(appDatabaseProvider);
     final ageParsed = int.tryParse(_ageController.text.trim());
 
-    await (db.update(db.userProfiles)..where((tbl) => tbl.id.equals(widget.profile.id))).write(
+    await (db.update(
+      db.userProfiles,
+    )..where((tbl) => tbl.id.equals(widget.profile.id))).write(
       UserProfilesCompanion(
-        userName: Value(_nameController.text.trim().isEmpty ? 'Adaora' : _nameController.text.trim()),
+        userName: Value(
+          _nameController.text.trim().isEmpty
+              ? 'Adaora'
+              : _nameController.text.trim(),
+        ),
         age: Value(ageParsed),
         averagePeriodLength: Value(_periodLength),
         averageCycleLength: Value(_cycleLength),
@@ -1048,25 +1067,35 @@ class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet
     );
 
     if (_lastPeriodDate != null) {
-      final existingPeriod = await (db.select(db.cyclePeriods)..limit(1)).getSingleOrNull();
+      final existingPeriod = await (db.select(
+        db.cyclePeriods,
+      )..limit(1)).getSingleOrNull();
       if (existingPeriod != null) {
-        await (db.update(db.cyclePeriods)..where((tbl) => tbl.id.equals(existingPeriod.id))).write(
+        await (db.update(
+          db.cyclePeriods,
+        )..where((tbl) => tbl.id.equals(existingPeriod.id))).write(
           CyclePeriodsCompanion(
             startDate: Value(_lastPeriodDate!),
-            endDate: Value(_lastPeriodDate!.add(Duration(days: _periodLength - 1))),
+            endDate: Value(
+              _lastPeriodDate!.add(Duration(days: _periodLength - 1)),
+            ),
             updatedAt: Value(DateTime.now()),
           ),
         );
       } else {
-        await db.into(db.cyclePeriods).insert(
-          CyclePeriodsCompanion.insert(
-            startDate: _lastPeriodDate!,
-            endDate: Value(_lastPeriodDate!.add(Duration(days: _periodLength - 1))),
-            uuid: DateTime.now().millisecondsSinceEpoch.toString(),
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ),
-        );
+        await db
+            .into(db.cyclePeriods)
+            .insert(
+              CyclePeriodsCompanion.insert(
+                startDate: _lastPeriodDate!,
+                endDate: Value(
+                  _lastPeriodDate!.add(Duration(days: _periodLength - 1)),
+                ),
+                uuid: DateTime.now().millisecondsSinceEpoch.toString(),
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              ),
+            );
       }
     }
 
@@ -1079,7 +1108,9 @@ class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final secondaryText = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+    final secondaryText = isDark
+        ? AppColors.textSecondaryDark
+        : AppColors.textSecondaryLight;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -1096,7 +1127,10 @@ class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Edit Profile & Cycle', style: theme.textTheme.headlineMedium),
+                Text(
+                  'Edit Profile & Cycle',
+                  style: theme.textTheme.headlineMedium,
+                ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded),
                   onPressed: () => Navigator.pop(context),
@@ -1129,28 +1163,45 @@ class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Period Duration', style: theme.textTheme.titleMedium),
-                    Text('Typical bleeding days', style: theme.textTheme.bodySmall?.copyWith(color: secondaryText)),
+                    Text(
+                      'Typical bleeding days',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: secondaryText,
+                      ),
+                    ),
                   ],
                 ),
                 Container(
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                    border: Border.all(
+                      color: isDark
+                          ? AppColors.borderDark
+                          : AppColors.borderLight,
+                    ),
                   ),
                   child: Row(
                     children: [
                       IconButton(
                         icon: const Icon(Icons.remove_rounded, size: 20),
-                        onPressed: _periodLength > 1 ? () => setState(() => _periodLength--) : null,
+                        onPressed: _periodLength > 1
+                            ? () => setState(() => _periodLength--)
+                            : null,
                       ),
                       Text(
                         '$_periodLength days',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.add_rounded, size: 20),
-                        onPressed: _periodLength < 15 ? () => setState(() => _periodLength++) : null,
+                        onPressed: _periodLength < 15
+                            ? () => setState(() => _periodLength++)
+                            : null,
                       ),
                     ],
                   ),
@@ -1166,28 +1217,45 @@ class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Cycle Length', style: theme.textTheme.titleMedium),
-                    Text('Days between period starts', style: theme.textTheme.bodySmall?.copyWith(color: secondaryText)),
+                    Text(
+                      'Days between period starts',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: secondaryText,
+                      ),
+                    ),
                   ],
                 ),
                 Container(
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                    border: Border.all(
+                      color: isDark
+                          ? AppColors.borderDark
+                          : AppColors.borderLight,
+                    ),
                   ),
                   child: Row(
                     children: [
                       IconButton(
                         icon: const Icon(Icons.remove_rounded, size: 20),
-                        onPressed: _cycleLength > 15 ? () => setState(() => _cycleLength--) : null,
+                        onPressed: _cycleLength > 15
+                            ? () => setState(() => _cycleLength--)
+                            : null,
                       ),
                       Text(
                         '$_cycleLength days',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.add_rounded, size: 20),
-                        onPressed: _cycleLength < 60 ? () => setState(() => _cycleLength++) : null,
+                        onPressed: _cycleLength < 60
+                            ? () => setState(() => _cycleLength++)
+                            : null,
                       ),
                     ],
                   ),
@@ -1214,28 +1282,41 @@ class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: _lastPeriodDate != null
                         ? AppColors.terracottaPrimary
-                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                        : (isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight),
                   ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.calendar_month_rounded, color: AppColors.terracottaPrimary),
+                    const Icon(
+                      Icons.calendar_month_rounded,
+                      color: AppColors.terracottaPrimary,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         _lastPeriodDate != null
-                            ? DateFormat('EEEE, d MMMM yyyy').format(_lastPeriodDate!)
+                            ? DateFormat(
+                                'EEEE, d MMMM yyyy',
+                              ).format(_lastPeriodDate!)
                             : 'Select date',
                         style: theme.textTheme.bodyLarge?.copyWith(
                           color: _lastPeriodDate != null
-                              ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                              ? (isDark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.textPrimaryLight)
                               : secondaryText,
-                          fontWeight: _lastPeriodDate != null ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: _lastPeriodDate != null
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -1255,8 +1336,17 @@ class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet
                 ),
               ),
               child: _isSaving
-                  ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Save Changes', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Save Changes',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
             ),
           ],
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/models/prediction_confidence.dart';
 import '../../../cycle/application/cycle_workspace_provider.dart';
@@ -234,15 +235,46 @@ class _RhythmCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final df = DateFormat('d MMM');
+    final primaryPred = output.periodPredictions.firstOrNull;
+
+    final String periodText;
+    final String? possibleStartText;
+
+    if (primaryPred != null) {
+      final bleedingStart = df.format(primaryPred.predictedBleedingRange.start);
+      final bleedingEnd = df.format(primaryPred.predictedBleedingRange.end);
+      periodText =
+          'Next Period: $bleedingStart (${primaryPred.expectedDurationDays} days, $bleedingStart–$bleedingEnd)';
+
+      if (output.confidence == PredictionConfidence.low ||
+          primaryPred.possibleStartRange.start !=
+              primaryPred.estimatedStartDate) {
+        possibleStartText =
+            'Possible start range: ${df.format(primaryPred.possibleStartRange.start)}–${df.format(primaryPred.possibleStartRange.end)}';
+      } else {
+        possibleStartText = null;
+      }
+    } else {
+      periodText = 'Next Period: ${output.formattedPeriodRange}';
+      possibleStartText = null;
+    }
+
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.deepPlum,
+        color: isDark ? AppColors.cardSurfaceDark : AppColors.deepPlum,
         borderRadius: BorderRadius.circular(24),
+        border: isDark
+            ? Border.all(color: AppColors.borderDark, width: 1)
+            : null,
         boxShadow: [
           BoxShadow(
-            color: AppColors.deepPlum.withValues(alpha: 0.25),
+            color: (isDark ? Colors.black : AppColors.deepPlum).withValues(
+              alpha: 0.25,
+            ),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -301,16 +333,40 @@ class _RhythmCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.calendar_month_rounded,
-                color: AppColors.terracottaLight,
-                size: 16,
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Icon(
+                  Icons.calendar_month_rounded,
+                  color: AppColors.terracottaLight,
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 6),
-              Text(
-                'Next Period Estimated: ${output.formattedPeriodRange}',
-                style: const TextStyle(color: Color(0xE6FFFFFF), fontSize: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      periodText,
+                      style: const TextStyle(
+                        color: Color(0xE6FFFFFF),
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (possibleStartText != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        possibleStartText,
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -383,7 +439,9 @@ class _QuickInputsCard extends StatelessWidget {
                 Text(
                   '${sleep.toStringAsFixed(1)}h',
                   style: theme.textTheme.titleMedium?.copyWith(
-                    color: AppColors.sageDark,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.sageLight
+                        : AppColors.sageDark,
                   ),
                 ),
               ],
@@ -468,8 +526,11 @@ class _ReadinessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
-      color: AppColors.sageContainer,
+      color: isDark ? AppColors.cycleFollicularDark : AppColors.sageContainer,
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -477,9 +538,9 @@ class _ReadinessCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.spa_rounded,
-                  color: AppColors.sageDark,
+                  color: isDark ? AppColors.sageLight : AppColors.sageDark,
                   size: 24,
                 ),
                 const SizedBox(width: 8),
@@ -488,8 +549,10 @@ class _ReadinessCard extends StatelessWidget {
                     'Daily Readiness: ${readiness.label}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.sageDark,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.sageDark,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
                     ),
@@ -500,8 +563,10 @@ class _ReadinessCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               readiness.description,
-              style: const TextStyle(
-                color: AppColors.textPrimaryLight,
+              style: TextStyle(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textPrimaryLight,
                 fontSize: 14,
               ),
             ),
@@ -521,6 +586,7 @@ class _TodayFocusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       child: Padding(
@@ -546,20 +612,29 @@ class _TodayFocusCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.terracottaContainer,
+                color: isDark
+                    ? AppColors.cycleMenstrualPredictedDark
+                    : AppColors.terracottaContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.star_rounded,
-                    color: AppColors.terracottaPrimary,
+                    color: isDark
+                        ? AppColors.terracottaLight
+                        : AppColors.terracottaPrimary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       readiness.recommendedPriority,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                      ),
                     ),
                   ),
                 ],
@@ -571,10 +646,12 @@ class _TodayFocusCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 4.0),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.check_circle_outline_rounded,
                       size: 18,
-                      color: AppColors.sagePrimary,
+                      color: isDark
+                          ? AppColors.sageLight
+                          : AppColors.sagePrimary,
                     ),
                     const SizedBox(width: 8),
                     Expanded(child: Text(task)),
@@ -598,6 +675,7 @@ class _NigerianMealCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       child: Padding(
@@ -632,27 +710,35 @@ class _NigerianMealCard extends StatelessWidget {
             Text(
               recipe.title,
               style: theme.textTheme.titleLarge?.copyWith(
-                color: AppColors.terracottaDark,
+                color: isDark
+                    ? AppColors.terracottaLight
+                    : AppColors.terracottaDark,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               recipe.description,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondaryLight,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
               ),
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.warmGoldContainer,
+                color: isDark
+                    ? AppColors.cycleOvulationDark
+                    : AppColors.warmGoldContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 'Key Nutrients: ${recipe.keyNutrients}',
-                style: const TextStyle(
-                  color: AppColors.warmGoldPrimary,
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.warmGold
+                      : AppColors.warmGoldPrimary,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
@@ -674,6 +760,7 @@ class _MoveTodayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       child: Padding(
@@ -683,9 +770,9 @@ class _MoveTodayCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.fitness_center_rounded,
-                  color: AppColors.sageDark,
+                  color: isDark ? AppColors.sageLight : AppColors.sageDark,
                   size: 22,
                 ),
                 const SizedBox(width: 8),
@@ -714,6 +801,7 @@ class _ReflectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       child: Padding(
@@ -723,9 +811,11 @@ class _ReflectCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.edit_note_rounded,
-                  color: AppColors.purplePrimary,
+                  color: isDark
+                      ? AppColors.purpleLight
+                      : AppColors.purplePrimary,
                   size: 22,
                 ),
                 const SizedBox(width: 8),
@@ -742,7 +832,9 @@ class _ReflectCard extends StatelessWidget {
               '"What is one thing your body needed today, and how did you listen?"',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontStyle: FontStyle.italic,
-                color: AppColors.textSecondaryLight,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
               ),
             ),
           ],
@@ -759,8 +851,10 @@ class _InsightTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Card(
-      color: AppColors.purpleContainer,
+      color: isDark ? AppColors.cycleLutealDark : AppColors.purpleContainer,
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -769,22 +863,30 @@ class _InsightTile extends StatelessWidget {
           children: [
             Text(
               insight.title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: AppColors.purplePrimary,
+                color: isDark ? AppColors.purpleLight : AppColors.purplePrimary,
                 fontSize: 14,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               insight.observation,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               insight.context,
-              style: const TextStyle(
-                color: AppColors.textSecondaryLight,
+              style: TextStyle(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
                 fontSize: 12,
               ),
             ),

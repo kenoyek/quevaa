@@ -4,7 +4,7 @@ import '../../features/notifications/application/notification_preferences_provid
 
 final appStartupProvider = FutureProvider<void>((ref) async {
   // Trigger notification reconciliation
-  await ref.read(notificationSchedulerProvider).reconcileNotifications(
-    NotificationReconciliationReason.appStarted,
-  );
+  await ref
+      .read(notificationSchedulerProvider)
+      .reconcileNotifications(NotificationReconciliationReason.appStarted);
 });

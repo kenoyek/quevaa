@@ -70,4 +70,23 @@ class PeriodPrediction {
         !d.isAfter(possibleStartRange.end) &&
         !isBleedingDay(d);
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PeriodPrediction &&
+          runtimeType == other.runtimeType &&
+          estimatedStartDate == other.estimatedStartDate &&
+          possibleStartRange == other.possibleStartRange &&
+          expectedDurationDays == other.expectedDurationDays &&
+          predictedBleedingRange == other.predictedBleedingRange &&
+          confidence == other.confidence;
+
+  @override
+  int get hashCode =>
+      estimatedStartDate.hashCode ^
+      possibleStartRange.hashCode ^
+      expectedDurationDays.hashCode ^
+      predictedBleedingRange.hashCode ^
+      confidence.hashCode;
 }

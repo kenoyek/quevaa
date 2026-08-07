@@ -1,6 +1,7 @@
 import '../../../../core/models/prediction_confidence.dart';
 import 'date_range.dart';
 import 'estimated_cycle_phase.dart';
+import 'period_prediction.dart';
 
 class CurrentCycleSnapshot {
   final DateTime asOfDate;
@@ -9,6 +10,8 @@ class CurrentCycleSnapshot {
   final int? cycleDay;
   final EstimatedCyclePhase phase;
   final DateRange? nextPeriodRange;
+  final DateRange? possibleStartRange;
+  final PeriodPrediction? primaryPrediction;
   final DateRange? fertileWindowRange;
   final DateRange? ovulationRange;
   final PredictionConfidence confidence;
@@ -24,6 +27,8 @@ class CurrentCycleSnapshot {
     this.cycleDay,
     required this.phase,
     this.nextPeriodRange,
+    this.possibleStartRange,
+    this.primaryPrediction,
     this.fertileWindowRange,
     this.ovulationRange,
     required this.confidence,
@@ -44,6 +49,8 @@ class CurrentCycleSnapshot {
           cycleDay == other.cycleDay &&
           phase == other.phase &&
           nextPeriodRange == other.nextPeriodRange &&
+          possibleStartRange == other.possibleStartRange &&
+          primaryPrediction == other.primaryPrediction &&
           fertileWindowRange == other.fertileWindowRange &&
           ovulationRange == other.ovulationRange &&
           confidence == other.confidence &&
@@ -60,6 +67,8 @@ class CurrentCycleSnapshot {
       cycleDay.hashCode ^
       phase.hashCode ^
       nextPeriodRange.hashCode ^
+      possibleStartRange.hashCode ^
+      primaryPrediction.hashCode ^
       fertileWindowRange.hashCode ^
       ovulationRange.hashCode ^
       confidence.hashCode ^

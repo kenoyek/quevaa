@@ -29,75 +29,91 @@ void main() {
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     mockScheduler = MockNotificationScheduler();
-    when(() => mockScheduler.reconcileNotifications(any(), snapshot: any(named: 'snapshot')))
-        .thenAnswer((_) async => const NotificationReconciliationResult(
-              reason: NotificationReconciliationReason.manualRefresh,
-              desiredCount: 0,
-              scheduledCount: 0,
-              cancelledCount: 0,
-              unchangedCount: 0,
-              permissionGranted: true,
-              timezone: 'UTC',
-            ));
+    when(
+      () => mockScheduler.reconcileNotifications(
+        any(),
+        snapshot: any(named: 'snapshot'),
+      ),
+    ).thenAnswer(
+      (_) async => const NotificationReconciliationResult(
+        reason: NotificationReconciliationReason.manualRefresh,
+        desiredCount: 0,
+        scheduledCount: 0,
+        cancelledCount: 0,
+        unchangedCount: 0,
+        permissionGranted: true,
+        timezone: 'UTC',
+      ),
+    );
   });
 
   tearDown(() async {
     await db.close();
   });
 
-  test('Canonical CurrentCycleSnapshot calculates correctly and updates reactively', () async {
-    final container = ProviderContainer(
-      overrides: [
-        appDatabaseProvider.overrideWithValue(db),
-        notificationSchedulerProvider.overrideWithValue(mockScheduler),
-      ],
-    );
-    addTearDown(container.dispose);
+  test(
+    'Canonical CurrentCycleSnapshot calculates correctly and updates reactively',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          notificationSchedulerProvider.overrideWithValue(mockScheduler),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    await container.read(periodHistoryProvider.future);
-    var snapshot = container.read(currentCycleSnapshotProvider);
-    expect(snapshot.hasEnoughData, isFalse);
-    expect(snapshot.phase, EstimatedCyclePhase.unknown);
+      await container.read(periodHistoryProvider.future);
+      var snapshot = container.read(currentCycleSnapshotProvider);
+      expect(snapshot.hasEnoughData, isFalse);
+      expect(snapshot.phase, EstimatedCyclePhase.unknown);
 
-    final controller = container.read(cycleWorkspaceControllerProvider.notifier);
-    final today = container.read(localTodayProvider);
-    await controller.startPeriod(today.subtract(const Duration(days: 2)));
-    container.invalidate(periodHistoryProvider);
-    await container.read(periodHistoryProvider.future);
+      final controller = container.read(
+        cycleWorkspaceControllerProvider.notifier,
+      );
+      final today = container.read(localTodayProvider);
+      await controller.startPeriod(today.subtract(const Duration(days: 2)));
+      container.invalidate(periodHistoryProvider);
+      await container.read(periodHistoryProvider.future);
 
-    snapshot = container.read(currentCycleSnapshotProvider);
-    expect(snapshot.hasEnoughData, isTrue);
-    expect(snapshot.cycleDay, 3);
-    expect(snapshot.phase, EstimatedCyclePhase.menstrual);
-    expect(formatPredictionConfidence(snapshot.confidence), 'Low');
-  });
+      snapshot = container.read(currentCycleSnapshotProvider);
+      expect(snapshot.hasEnoughData, isTrue);
+      expect(snapshot.cycleDay, 3);
+      expect(snapshot.phase, EstimatedCyclePhase.menstrual);
+      expect(formatPredictionConfidence(snapshot.confidence), 'Low');
+    },
+  );
 
-  testWidgets('DashboardPage renders cycle day, phase and confidence without .name exception', (tester) async {
-    final container = ProviderContainer(
-      overrides: [
-        appDatabaseProvider.overrideWithValue(db),
-        notificationSchedulerProvider.overrideWithValue(mockScheduler),
-      ],
-    );
-    addTearDown(container.dispose);
+  testWidgets(
+    'DashboardPage renders cycle day, phase and confidence without .name exception',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          notificationSchedulerProvider.overrideWithValue(mockScheduler),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    final controller = container.read(cycleWorkspaceControllerProvider.notifier);
-    final today = container.read(localTodayProvider);
-    await controller.startPeriod(today.subtract(const Duration(days: 2)));
-    container.invalidate(periodHistoryProvider);
-    await container.read(periodHistoryProvider.future);
+      final controller = container.read(
+        cycleWorkspaceControllerProvider.notifier,
+      );
+      final today = container.read(localTodayProvider);
+      await controller.startPeriod(today.subtract(const Duration(days: 2)));
+      container.invalidate(periodHistoryProvider);
+      await container.read(periodHistoryProvider.future);
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(home: DashboardPage()),
-      ),
-    );
-    await tester.pump(const Duration(seconds: 1));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: DashboardPage()),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('Cycle Day 3'), findsOneWidget);
-    expect(find.text('Confidence: LOW'), findsOneWidget);
-  });
+      expect(find.text('Cycle Day 3'), findsOneWidget);
+      expect(find.text('Confidence: LOW'), findsOneWidget);
+    },
+  );
 
   group('formatPredictionConfidence regression', () {
     test('formats low confidence', () {
@@ -105,7 +121,10 @@ void main() {
     });
 
     test('formats moderate confidence', () {
-      expect(formatPredictionConfidence(PredictionConfidence.moderate), 'Moderate');
+      expect(
+        formatPredictionConfidence(PredictionConfidence.moderate),
+        'Moderate',
+      );
     });
 
     test('formats high confidence', () {

@@ -74,13 +74,31 @@ class CycleDiagnosticsSheet extends ConsumerWidget {
               ),
               _DiagRow('Current Phase', snapshot.phase.label),
               _DiagRow('Next Period Range', nextPeriodRangeStr),
-              _DiagRow('Prediction Confidence', formatPredictionConfidence(snapshot.confidence)),
-              _DiagRow('Has Enough Data', snapshot.hasEnoughData ? 'Yes' : 'No'),
-              _DiagRow('Is Period Active', snapshot.isPeriodActive ? 'Yes' : 'No'),
-              _DiagRow('Is TTC Mode Enabled', snapshot.isTtcEnabled ? 'Yes' : 'No'),
-              _DiagRow('Calculation Version', 'v${snapshot.calculationVersion}'),
+              _DiagRow(
+                'Prediction Confidence',
+                formatPredictionConfidence(snapshot.confidence),
+              ),
+              _DiagRow(
+                'Has Enough Data',
+                snapshot.hasEnoughData ? 'Yes' : 'No',
+              ),
+              _DiagRow(
+                'Is Period Active',
+                snapshot.isPeriodActive ? 'Yes' : 'No',
+              ),
+              _DiagRow(
+                'Is TTC Mode Enabled',
+                snapshot.isTtcEnabled ? 'Yes' : 'No',
+              ),
+              _DiagRow(
+                'Calculation Version',
+                'v${snapshot.calculationVersion}',
+              ),
               const _DiagRow('Source Provider', 'currentCycleSnapshotProvider'),
-              _DiagRow('Last Recalculation', DateFormat('HH:mm:ss').format(DateTime.now())),
+              _DiagRow(
+                'Last Recalculation',
+                DateFormat('HH:mm:ss').format(DateTime.now()),
+              ),
               const SizedBox(height: 16),
             ],
           ),

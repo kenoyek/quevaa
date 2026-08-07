@@ -42,21 +42,29 @@ class QuevaaSectionTabs extends StatelessWidget {
                     size: 18,
                     color: isSelected
                         ? (isDark ? AppColors.terracottaLight : Colors.white)
-                        : (isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                        : (isDark
+                              ? Colors.white70
+                              : AppColors.textSecondaryLight),
                   ),
                   const SizedBox(width: QuevaaSpacing.xs),
                   Text(
                     s.label,
                     style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                 ],
               ),
               selected: isSelected,
               onSelected: (_) => onSelectionChanged(s.value),
-              selectedColor: isDark ? AppColors.terracottaDark : AppColors.terracottaPrimary,
-              backgroundColor: isDark ? AppColors.cardSurfaceDark : AppColors.cardSurfaceLight,
+              selectedColor: isDark
+                  ? AppColors.terracottaDark
+                  : AppColors.terracottaPrimary,
+              backgroundColor: isDark
+                  ? AppColors.cardSurfaceDark
+                  : AppColors.cardSurfaceLight,
               labelStyle: TextStyle(
                 color: isSelected
                     ? (isDark ? AppColors.terracottaLight : Colors.white)
@@ -64,7 +72,9 @@ class QuevaaSectionTabs extends StatelessWidget {
               ),
               side: BorderSide(
                 color: isSelected
-                    ? (isDark ? AppColors.terracottaPrimary : Colors.transparent)
+                    ? (isDark
+                          ? AppColors.terracottaPrimary
+                          : Colors.transparent)
                     : (isDark ? AppColors.borderDark : AppColors.borderLight),
               ),
               padding: const EdgeInsets.symmetric(

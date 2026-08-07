@@ -80,11 +80,16 @@ class NotificationScheduler {
     final permission = await permissionService.status();
     if (!preferences.enabled ||
         permission == QuevaaNotificationPermissionStatus.denied) {
+      final persisted = await repository.loadScheduleFingerprints();
+      if (persisted.isNotEmpty) {
+        await localService.cancelAll();
+        await repository.markSchedulesCancelled(persisted.keys);
+      }
       return NotificationReconciliationResult(
         reason: reason,
         desiredCount: 0,
         scheduledCount: 0,
-        cancelledCount: 0,
+        cancelledCount: persisted.length,
         unchangedCount: 0,
         permissionGranted: false,
         timezone: timezoneName,

@@ -186,9 +186,12 @@ class WellnessWorkspaceController extends Notifier<bool> {
           ),
         );
     // Reconcile notifications after logging water
-    await ref.read(notificationSchedulerProvider).reconcileNotifications(
-      NotificationReconciliationReason.mealPlanChanged, // Closest match or wellness
-    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(
+          NotificationReconciliationReason
+              .mealPlanChanged, // Closest match or wellness
+        );
   }
 
   Future<void> planMeal(DateTime date, NigerianRecipe recipe) async {
@@ -308,9 +311,11 @@ class WellnessWorkspaceController extends Notifier<bool> {
           ),
         );
     // Reconcile notifications after completing a workout
-    await ref.read(notificationSchedulerProvider).reconcileNotifications(
-      NotificationReconciliationReason.workoutPlanChanged,
-    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(
+          NotificationReconciliationReason.workoutPlanChanged,
+        );
   }
 
   Future<void> markRestDay() async {
@@ -343,9 +348,11 @@ class WellnessWorkspaceController extends Notifier<bool> {
           ),
         );
     // Reconcile notifications after marking a rest day
-    await ref.read(notificationSchedulerProvider).reconcileNotifications(
-      NotificationReconciliationReason.workoutPlanChanged,
-    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(
+          NotificationReconciliationReason.workoutPlanChanged,
+        );
   }
 
   Future<void> saveJournalEntry({
@@ -358,7 +365,9 @@ class WellnessWorkspaceController extends Notifier<bool> {
     final now = DateTime.now();
     final tagsStr = jsonEncode(tags ?? ['reflection']);
     if (id == null) {
-      await _db.into(_db.journalEntries).insert(
+      await _db
+          .into(_db.journalEntries)
+          .insert(
             JournalEntriesCompanion.insert(
               uuid: localUuid('journal'),
               createdAt: now,
@@ -372,8 +381,9 @@ class WellnessWorkspaceController extends Notifier<bool> {
             ),
           );
     } else {
-      await (_db.update(_db.journalEntries)..where((tbl) => tbl.id.equals(id)))
-          .write(
+      await (_db.update(
+        _db.journalEntries,
+      )..where((tbl) => tbl.id.equals(id))).write(
         JournalEntriesCompanion(
           title: Value(
             title.trim().isEmpty ? 'Private Reflection' : title.trim(),
@@ -385,18 +395,22 @@ class WellnessWorkspaceController extends Notifier<bool> {
         ),
       );
     }
-    await ref.read(notificationSchedulerProvider).reconcileNotifications(
-      NotificationReconciliationReason.journalChanged,
-    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(
+          NotificationReconciliationReason.journalChanged,
+        );
   }
 
   Future<void> deleteJournalEntry(int id) async {
     final now = DateTime.now();
     await (_db.update(_db.journalEntries)..where((tbl) => tbl.id.equals(id)))
         .write(JournalEntriesCompanion(deletedAt: Value(now)));
-    await ref.read(notificationSchedulerProvider).reconcileNotifications(
-      NotificationReconciliationReason.journalChanged,
-    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(
+          NotificationReconciliationReason.journalChanged,
+        );
   }
 
   Future<void> addJournalPrompt(String prompt) async {

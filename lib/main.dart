@@ -15,5 +15,7 @@ void main() async {
           .handleNotificationTap(response.payload);
     },
   );
-  runApp(UncontrolledProviderScope(container: container, child: const QuevaaApp()));
+  runApp(
+    UncontrolledProviderScope(container: container, child: const QuevaaApp()),
+  );
 }

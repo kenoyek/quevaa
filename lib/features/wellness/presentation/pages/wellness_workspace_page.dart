@@ -46,11 +46,7 @@ class WellnessWorkspacePage extends ConsumerWidget {
                     label: 'Move',
                     icon: Icons.fitness_center_rounded,
                   ),
-                  (
-                    value: 'Mind',
-                    label: 'Mind',
-                    icon: Icons.edit_note_rounded,
-                  ),
+                  (value: 'Mind', label: 'Mind', icon: Icons.edit_note_rounded),
                   (
                     value: 'Progress',
                     label: 'Progress',
@@ -109,10 +105,7 @@ class _WellnessHeader extends StatelessWidget {
               color: AppColors.terracottaPrimary,
             ),
           ),
-          Text(
-            recommendation.focus,
-            style: theme.textTheme.headlineMedium,
-          ),
+          Text(recommendation.focus, style: theme.textTheme.headlineMedium),
           const SizedBox(height: QuevaaSpacing.xxs),
           Text(
             recommendation.reason,
@@ -234,7 +227,6 @@ class _MindWorkspace extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final journalStream = ref.watch(journalStreamProvider);
-    final count = ref.watch(journalEntryCountProvider).valueOrNull ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,29 +277,12 @@ class _MindWorkspace extends ConsumerWidget {
             }
             return Column(
               children: [
-                for (final entry in entries)
-                  _JournalEntryTile(entry: entry),
+                for (final entry in entries) _JournalEntryTile(entry: entry),
               ],
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => const Text('Could not load journal entries.'),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: _panelDecoration(context),
-          child: Row(
-            children: [
-              const Icon(Icons.lock_rounded, color: AppColors.deepPlum),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '$count private journal entries are encrypted and stored locally.',
-                ),
-              ),
-            ],
-          ),
         ),
       ],
     );
@@ -321,6 +296,7 @@ class _JournalEntryTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final dateStr = DateFormat.yMMMd().add_jm().format(entry.createdAt);
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -337,8 +313,8 @@ class _JournalEntryTile extends ConsumerWidget {
                         ? entry.title!
                         : 'Private Reflection',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 if (entry.mood != null)
@@ -348,14 +324,18 @@ class _JournalEntryTile extends ConsumerWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.purpleContainer,
+                      color: isDark
+                          ? AppColors.cycleLutealDark
+                          : AppColors.purpleContainer,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       entry.mood!,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.purpleDark,
-                          ),
+                        color: isDark
+                            ? AppColors.purpleLight
+                            : AppColors.purpleDark,
+                      ),
                     ),
                   ),
                 PopupMenuButton<String>(
@@ -386,8 +366,10 @@ class _JournalEntryTile extends ConsumerWidget {
             Text(
               dateStr,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondaryLight,
-                  ),
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
             ),
           ],
         ),
@@ -475,10 +457,7 @@ class _MealRecommendationCard extends ConsumerWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    Text(
-                      recipe.title,
-                      style: theme.textTheme.titleLarge,
-                    ),
+                    Text(recipe.title, style: theme.textTheme.titleLarge),
                   ],
                 ),
               ),
@@ -491,7 +470,9 @@ class _MealRecommendationCard extends ConsumerWidget {
             children: [
               _MetadataChip(label: recipe.mealType),
               _MetadataChip(label: recipe.region),
-              const _MetadataChip(label: '30 min'), // Placeholder for duration if not in entity
+              const _MetadataChip(
+                label: '30 min',
+              ), // Placeholder for duration if not in entity
             ],
           ),
           const SizedBox(height: QuevaaSpacing.s),
@@ -572,7 +553,7 @@ class _MetadataChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: isDark ? Colors.white10 : AppColors.bgWarmCream,
-        borderRadius: BorderRadius.circular( QuevaaSpacing.xxs),
+        borderRadius: BorderRadius.circular(QuevaaSpacing.xxs),
         border: Border.all(
           color: isDark ? Colors.white24 : AppColors.borderLight,
         ),
@@ -636,7 +617,9 @@ class _WorkoutCard extends ConsumerWidget {
             const SizedBox(height: QuevaaSpacing.m),
             Text(
               'Preparation',
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: QuevaaSpacing.xxs),
             const Text(
@@ -703,7 +686,10 @@ class _WorkoutCard extends ConsumerWidget {
                           );
                         }
                       },
-                      icon: const Icon(Icons.self_improvement_rounded, size: 18),
+                      icon: const Icon(
+                        Icons.self_improvement_rounded,
+                        size: 18,
+                      ),
                       label: const Text('Rest Day'),
                     ),
                   ),
@@ -781,11 +767,8 @@ class _JournalPrompt extends ConsumerWidget {
             runSpacing: 10,
             children: [
               FilledButton.icon(
-                onPressed: () => _showJournalSheet(
-                  context,
-                  ref,
-                  initialContent: prompt,
-                ),
+                onPressed: () =>
+                    _showJournalSheet(context, ref, initialContent: prompt),
                 icon: const Icon(Icons.edit_note_rounded),
                 label: const Text('Write Reflection'),
               ),
@@ -850,15 +833,20 @@ void _showJournalSheet(
                 DropdownButtonFormField<String>(
                   initialValue: mood,
                   decoration: const InputDecoration(labelText: 'Mood'),
-                  items: const [
-                    'Calm',
-                    'Reflective',
-                    'Grateful',
-                    'Hopeful',
-                    'Anxious',
-                    'Tired',
-                    'Energized',
-                  ].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                  items:
+                      const [
+                            'Calm',
+                            'Reflective',
+                            'Grateful',
+                            'Hopeful',
+                            'Anxious',
+                            'Tired',
+                            'Energized',
+                          ]
+                          .map(
+                            (m) => DropdownMenuItem(value: m, child: Text(m)),
+                          )
+                          .toList(),
                   onChanged: (val) => setState(() => mood = val ?? mood),
                 ),
                 const SizedBox(height: 12),

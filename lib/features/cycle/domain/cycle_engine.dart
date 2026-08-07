@@ -56,33 +56,41 @@ class CycleEngine {
     final List<int> cycleLengths = [];
     final List<int> periodDurations = [];
 
-    for (int i = 0; i < sortedPeriods.length - 1; i++) {
-      final currentStart = sortedPeriods[i].startDate;
-      final nextStart = sortedPeriods[i + 1].startDate;
-      final length = nextStart.difference(currentStart).inDays;
+    for (int i = 0; i < sortedPeriods.length; i++) {
+      if (i < sortedPeriods.length - 1) {
+        final currentStart = sortedPeriods[i].startDate;
+        final nextStart = sortedPeriods[i + 1].startDate;
+        final length = nextStart.difference(currentStart).inDays;
 
-      // Filter extreme outliers unless in irregular mode
-      if (mode == CycleMode.irregular || (length >= 15 && length <= 60)) {
-        cycleLengths.add(length);
+        // Filter extreme outliers unless in irregular mode
+        if (mode == CycleMode.irregular || (length >= 15 && length <= 60)) {
+          cycleLengths.add(length);
+        }
       }
 
       if (sortedPeriods[i].endDate != null) {
         final duration =
-            sortedPeriods[i].endDate!.difference(currentStart).inDays + 1;
+            sortedPeriods[i].endDate!
+                .difference(sortedPeriods[i].startDate)
+                .inDays +
+            1;
         if (duration >= 1 && duration <= 14) {
           periodDurations.add(duration);
         }
       }
     }
 
-    // 2. Compute Weighted Median Cycle Length
+    // 2. Compute Weighted Median Cycle Length & Duration
     final double medianCycle = _calculateWeightedMedian(
       cycleLengths,
       fallback: userConfiguredAverageCycleLength.toDouble(),
     );
 
     final double avgPeriodDuration = periodDurations.isNotEmpty
-        ? periodDurations.reduce((a, b) => a + b) / periodDurations.length
+        ? _calculateWeightedMedian(
+            periodDurations,
+            fallback: userConfiguredPeriodLength.toDouble(),
+          )
         : userConfiguredPeriodLength.toDouble();
 
     final double variability = _calculateVariability(cycleLengths);
@@ -113,27 +121,33 @@ class CycleEngine {
     final int expectedDuration = avgPeriodDuration.round().clamp(1, 14);
 
     for (int i = 1; i <= 6; i++) {
-      final center = absoluteLatestPeriodStart.add(Duration(days: baseLength * i));
+      final center = absoluteLatestPeriodStart.add(
+        Duration(days: baseLength * i),
+      );
       final int margin = (confidence == PredictionConfidence.high)
           ? 1
           : (confidence == PredictionConfidence.moderate)
-              ? 2
-              : (mode == CycleMode.irregular)
-                  ? 5
-                  : 3;
-      projections.add(ProjectedPeriod(
-        min: center.subtract(Duration(days: margin)),
-        max: center.add(Duration(days: margin)),
-      ));
-      periodPredictions.add(PeriodPrediction.fromEstimate(
-        estimatedStartDate: center,
-        possibleStartRange: DateRange(
-          start: center.subtract(Duration(days: margin)),
-          end: center.add(Duration(days: margin)),
+          ? 2
+          : (mode == CycleMode.irregular)
+          ? 5
+          : 3;
+      projections.add(
+        ProjectedPeriod(
+          min: center.subtract(Duration(days: margin)),
+          max: center.add(Duration(days: margin)),
         ),
-        expectedDurationDays: expectedDuration,
-        confidence: confidence,
-      ));
+      );
+      periodPredictions.add(
+        PeriodPrediction.fromEstimate(
+          estimatedStartDate: center,
+          possibleStartRange: DateRange(
+            start: center.subtract(Duration(days: margin)),
+            end: center.add(Duration(days: margin)),
+          ),
+          expectedDurationDays: expectedDuration,
+          confidence: confidence,
+        ),
+      );
     }
 
     final firstProjection = projections.first;

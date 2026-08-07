@@ -156,13 +156,22 @@ void main() {
       expect(output.nextCycles[5].min.isAfter(output.nextCycles[0].min), true);
     });
 
-    test('PredictionConfidence presentation extension returns valid labels', () {
-      expect(PredictionConfidence.low.label, 'Low');
-      expect(PredictionConfidence.moderate.label, 'Moderate');
-      expect(PredictionConfidence.high.label, 'High');
-      expect(PredictionConfidencePresentation.fromString('high'), PredictionConfidence.high);
-      expect(PredictionConfidencePresentation.fromString(null), PredictionConfidence.low);
-    });
+    test(
+      'PredictionConfidence presentation extension returns valid labels',
+      () {
+        expect(PredictionConfidence.low.label, 'Low');
+        expect(PredictionConfidence.moderate.label, 'Moderate');
+        expect(PredictionConfidence.high.label, 'High');
+        expect(
+          PredictionConfidencePresentation.fromString('high'),
+          PredictionConfidence.high,
+        );
+        expect(
+          PredictionConfidencePresentation.fromString(null),
+          PredictionConfidence.low,
+        );
+      },
+    );
 
     test('Empty period history returns hasEnoughData = false', () {
       final output = CycleEngine.calculate(
@@ -175,6 +184,156 @@ void main() {
       final snapshot = output.toSnapshot(DateTime(2026, 4, 1));
       expect(snapshot.hasEnoughData, false);
       expect(snapshot.cycleDay, null);
+    });
+
+    group('Period Prediction Range & Uncertainty Separation (Requirement 17)', () {
+      test('Four-day duration: start 8 Aug -> expected end 11 Aug', () {
+        final history = [
+          CyclePeriodRecord(
+            startDate: DateTime(2026, 7, 11),
+            endDate: DateTime(2026, 7, 14), // 4 days
+          ),
+        ];
+        final output = CycleEngine.calculate(
+          periodHistory: history,
+          targetDate: DateTime(2026, 8, 1),
+          userConfiguredPeriodLength: 4,
+          userConfiguredAverageCycleLength: 28,
+        );
+
+        final pred = output.periodPredictions.first;
+        expect(pred.estimatedStartDate, DateTime(2026, 8, 8));
+        expect(pred.expectedDurationDays, 4);
+        expect(pred.predictedBleedingRange.start, DateTime(2026, 8, 8));
+        expect(pred.predictedBleedingRange.end, DateTime(2026, 8, 11));
+      });
+
+      test('Five-day duration: start 8 Aug -> expected end 12 Aug', () {
+        final history = [
+          CyclePeriodRecord(
+            startDate: DateTime(2026, 7, 11),
+            endDate: DateTime(2026, 7, 15), // 5 days
+          ),
+        ];
+        final output = CycleEngine.calculate(
+          periodHistory: history,
+          targetDate: DateTime(2026, 8, 1),
+          userConfiguredPeriodLength: 5,
+          userConfiguredAverageCycleLength: 28,
+        );
+
+        final pred = output.periodPredictions.first;
+        expect(pred.estimatedStartDate, DateTime(2026, 8, 8));
+        expect(pred.expectedDurationDays, 5);
+        expect(pred.predictedBleedingRange.start, DateTime(2026, 8, 8));
+        expect(pred.predictedBleedingRange.end, DateTime(2026, 8, 12));
+      });
+
+      test(
+        'Start uncertainty does not inflate central predicted bleeding range',
+        () {
+          final history = [
+            CyclePeriodRecord(
+              startDate: DateTime(2026, 7, 11),
+              endDate: DateTime(2026, 7, 14),
+            ),
+          ];
+          final output = CycleEngine.calculate(
+            periodHistory: history,
+            targetDate: DateTime(2026, 8, 1),
+            userConfiguredPeriodLength: 4,
+          );
+
+          final pred = output.periodPredictions.first;
+          expect(pred.confidence, PredictionConfidence.low);
+          expect(pred.possibleStartRange.start, DateTime(2026, 8, 5));
+          expect(pred.possibleStartRange.end, DateTime(2026, 8, 11));
+          expect(pred.predictedBleedingRange.start, DateTime(2026, 8, 8));
+          expect(pred.predictedBleedingRange.end, DateTime(2026, 8, 11));
+          expect(pred.isBleedingDay(DateTime(2026, 8, 7)), false);
+          expect(pred.isBleedingDay(DateTime(2026, 8, 8)), true);
+          expect(pred.isBleedingDay(DateTime(2026, 8, 11)), true);
+          expect(pred.isBleedingDay(DateTime(2026, 8, 12)), false);
+        },
+      );
+
+      test('Month boundary: start 29 Aug, 5 days duration -> end 2 Sep', () {
+        final history = [
+          CyclePeriodRecord(
+            startDate: DateTime(2026, 8, 1),
+            endDate: DateTime(2026, 8, 5),
+          ),
+        ];
+        final output = CycleEngine.calculate(
+          periodHistory: history,
+          targetDate: DateTime(2026, 8, 10),
+          userConfiguredPeriodLength: 5,
+          userConfiguredAverageCycleLength: 28,
+        );
+
+        final pred = output.periodPredictions.first;
+        expect(pred.estimatedStartDate, DateTime(2026, 8, 29));
+        expect(pred.predictedBleedingRange.start, DateTime(2026, 8, 29));
+        expect(pred.predictedBleedingRange.end, DateTime(2026, 9, 2));
+      });
+
+      test('Leap year: period prediction crossing Feb 29', () {
+        final history = [
+          CyclePeriodRecord(
+            startDate: DateTime(2028, 1, 30),
+            endDate: DateTime(2028, 2, 2),
+          ),
+        ];
+        final output = CycleEngine.calculate(
+          periodHistory: history,
+          targetDate: DateTime(2028, 2, 5),
+          userConfiguredPeriodLength: 4,
+          userConfiguredAverageCycleLength: 28,
+        );
+
+        final pred = output.periodPredictions.first;
+        expect(pred.estimatedStartDate, DateTime(2028, 2, 27));
+        expect(pred.predictedBleedingRange.end, DateTime(2028, 3, 1));
+      });
+
+      test(
+        'Insufficient history uses user configured duration and sets low confidence',
+        () {
+          final output = CycleEngine.calculate(
+            periodHistory: [],
+            targetDate: DateTime(2026, 8, 1),
+            userConfiguredPeriodLength: 4,
+            userConfiguredAverageCycleLength: 28,
+          );
+          expect(output.confidence, PredictionConfidence.low);
+          expect(output.averagePeriodDuration, 4.0);
+        },
+      );
+
+      test(
+        'New completed cycles update duration from history without inflating period range',
+        () {
+          final history = [
+            CyclePeriodRecord(
+              startDate: DateTime(2026, 6, 1),
+              endDate: DateTime(2026, 6, 4), // 4 days
+            ),
+            CyclePeriodRecord(
+              startDate: DateTime(2026, 6, 29),
+              endDate: DateTime(2026, 7, 2), // 4 days
+            ),
+          ];
+          final output = CycleEngine.calculate(
+            periodHistory: history,
+            targetDate: DateTime(2026, 7, 5),
+            userConfiguredPeriodLength: 5,
+          );
+
+          expect(output.averagePeriodDuration, 4.0);
+          final pred = output.periodPredictions.first;
+          expect(pred.expectedDurationDays, 4);
+        },
+      );
     });
   });
 }

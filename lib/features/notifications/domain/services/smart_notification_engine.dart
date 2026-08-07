@@ -79,6 +79,21 @@ class SmartNotificationEngine {
   ) {
     final estimated = snapshot.estimatedPeriodStart;
     if (estimated == null) return const [];
+    final months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    final monthName = months[estimated.month - 1];
     return [
       _schedule(
         type: QuevaaNotificationType.periodExpected,
@@ -87,9 +102,8 @@ class SmartNotificationEngine {
           estimated.subtract(const Duration(days: 3)),
           9 * 60,
         ),
-        title: 'Your next period may begin soon.',
-        body:
-            'Quevaa estimates that your period could begin within the next few days.',
+        title: 'Period update',
+        body: 'Your period may begin around ${estimated.day} $monthName.',
         privacyTitle: 'Your Quevaa update is ready.',
         privacyBody: 'A planned cycle check-in is ready.',
         priority: QuevaaNotificationPriority.normal,

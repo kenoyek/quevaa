@@ -10,7 +10,6 @@ enum FertilityStatus {
   waitingAndTesting,
 }
 
-
 extension FertilityStatusLabel on FertilityStatus {
   String get label {
     switch (this) {
@@ -31,9 +30,6 @@ extension FertilityStatusLabel on FertilityStatus {
     }
   }
 }
-
-
-
 
 class FertilityAssessment {
   final int cycleDay;

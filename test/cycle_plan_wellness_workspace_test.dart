@@ -29,18 +29,24 @@ void main() {
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     mockScheduler = MockNotificationScheduler();
-    
+
     // Stub the reconcileNotifications call
-    when(() => mockScheduler.reconcileNotifications(any(), snapshot: any(named: 'snapshot')))
-        .thenAnswer((_) async => const NotificationReconciliationResult(
-              reason: NotificationReconciliationReason.manualRefresh,
-              desiredCount: 0,
-              scheduledCount: 0,
-              cancelledCount: 0,
-              unchangedCount: 0,
-              permissionGranted: true,
-              timezone: 'UTC',
-            ));
+    when(
+      () => mockScheduler.reconcileNotifications(
+        any(),
+        snapshot: any(named: 'snapshot'),
+      ),
+    ).thenAnswer(
+      (_) async => const NotificationReconciliationResult(
+        reason: NotificationReconciliationReason.manualRefresh,
+        desiredCount: 0,
+        scheduledCount: 0,
+        cancelledCount: 0,
+        unchangedCount: 0,
+        permissionGranted: true,
+        timezone: 'UTC',
+      ),
+    );
 
     container = ProviderContainer(
       overrides: [

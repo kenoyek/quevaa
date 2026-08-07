@@ -53,20 +53,17 @@ final currentCycleSnapshotProvider = Provider<CurrentCycleSnapshot>((ref) {
   final userProfile = ref.watch(userProfileProvider).valueOrNull;
   final isTtcEnabled = ref.watch(conceptionModeActiveProvider);
 
-  final activePeriod =
-      history.where((p) => p.isOngoing || p.endDate == null).lastOrNull;
+  final activePeriod = history
+      .where((p) => p.isOngoing || p.endDate == null)
+      .lastOrNull;
   final currentPeriodStart =
       activePeriod?.startDate ?? history.lastOrNull?.startDate;
-  final currentPeriodEnd =
-      activePeriod?.endDate ?? history.lastOrNull?.endDate;
+  final currentPeriodEnd = activePeriod?.endDate ?? history.lastOrNull?.endDate;
 
   final output = CycleEngine.calculate(
     periodHistory: [
       for (final period in history)
-        CyclePeriodRecord(
-          startDate: period.startDate,
-          endDate: period.endDate,
-        ),
+        CyclePeriodRecord(startDate: period.startDate, endDate: period.endDate),
     ],
     targetDate: today,
     userConfiguredAverageCycleLength: userProfile?.averageCycleLength ?? 28,
@@ -89,10 +86,7 @@ final currentCycleOutputProvider = Provider<CycleEngineOutput>((ref) {
   return CycleEngine.calculate(
     periodHistory: [
       for (final period in history)
-        CyclePeriodRecord(
-          startDate: period.startDate,
-          endDate: period.endDate,
-        ),
+        CyclePeriodRecord(startDate: period.startDate, endDate: period.endDate),
     ],
     targetDate: today,
     userConfiguredAverageCycleLength: userProfile?.averageCycleLength ?? 28,
@@ -109,20 +103,14 @@ final selectedDayCycleSnapshotProvider = Provider<CurrentCycleSnapshot>((ref) {
   final output = CycleEngine.calculate(
     periodHistory: [
       for (final period in history)
-        CyclePeriodRecord(
-          startDate: period.startDate,
-          endDate: period.endDate,
-        ),
+        CyclePeriodRecord(startDate: period.startDate, endDate: period.endDate),
     ],
     targetDate: selectedDate,
     userConfiguredAverageCycleLength: userProfile?.averageCycleLength ?? 28,
     userConfiguredPeriodLength: userProfile?.averagePeriodLength ?? 5,
   );
 
-  return output.toSnapshot(
-    selectedDate,
-    isTtcEnabled: isTtcEnabled,
-  );
+  return output.toSnapshot(selectedDate, isTtcEnabled: isTtcEnabled);
 });
 
 final cycleRangeProvider = Provider<({DateTime start, DateTime end})>((ref) {
@@ -297,9 +285,11 @@ class CycleWorkspaceController extends Notifier<bool> {
             );
       }
       // Reconcile notifications after logging data
-      await ref.read(notificationSchedulerProvider).reconcileNotifications(
-        NotificationReconciliationReason.cycleDataChanged,
-      );
+      await ref
+          .read(notificationSchedulerProvider)
+          .reconcileNotifications(
+            NotificationReconciliationReason.cycleDataChanged,
+          );
     } finally {
       state = false;
     }
@@ -313,14 +303,18 @@ class CycleWorkspaceController extends Notifier<bool> {
       final normalized = normalizeDate(date);
 
       // Close any existing ongoing periods first
-      final ongoing = await (_db.select(_db.cyclePeriods)
-            ..where((tbl) => tbl.deletedAt.isNull() & tbl.isOngoing.equals(true))
-            ..get())
-          .get();
+      final ongoing =
+          await (_db.select(_db.cyclePeriods)
+                ..where(
+                  (tbl) => tbl.deletedAt.isNull() & tbl.isOngoing.equals(true),
+                )
+                ..get())
+              .get();
 
       for (final period in ongoing) {
-        await (_db.update(_db.cyclePeriods)..where((tbl) => tbl.id.equals(period.id)))
-            .write(
+        await (_db.update(
+          _db.cyclePeriods,
+        )..where((tbl) => tbl.id.equals(period.id))).write(
           CyclePeriodsCompanion(
             isOngoing: const Value(false),
             endDate: Value(normalized.subtract(const Duration(days: 1))),
@@ -329,7 +323,9 @@ class CycleWorkspaceController extends Notifier<bool> {
         );
       }
 
-      await _db.into(_db.cyclePeriods).insert(
+      await _db
+          .into(_db.cyclePeriods)
+          .insert(
             CyclePeriodsCompanion.insert(
               uuid: localUuid('period'),
               createdAt: now,
@@ -340,9 +336,11 @@ class CycleWorkspaceController extends Notifier<bool> {
             ),
           );
       // Reconcile notifications after starting a period
-      await ref.read(notificationSchedulerProvider).reconcileNotifications(
-        NotificationReconciliationReason.cycleDataChanged,
-      );
+      await ref
+          .read(notificationSchedulerProvider)
+          .reconcileNotifications(
+            NotificationReconciliationReason.cycleDataChanged,
+          );
     } finally {
       state = false;
     }
@@ -371,9 +369,11 @@ class CycleWorkspaceController extends Notifier<bool> {
         ),
       );
       // Reconcile notifications after ending a period
-      await ref.read(notificationSchedulerProvider).reconcileNotifications(
-        NotificationReconciliationReason.cycleDataChanged,
-      );
+      await ref
+          .read(notificationSchedulerProvider)
+          .reconcileNotifications(
+            NotificationReconciliationReason.cycleDataChanged,
+          );
     } finally {
       state = false;
     }

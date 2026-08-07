@@ -197,9 +197,9 @@ class PlanWorkspaceController extends Notifier<bool> {
         )..where((tbl) => tbl.id.equals(id))).write(companion);
       }
       // Reconcile notifications after saving a task
-      await ref.read(notificationSchedulerProvider).reconcileNotifications(
-        NotificationReconciliationReason.taskChanged,
-      );
+      await ref
+          .read(notificationSchedulerProvider)
+          .reconcileNotifications(NotificationReconciliationReason.taskChanged);
     } finally {
       state = false;
     }
@@ -216,9 +216,9 @@ class PlanWorkspaceController extends Notifier<bool> {
       ),
     );
     // Reconcile notifications after completing a task
-    await ref.read(notificationSchedulerProvider).reconcileNotifications(
-      NotificationReconciliationReason.taskChanged,
-    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(NotificationReconciliationReason.taskChanged);
   }
 
   Future<void> archiveTask(Task task) async {
@@ -229,9 +229,9 @@ class PlanWorkspaceController extends Notifier<bool> {
       ),
     );
     // Reconcile notifications after archiving a task
-    await ref.read(notificationSchedulerProvider).reconcileNotifications(
-      NotificationReconciliationReason.taskChanged,
-    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(NotificationReconciliationReason.taskChanged);
   }
 
   Future<void> duplicateTask(Task task) async {
@@ -305,9 +305,9 @@ class PlanWorkspaceController extends Notifier<bool> {
       ),
     );
     // Reconcile notifications after completing a routine
-    await ref.read(notificationSchedulerProvider).reconcileNotifications(
-      NotificationReconciliationReason.taskChanged,
-    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(NotificationReconciliationReason.taskChanged);
   }
 
   Future<void> saveFocusSession({

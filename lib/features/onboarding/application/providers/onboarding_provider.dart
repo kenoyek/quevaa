@@ -57,19 +57,23 @@ class OnboardingNotifier extends StateNotifier<OnboardingProfile> {
     }
 
     if (state.lastPeriodStartDate != null) {
-      final existingPeriod = await (db.select(db.cyclePeriods)..limit(1)).getSingleOrNull();
+      final existingPeriod = await (db.select(
+        db.cyclePeriods,
+      )..limit(1)).getSingleOrNull();
       if (existingPeriod == null) {
         final start = state.lastPeriodStartDate!;
         final end = start.add(Duration(days: state.averagePeriodDuration - 1));
-        await db.into(db.cyclePeriods).insert(
-          CyclePeriodsCompanion.insert(
-            startDate: start,
-            endDate: Value(end),
-            uuid: DateTime.now().millisecondsSinceEpoch.toString(),
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ),
-        );
+        await db
+            .into(db.cyclePeriods)
+            .insert(
+              CyclePeriodsCompanion.insert(
+                startDate: start,
+                endDate: Value(end),
+                uuid: DateTime.now().millisecondsSinceEpoch.toString(),
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              ),
+            );
       }
     }
   }

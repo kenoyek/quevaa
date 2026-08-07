@@ -71,7 +71,9 @@ class AppLockNotifier extends StateNotifier<bool> with WidgetsBindingObserver {
       final canCheck = await _localAuth.canCheckBiometrics;
       final isSupported = await _localAuth.isDeviceSupported();
       if (!canCheck && !isSupported) {
-        AppLogger.info('Device does not support local authentication; unlocking');
+        AppLogger.info(
+          'Device does not support local authentication; unlocking',
+        );
         state = false;
         return true;
       }

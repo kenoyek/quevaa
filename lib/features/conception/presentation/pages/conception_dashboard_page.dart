@@ -20,6 +20,7 @@ class ConceptionDashboardPage extends ConsumerWidget {
     final state = ref.watch(conceptionControllerProvider);
     final controller = ref.read(conceptionControllerProvider.notifier);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return ConceptionScaffold(
       title: 'Today',
@@ -117,14 +118,16 @@ class ConceptionDashboardPage extends ConsumerWidget {
           ),
         ),
         PremiumCard(
-          color: AppColors.sageContainer,
+          color: isDark
+              ? AppColors.cycleFollicularDark
+              : AppColors.sageContainer,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Trying for ${state.profile.tryingCycleCount} cycles',
                 style: theme.textTheme.headlineMedium?.copyWith(
-                  color: AppColors.sageDark,
+                  color: isDark ? AppColors.sageLight : AppColors.sageDark,
                 ),
               ),
               const SizedBox(height: 8),
@@ -153,10 +156,11 @@ class _HeroAssessmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final dateFormat = DateFormat('d MMM');
 
     return PremiumCard(
-      color: AppColors.deepPlum,
+      color: isDark ? AppColors.cardSurfaceDark : AppColors.deepPlum,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -170,7 +174,8 @@ class _HeroAssessmentCard extends StatelessWidget {
               const Spacer(),
               TinyPill(
                 icon: Icons.insights_rounded,
-                label: 'Confidence: ${formatPredictionConfidence(assessment.confidence)}',
+                label:
+                    'Confidence: ${formatPredictionConfidence(assessment.confidence)}',
                 color: AppColors.sageLight,
               ),
             ],

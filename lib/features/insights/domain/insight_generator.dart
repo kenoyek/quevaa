@@ -50,18 +50,26 @@ class InsightGenerator {
 
     final List<TransparentInsight> insights = [];
 
-    // 1. Cramp observation on early period days
-    final crampDays = loggedEntries
-        .where((e) => (e['symptoms'] as List? ?? []).contains('Cramps'))
-        .length;
-    if (crampDays >= 2) {
+    // 1. Most frequently logged symptom observation.
+    final symptomCounts = <String, int>{};
+    for (final entry in loggedEntries) {
+      for (final symptom in eSymptoms(entry)) {
+        symptomCounts.update(symptom, (count) => count + 1, ifAbsent: () => 1);
+      }
+    }
+    final topSymptom =
+        symptomCounts.entries.where((entry) => entry.value >= 2).toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+    if (topSymptom.isNotEmpty) {
+      final symptom = topSymptom.first.key;
+      final count = topSymptom.first.value;
       insights.add(
         TransparentInsight(
           title: 'Symptom Pattern',
           observation:
-              'Cramps were logged on $crampDays of your recent period start days.',
+              '$symptom was logged on $count of your recent tracked days.',
           context:
-              'Resting and warm tea during these days often appeared alongside better comfort in your logs.',
+              'This is an observation from your Quevaa logs, not a diagnosis or cause.',
         ),
       );
     }
@@ -99,5 +107,14 @@ class InsightGenerator {
     }
 
     return insights;
+  }
+
+  static List<String> eSymptoms(Map<String, dynamic> entry) {
+    final symptoms = entry['symptoms'];
+    if (symptoms is! List) return const [];
+    return symptoms
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
   }
 }

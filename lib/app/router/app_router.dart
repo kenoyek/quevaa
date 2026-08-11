@@ -11,10 +11,14 @@ import '../../features/conception/presentation/pages/fertility_log_page.dart';
 import '../../features/conception/presentation/pages/pregnancy_transition_page.dart';
 import '../../features/cycle/presentation/pages/cycle_workspace_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
+import '../../features/insights/presentation/pages/cycle_insights_page.dart';
 import '../../features/notifications/presentation/notification_center_page.dart';
 import '../../features/notifications/presentation/notification_settings_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/productivity/presentation/pages/plan_workspace_page.dart';
+import '../../features/reports/domain/health_report_model.dart';
+import '../../features/reports/presentation/pages/health_report_preview_page.dart';
+import '../../features/reports/presentation/pages/health_reports_page.dart';
 import '../../features/wellness/presentation/pages/wellness_workspace_page.dart';
 import '../../core/database/app_database.dart';
 import '../../core/providers/database_provider.dart';
@@ -201,6 +205,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notifications/settings',
         builder: (context, state) => const NotificationSettingsPage(),
+      ),
+      GoRoute(
+        path: '/insights',
+        builder: (context, state) => const CycleInsightsPage(),
+      ),
+      GoRoute(
+        path: '/reports',
+        builder: (context, state) => const HealthReportsPage(),
+      ),
+      GoRoute(
+        path: '/reports/preview',
+        builder: (context, state) {
+          final report = state.extra;
+          if (report is GeneratedHealthReport) {
+            return HealthReportPreviewPage(report: report);
+          }
+          return const HealthReportsPage();
+        },
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -394,6 +416,7 @@ class _NormalMePage extends ConsumerWidget {
                         icon: Icons.insights_rounded,
                         title: 'Cycle insights',
                         subtitle: 'Historical patterns and transparent ranges',
+                        route: '/insights',
                       ),
                       _SettingsRow(
                         icon: Icons.lock_rounded,
@@ -405,6 +428,7 @@ class _NormalMePage extends ConsumerWidget {
                         icon: Icons.description_rounded,
                         title: 'Health reports',
                         subtitle: 'Doctor-ready period and symptom summaries',
+                        route: '/reports',
                       ),
                     ],
                   ),

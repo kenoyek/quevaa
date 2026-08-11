@@ -8,16 +8,35 @@ import '../../../core/notifications/notification_permission_service.dart';
 import '../application/notification_controller.dart';
 import '../application/notification_preferences_provider.dart';
 import '../application/pending_notifications_provider.dart';
+import '../domain/entities/notification_preferences.dart';
 import '../domain/enums/notification_privacy_mode.dart';
 import 'widgets/notification_category_tile.dart';
 import 'widgets/notification_permission_card.dart';
 import 'widgets/quiet_hours_selector.dart';
 
-class NotificationSettingsPage extends ConsumerWidget {
+class NotificationSettingsPage extends ConsumerStatefulWidget {
   const NotificationSettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationSettingsPage> createState() =>
+      _NotificationSettingsPageState();
+}
+
+class _NotificationSettingsPageState
+    extends ConsumerState<NotificationSettingsPage> {
+  QuevaaNotificationPreferences? _draft;
+  String? _lastLoadedSignature;
+  Future<void> _saveQueue = Future.value();
+  var _saveSerial = 0;
+  var _savingDraft = false;
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final preferencesAsync = ref.watch(notificationPreferencesProvider);
     final permissionStatusAsync = ref.watch(
       notificationPermissionStatusProvider,
@@ -69,22 +88,24 @@ class NotificationSettingsPage extends ConsumerWidget {
           ),
         ),
         data: (preferences) {
+          final draft = _syncDraft(preferences);
           final permissionStatus = permissionStatusAsync.valueOrNull;
           final permissionGranted =
               permissionStatus == QuevaaNotificationPermissionStatus.granted;
           final permissionKnownDenied =
               permissionStatus == QuevaaNotificationPermissionStatus.denied;
-          final notificationsEnabled = preferences.enabled && permissionGranted;
+          final notificationsEnabled = draft.enabled && permissionGranted;
           final permissionBlocked =
               permissionKnownDenied &&
-              (preferences.enabled ||
-                  preferences.permissionInvitationSeen ||
-                  preferences.permissionPreviouslyDeclined);
-          final saving = controllerState.isLoading;
+              (draft.enabled ||
+                  draft.permissionInvitationSeen ||
+                  draft.permissionPreviouslyDeclined);
+          final controllerBusy = controllerState.isLoading && !_savingDraft;
+          final toolsBusy = controllerState.isLoading || _savingDraft;
           final previewMode =
-              preferences.privacyMode == QuevaaNotificationPrivacyMode.hidden
+              draft.privacyMode == QuevaaNotificationPrivacyMode.hidden
               ? QuevaaNotificationPrivacyMode.discreet
-              : preferences.privacyMode;
+              : draft.privacyMode;
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -92,7 +113,7 @@ class NotificationSettingsPage extends ConsumerWidget {
                 enabled: notificationsEnabled,
                 permissionBlocked: permissionBlocked,
                 permissionPreviouslyDeclined:
-                    preferences.permissionPreviouslyDeclined,
+                    draft.permissionPreviouslyDeclined,
                 onEnable: controller.requestAndEnable,
                 onDismiss: controller.dismissPermissionInvitation,
                 onOpenSettings: controller.openSystemNotificationSettings,
@@ -127,13 +148,21 @@ class NotificationSettingsPage extends ConsumerWidget {
                           ),
                         ],
                         selected: {previewMode},
-                        onSelectionChanged: saving
+                        onSelectionChanged: controllerBusy
                             ? null
-                            : (selection) =>
-                                  controller.updatePrivacyMode(selection.first),
+                            : (selection) {
+                                _updateDraft(
+                                  draft.copyWith(privacyMode: selection.first),
+                                  persist: true,
+                                );
+                              },
                       ),
                       const SizedBox(height: 14),
                       _PrivacyPreview(mode: previewMode),
+                      if (_savingDraft) ...[
+                        const SizedBox(height: 12),
+                        const LinearProgressIndicator(minHeight: 2),
+                      ],
                     ],
                   ),
                 ),
@@ -150,34 +179,48 @@ class NotificationSettingsPage extends ConsumerWidget {
                         style: Theme.of(context).textTheme.headlineMedium,
                       ),
                       QuietHoursSelector(
-                        startMinutes: preferences.quietStartMinutes,
-                        endMinutes: preferences.quietEndMinutes,
-                        onStartChanged: !notificationsEnabled || saving
+                        startMinutes: draft.quietStartMinutes,
+                        endMinutes: draft.quietEndMinutes,
+                        onStartChanged: !notificationsEnabled
                             ? null
-                            : (value) => controller.updateQuietHours(
-                                startMinutes: value,
-                                endMinutes: preferences.quietEndMinutes,
+                            : (value) => _updateDraft(
+                                draft.copyWith(quietStartMinutes: value),
                               ),
-                        onEndChanged: !notificationsEnabled || saving
+                        onStartChangeEnd: !notificationsEnabled
                             ? null
-                            : (value) => controller.updateQuietHours(
-                                startMinutes: preferences.quietStartMinutes,
-                                endMinutes: value,
+                            : (value) => _updateDraft(
+                                draft.copyWith(quietStartMinutes: value),
+                                persist: true,
+                              ),
+                        onEndChanged: !notificationsEnabled
+                            ? null
+                            : (value) => _updateDraft(
+                                draft.copyWith(quietEndMinutes: value),
+                              ),
+                        onEndChangeEnd: !notificationsEnabled
+                            ? null
+                            : (value) => _updateDraft(
+                                draft.copyWith(quietEndMinutes: value),
+                                persist: true,
                               ),
                       ),
                       Slider(
-                        value: preferences.dailyCap.toDouble(),
+                        value: draft.dailyCap.toDouble(),
                         min: 1,
                         max: 8,
                         divisions: 7,
-                        label: '${preferences.dailyCap} per day',
-                        onChanged: !notificationsEnabled || saving
+                        label: '${draft.dailyCap} per day',
+                        onChanged: !notificationsEnabled
                             ? null
-                            : (value) {
-                                controller.savePreferences(
-                                  preferences.copyWith(dailyCap: value.round()),
-                                );
-                              },
+                            : (value) => _updateDraft(
+                                draft.copyWith(dailyCap: value.round()),
+                              ),
+                        onChangeEnd: !notificationsEnabled
+                            ? null
+                            : (value) => _updateDraft(
+                                draft.copyWith(dailyCap: value.round()),
+                                persist: true,
+                              ),
                       ),
                     ],
                   ),
@@ -194,33 +237,39 @@ class NotificationSettingsPage extends ConsumerWidget {
                           icon: category.icon,
                           title: category.title,
                           subtitle: category.subtitle,
-                          value:
-                              preferences.categoryEnabled[category.key] ?? true,
-                          onChanged: !notificationsEnabled || saving
+                          value: draft.categoryEnabled[category.key] ?? true,
+                          onChanged: !notificationsEnabled || controllerBusy
                               ? null
-                              : (value) => controller.toggleCategory(
-                                  category.key,
-                                  value,
+                              : (value) => _updateDraft(
+                                  draft.copyWith(
+                                    categoryEnabled: {
+                                      ...draft.categoryEnabled,
+                                      category.key: value,
+                                    },
+                                  ),
+                                  persist: true,
                                 ),
                         ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Notification sound'),
-                        value: preferences.soundEnabled,
-                        onChanged: !notificationsEnabled || saving
+                        value: draft.soundEnabled,
+                        onChanged: !notificationsEnabled || controllerBusy
                             ? null
-                            : (value) => controller.savePreferences(
-                                preferences.copyWith(soundEnabled: value),
+                            : (value) => _updateDraft(
+                                draft.copyWith(soundEnabled: value),
+                                persist: true,
                               ),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Vibration'),
-                        value: preferences.vibrationEnabled,
-                        onChanged: !notificationsEnabled || saving
+                        value: draft.vibrationEnabled,
+                        onChanged: !notificationsEnabled || controllerBusy
                             ? null
-                            : (value) => controller.savePreferences(
-                                preferences.copyWith(vibrationEnabled: value),
+                            : (value) => _updateDraft(
+                                draft.copyWith(vibrationEnabled: value),
+                                persist: true,
                               ),
                       ),
                     ],
@@ -244,14 +293,14 @@ class NotificationSettingsPage extends ConsumerWidget {
                         runSpacing: 10,
                         children: [
                           FilledButton.icon(
-                            onPressed: saving
+                            onPressed: toolsBusy
                                 ? null
                                 : controller.sendTestNotification,
                             icon: const Icon(Icons.notification_add_rounded),
                             label: const Text('Send test notification'),
                           ),
                           OutlinedButton.icon(
-                            onPressed: saving ? null : controller.cancelAll,
+                            onPressed: toolsBusy ? null : controller.cancelAll,
                             icon: const Icon(Icons.delete_outline_rounded),
                             label: const Text('Cancel all reminders'),
                           ),
@@ -302,6 +351,63 @@ class NotificationSettingsPage extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  QuevaaNotificationPreferences _syncDraft(
+    QuevaaNotificationPreferences preferences,
+  ) {
+    final signature = _preferencesSignature(preferences);
+    final shouldResetDraft =
+        _draft == null || (!_savingDraft && _lastLoadedSignature != signature);
+    if (shouldResetDraft) {
+      _draft = preferences;
+      _lastLoadedSignature = signature;
+    }
+    return _draft!;
+  }
+
+  void _updateDraft(
+    QuevaaNotificationPreferences preferences, {
+    bool persist = false,
+  }) {
+    setState(() => _draft = preferences);
+    if (persist) _queueSave(preferences);
+  }
+
+  void _queueSave(QuevaaNotificationPreferences preferences) {
+    final serial = ++_saveSerial;
+    setState(() => _savingDraft = true);
+    _saveQueue = _saveQueue.catchError((_) {}).then((_) {
+      if (!mounted) return Future<void>.value();
+      return ref
+          .read(notificationControllerProvider.notifier)
+          .savePreferences(preferences);
+    });
+    _saveQueue.whenComplete(() {
+      if (!mounted || serial != _saveSerial) return;
+      setState(() => _savingDraft = false);
+      ref.invalidate(notificationPreferencesProvider);
+      ref.invalidate(pendingNotificationsProvider);
+    });
+  }
+
+  String _preferencesSignature(QuevaaNotificationPreferences preferences) {
+    return [
+      preferences.enabled,
+      preferences.permissionInvitationSeen,
+      preferences.permissionPreviouslyDeclined,
+      preferences.privacyMode.name,
+      preferences.quietStartMinutes,
+      preferences.quietEndMinutes,
+      preferences.dailyCap,
+      preferences.soundEnabled,
+      preferences.vibrationEnabled,
+      preferences.lastKnownTimezone,
+      preferences.lastReconciliationAt?.millisecondsSinceEpoch,
+      preferences.scheduleVersion,
+      preferences.categoryEnabled,
+      preferences.categoryTimes,
+    ].join('|');
   }
 }
 

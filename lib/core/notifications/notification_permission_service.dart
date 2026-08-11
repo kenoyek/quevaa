@@ -1,5 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'notification_system_settings.dart';
+
 enum QuevaaNotificationPermissionStatus { unknown, granted, denied }
 
 class QuevaaNotificationPermissionService {
@@ -51,10 +53,17 @@ class QuevaaNotificationPermissionService {
           AndroidFlutterLocalNotificationsPlugin
         >();
     if (android != null) {
-      final granted = await android.areNotificationsEnabled();
-      return granted == true
-          ? QuevaaNotificationPermissionStatus.granted
-          : QuevaaNotificationPermissionStatus.denied;
+      final systemEnabled =
+          await QuevaaNotificationSystemSettings.areNotificationsEnabled();
+      final pluginEnabled = await android.areNotificationsEnabled();
+
+      if (systemEnabled == false || pluginEnabled == false) {
+        return QuevaaNotificationPermissionStatus.denied;
+      }
+      if (systemEnabled == true || pluginEnabled == true) {
+        return QuevaaNotificationPermissionStatus.granted;
+      }
+      return QuevaaNotificationPermissionStatus.unknown;
     }
 
     final ios = _plugin

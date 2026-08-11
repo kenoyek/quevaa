@@ -35,3 +35,8 @@ final notificationPreferencesProvider =
     FutureProvider<QuevaaNotificationPreferences>((ref) {
       return ref.watch(notificationRepositoryProvider).loadPreferences();
     });
+
+final notificationPermissionStatusProvider =
+    FutureProvider<QuevaaNotificationPermissionStatus>((ref) {
+      return ref.watch(notificationPermissionServiceProvider).status();
+    });

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../core/notifications/notification_permission_service.dart';
 import '../application/notification_controller.dart';
 import '../application/notification_preferences_provider.dart';
 import '../application/pending_notifications_provider.dart';
@@ -18,6 +19,9 @@ class NotificationSettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final preferencesAsync = ref.watch(notificationPreferencesProvider);
+    final permissionStatusAsync = ref.watch(
+      notificationPermissionStatusProvider,
+    );
     final pendingAsync = ref.watch(pendingNotificationsProvider);
     final controllerState = ref.watch(notificationControllerProvider);
     final controller = ref.read(notificationControllerProvider.notifier);
@@ -65,7 +69,17 @@ class NotificationSettingsPage extends ConsumerWidget {
           ),
         ),
         data: (preferences) {
-          final notificationsEnabled = preferences.enabled;
+          final permissionStatus = permissionStatusAsync.valueOrNull;
+          final permissionGranted =
+              permissionStatus == QuevaaNotificationPermissionStatus.granted;
+          final permissionKnownDenied =
+              permissionStatus == QuevaaNotificationPermissionStatus.denied;
+          final notificationsEnabled = preferences.enabled && permissionGranted;
+          final permissionBlocked =
+              permissionKnownDenied &&
+              (preferences.enabled ||
+                  preferences.permissionInvitationSeen ||
+                  preferences.permissionPreviouslyDeclined);
           final saving = controllerState.isLoading;
           final previewMode =
               preferences.privacyMode == QuevaaNotificationPrivacyMode.hidden
@@ -75,9 +89,13 @@ class NotificationSettingsPage extends ConsumerWidget {
             padding: const EdgeInsets.all(20),
             children: [
               NotificationPermissionCard(
-                enabled: preferences.enabled,
+                enabled: notificationsEnabled,
+                permissionBlocked: permissionBlocked,
+                permissionPreviouslyDeclined:
+                    preferences.permissionPreviouslyDeclined,
                 onEnable: controller.requestAndEnable,
                 onDismiss: controller.dismissPermissionInvitation,
+                onOpenSettings: controller.openSystemNotificationSettings,
               ),
               const SizedBox(height: 12),
               Card(

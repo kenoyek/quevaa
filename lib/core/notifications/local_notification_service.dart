@@ -1,5 +1,4 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
 
 import '../../features/notifications/domain/entities/notification_schedule.dart';
 import '../../features/notifications/domain/enums/notification_type.dart';
@@ -89,14 +88,13 @@ class QuevaaLocalNotificationService {
   }
 
   Future<void> scheduleTestNotification() async {
-    final now = tz.TZDateTime.now(tz.local);
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        QuevaaNotificationChannels.wellness.id,
-        QuevaaNotificationChannels.wellness.name,
-        channelDescription: QuevaaNotificationChannels.wellness.description,
-        importance: Importance.defaultImportance,
-        priority: Priority.defaultPriority,
+        QuevaaNotificationChannels.cycle.id,
+        QuevaaNotificationChannels.cycle.name,
+        channelDescription: QuevaaNotificationChannels.cycle.description,
+        importance: Importance.high,
+        priority: Priority.high,
       ),
       iOS: const DarwinNotificationDetails(
         presentAlert: true,
@@ -105,15 +103,11 @@ class QuevaaLocalNotificationService {
         presentSound: true,
       ),
     );
-    await plugin.zonedSchedule(
+    await plugin.show(
       900000001,
       'Quevaa reminders are ready',
       'Your private on-device notifications are working.',
-      now.add(const Duration(seconds: 5)),
       details,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       payload: QuevaaNotificationPayload.forSchedule(
         notificationId: 900000001,
         type: QuevaaNotificationType.dailyCycleCheckIn,

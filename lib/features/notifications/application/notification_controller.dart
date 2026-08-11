@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/notifications/local_notification_service.dart';
+import '../../../core/notifications/notification_permission_service.dart';
+import '../../../core/notifications/notification_system_settings.dart';
 import '../domain/entities/notification_preferences.dart';
 import '../domain/enums/notification_privacy_mode.dart';
 import '../domain/services/notification_scheduler.dart';
@@ -16,9 +18,10 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
   Future<void> requestAndEnable() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final permission = await ref
-          .read(notificationPermissionServiceProvider)
-          .requestPermission();
+      final permissionService = ref.read(notificationPermissionServiceProvider);
+      await permissionService.requestPermission();
+      final status = await permissionService.status();
+      final permission = status == QuevaaNotificationPermissionStatus.granted;
       final repository = ref.read(notificationRepositoryProvider);
       final preferences = await repository.loadPreferences();
       await repository.savePreferences(
@@ -37,6 +40,7 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
             );
       }
       ref.invalidate(notificationPreferencesProvider);
+      ref.invalidate(notificationPermissionStatusProvider);
       ref.invalidate(pendingNotificationsProvider);
     });
   }
@@ -50,6 +54,7 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
         preferences.copyWith(permissionInvitationSeen: true),
       );
       ref.invalidate(notificationPreferencesProvider);
+      ref.invalidate(notificationPermissionStatusProvider);
     });
   }
 
@@ -68,6 +73,7 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
             snapshot: ref.read(notificationSourceSnapshotProvider),
           );
       ref.invalidate(notificationPreferencesProvider);
+      ref.invalidate(notificationPermissionStatusProvider);
       ref.invalidate(pendingNotificationsProvider);
     });
   }
@@ -108,15 +114,20 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
   Future<void> sendTestNotification() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final permission = await ref
-          .read(notificationPermissionServiceProvider)
-          .requestPermission();
+      final permissionService = ref.read(notificationPermissionServiceProvider);
+      await permissionService.requestPermission();
+      final status = await permissionService.status();
+      final permission = status == QuevaaNotificationPermissionStatus.granted;
       if (!permission) {
         throw StateError('Notification permission is disabled.');
       }
       await QuevaaLocalNotificationService.instance.scheduleTestNotification();
       ref.invalidate(pendingNotificationsProvider);
     });
+  }
+
+  Future<void> openSystemNotificationSettings() async {
+    await QuevaaNotificationSystemSettings.openNotificationSettings();
   }
 
   Future<void> cancelAll() async {

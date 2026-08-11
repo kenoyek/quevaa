@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../cycle/application/cycle_workspace_provider.dart';
+
 class TransparentInsight {
   final String title;
   final String observation;
@@ -12,13 +16,36 @@ class TransparentInsight {
   });
 }
 
+final quickInsightsProvider = Provider<List<TransparentInsight>>((ref) {
+  final logs = ref.watch(cycleLogsInRangeProvider).valueOrNull ?? [];
+  final mappedLogs = logs.map((log) {
+    List<String> symptoms = [];
+    try {
+      final decoded = jsonDecode(log.customSymptomsJson);
+      if (decoded is List) {
+        symptoms.addAll(decoded.map((e) => e.toString()));
+      }
+    } catch (_) {
+      // Ignore malformed historical symptom payloads.
+    }
+    return {
+      'symptoms': symptoms,
+      'sleepHours': log.sleepHours,
+      'energy': log.energyLevel,
+      'waterGlasses': log.waterGlasses,
+    };
+  }).toList();
+
+  return InsightGenerator.generateInsights(loggedEntries: mappedLogs);
+});
+
 class InsightGenerator {
   /// Generates non-causal transparent insights when minimum log thresholds are met.
   static List<TransparentInsight> generateInsights({
     required List<Map<String, dynamic>> loggedEntries,
   }) {
     if (loggedEntries.length < 3) {
-      return []; // Enforce minimum data threshold requirement
+      return const [];
     }
 
     final List<TransparentInsight> insights = [];

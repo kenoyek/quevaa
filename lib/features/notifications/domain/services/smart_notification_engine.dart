@@ -2,6 +2,8 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../../../../core/notifications/notification_constants.dart';
 import '../../../../core/notifications/notification_id.dart';
+import '../../../../core/models/prediction_confidence.dart';
+import '../../../dashboard/domain/readiness_calculator.dart';
 import '../entities/notification_preferences.dart';
 import '../entities/notification_schedule.dart';
 import '../entities/quevaa_notification.dart';
@@ -16,6 +18,15 @@ class NotificationSourceSnapshot {
   final tz.TZDateTime? estimatedPeriodStart;
   final tz.TZDateTime? fertileWindowStart;
   final tz.TZDateTime? fertileWindowEnd;
+  final tz.TZDateTime? estimatedOvulationDate;
+  final PredictionConfidence predictionConfidence;
+  final int? currentCycleDay;
+  final String? estimatedPhase;
+  final int? todayEnergyLevel;
+  final int? todayPainLevel;
+  final double? todaySleepHours;
+  final String? mealSuggestion;
+  final String? workoutSuggestion;
   final Set<String> loggedOvulationTestDays;
   final Set<String> loggedBbtDays;
   final Set<String> loggedPregnancyTestDays;
@@ -31,6 +42,15 @@ class NotificationSourceSnapshot {
     this.estimatedPeriodStart,
     this.fertileWindowStart,
     this.fertileWindowEnd,
+    this.estimatedOvulationDate,
+    this.predictionConfidence = PredictionConfidence.low,
+    this.currentCycleDay,
+    this.estimatedPhase,
+    this.todayEnergyLevel,
+    this.todayPainLevel,
+    this.todaySleepHours,
+    this.mealSuggestion,
+    this.workoutSuggestion,
     this.loggedOvulationTestDays = const {},
     this.loggedBbtDays = const {},
     this.loggedPregnancyTestDays = const {},
@@ -64,6 +84,9 @@ class SmartNotificationEngine {
       );
     }
     desired.addAll(_wellnessSchedules(snapshot, preferences, location, now));
+    desired.addAll(
+      _productivitySchedules(snapshot, preferences, location, now),
+    );
 
     return policyEngine.applyPolicies(
       desired: desired,
@@ -79,31 +102,39 @@ class SmartNotificationEngine {
   ) {
     final estimated = snapshot.estimatedPeriodStart;
     if (estimated == null) return const [];
-    final months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    final monthName = months[estimated.month - 1];
+    final periodLeadBody =
+        snapshot.predictionConfidence == PredictionConfidence.low
+        ? 'Your period may begin around this time based on your recent cycles.'
+        : 'Your period may start in about 3 days.';
+    final periodTomorrowBody =
+        snapshot.predictionConfidence == PredictionConfidence.low
+        ? 'Your period may begin around this time based on your recent cycles.'
+        : 'Your period may start tomorrow.';
     return [
       _schedule(
         type: QuevaaNotificationType.periodExpected,
-        entityId: 'period-${estimated.year}-${estimated.month}',
+        entityId: 'period-${estimated.year}-${estimated.month}-minus3',
         scheduledAt: _atTime(
           estimated.subtract(const Duration(days: 3)),
           9 * 60,
         ),
         title: 'Period update',
-        body: 'Your period may begin around ${estimated.day} $monthName.',
+        body: periodLeadBody,
+        privacyTitle: 'Your Quevaa update is ready.',
+        privacyBody: 'A planned cycle check-in is ready.',
+        priority: QuevaaNotificationPriority.normal,
+        location: location,
+        now: now,
+      ),
+      _schedule(
+        type: QuevaaNotificationType.periodExpected,
+        entityId: 'period-${estimated.year}-${estimated.month}-minus1',
+        scheduledAt: _atTime(
+          estimated.subtract(const Duration(days: 1)),
+          9 * 60,
+        ),
+        title: 'Period update',
+        body: periodTomorrowBody,
         privacyTitle: 'Your Quevaa update is ready.',
         privacyBody: 'A planned cycle check-in is ready.',
         priority: QuevaaNotificationPriority.normal,
@@ -115,7 +146,9 @@ class SmartNotificationEngine {
         entityId: 'period-${estimated.year}-${estimated.month}',
         scheduledAt: _atTime(estimated, 9 * 60),
         title: 'How are you feeling today?',
-        body: 'Open Quevaa when you are ready to check in.',
+        body: snapshot.predictionConfidence == PredictionConfidence.low
+            ? 'Your period may begin around this time. Open Quevaa when you are ready to check in.'
+            : 'Your period may start today. Open Quevaa when you are ready to check in.',
         privacyTitle: 'Your Quevaa update is ready.',
         privacyBody: 'A planned check-in is ready.',
         priority: QuevaaNotificationPriority.normal,
@@ -144,7 +177,8 @@ class SmartNotificationEngine {
           10 * 60,
         ),
         title: 'Your estimated fertile window may be approaching.',
-        body: 'Log your observations to help Quevaa personalise this cycle.',
+        body:
+            'Your estimated fertile window may begin tomorrow. Log observations to help Quevaa personalise this cycle.',
         privacyTitle: 'Your Quevaa update is ready.',
         privacyBody: 'A private wellness reminder is ready.',
         priority: QuevaaNotificationPriority.normal,
@@ -152,6 +186,29 @@ class SmartNotificationEngine {
         now: now,
       ),
     ];
+
+    final ovulationDate = snapshot.estimatedOvulationDate;
+    if (ovulationDate != null) {
+      schedules.add(
+        _schedule(
+          type: QuevaaNotificationType.highFertilityCheckIn,
+          entityId:
+              'ovulation-${ovulationDate.year}-${ovulationDate.month}-${ovulationDate.day}',
+          scheduledAt: _atTime(
+            ovulationDate.subtract(const Duration(days: 1)),
+            10 * 60,
+          ),
+          title: 'Estimated ovulation may be approaching.',
+          body:
+              'This may be near your estimated ovulation window. Log observations to help Quevaa personalise this cycle.',
+          privacyTitle: 'Your Quevaa update is ready.',
+          privacyBody: 'A private wellness reminder is ready.',
+          priority: QuevaaNotificationPriority.normal,
+          location: location,
+          now: now,
+        ),
+      );
+    }
 
     for (
       var day = fertileStart;
@@ -238,6 +295,52 @@ class SmartNotificationEngine {
     return schedules;
   }
 
+  static List<QuevaaNotificationSchedule> _productivitySchedules(
+    NotificationSourceSnapshot snapshot,
+    QuevaaNotificationPreferences preferences,
+    tz.Location location,
+    tz.TZDateTime now,
+  ) {
+    final tomorrow = now.add(const Duration(days: 1));
+    final readiness = ReadinessCalculator.calculate(
+      selfReportedEnergy: snapshot.todayEnergyLevel,
+      sleepHours: snapshot.todaySleepHours,
+      painLevel: snapshot.todayPainLevel,
+      estimatedPhase: snapshot.estimatedPhase ?? 'Unknown',
+    );
+    final lowReadiness =
+        readiness.score == ReadinessScore.restore ||
+        readiness.score == ReadinessScore.gentle;
+    final strongReadiness =
+        readiness.score == ReadinessScore.focused ||
+        readiness.score == ReadinessScore.strong;
+    return [
+      _schedule(
+        type: QuevaaNotificationType.productivityGuidance,
+        entityId: 'productivity-${_dayKey(tomorrow)}',
+        scheduledAt: _atTime(
+          tomorrow,
+          preferences.categoryTimes['dailyProductivity'] ?? 8 * 60 + 30,
+        ),
+        title: lowReadiness
+            ? 'A lighter plan may fit today.'
+            : strongReadiness
+            ? 'Your focus window looks stronger today.'
+            : 'Your steady plan is ready.',
+        body: lowReadiness
+            ? 'Your recent check-in points to a lower-pressure schedule today.'
+            : strongReadiness
+            ? 'Your current signals support deeper work if your schedule allows.'
+            : 'Your current signals support steady, manageable progress.',
+        privacyTitle: 'A planned Quevaa check-in is ready.',
+        privacyBody: 'Open Quevaa to continue.',
+        priority: QuevaaNotificationPriority.low,
+        location: location,
+        now: now,
+      ),
+    ];
+  }
+
   static List<QuevaaNotificationSchedule> _wellnessSchedules(
     NotificationSourceSnapshot snapshot,
     QuevaaNotificationPreferences preferences,
@@ -254,7 +357,9 @@ class SmartNotificationEngine {
           preferences.categoryTimes['breakfast'] ?? 8 * 60,
         ),
         title: 'Your meal suggestion is ready.',
-        body: 'See today’s Nigerian meal recommendation.',
+        body: snapshot.mealSuggestion == null
+            ? 'See today’s Nigerian meal recommendation.'
+            : 'Today’s Quevaa meal idea: ${snapshot.mealSuggestion}.',
         privacyTitle: 'You have a wellness reminder.',
         privacyBody: 'Open Quevaa to continue.',
         priority: QuevaaNotificationPriority.low,
@@ -266,7 +371,9 @@ class SmartNotificationEngine {
         entityId: 'movement-${_dayKey(tomorrow)}',
         scheduledAt: _atTime(tomorrow, 17 * 60),
         title: 'Your movement plan is ready when you are.',
-        body: 'Open Quevaa to review today’s plan.',
+        body: snapshot.workoutSuggestion == null
+            ? 'Open Quevaa to review today’s plan.'
+            : 'Today’s Quevaa movement idea: ${snapshot.workoutSuggestion}.',
         privacyTitle: 'You have a wellness reminder.',
         privacyBody: 'Open Quevaa to continue.',
         priority: QuevaaNotificationPriority.low,

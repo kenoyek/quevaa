@@ -6,16 +6,36 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/quevaa_layout.dart';
 import '../../../../app/theme/quevaa_spacing.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../cycle/application/cycle_workspace_provider.dart';
 import '../../../nutrition/data/nigerian_recipe_database.dart';
+import '../../../recommendations/application/daily_quevaa_plan_provider.dart';
+import '../../../workouts/data/workout_catalog.dart';
 import '../../../workouts/domain/entities/workout_entity.dart';
 import '../../application/wellness_workspace_provider.dart';
 
 class WellnessWorkspacePage extends ConsumerWidget {
-  const WellnessWorkspacePage({super.key});
+  final String? initialSection;
+
+  const WellnessWorkspacePage({super.key, this.initialSection});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final section = ref.watch(wellnessSectionProvider);
+    if (initialSection != null &&
+        initialSection != section &&
+        const [
+          'For You',
+          'Meals',
+          'Movement',
+          'Mind',
+          'Progress',
+        ].contains(initialSection)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          ref.read(wellnessSectionProvider.notifier).state = initialSection!;
+        }
+      });
+    }
     final recommendation = ref.watch(wellnessRecommendationProvider);
     return Scaffold(
       backgroundColor: _pageBg(context),
@@ -145,21 +165,67 @@ class _MealsWorkspace extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final plans = ref.watch(mealPlanStreamProvider).valueOrNull ?? const [];
+    final dailyPlan = ref.watch(dailyQuevaaPlanProvider);
+    final savedIds =
+        ref
+            .watch(savedMealsStreamProvider)
+            .valueOrNull
+            ?.map((row) => row.mealId)
+            .toSet() ??
+        const <String>{};
+    final preparedEntries =
+        ref.watch(mealPreparationHistoryProvider).valueOrNull ?? const [];
+    final today = ref.watch(localTodayProvider);
+    final preparedTodayIds = preparedEntries
+        .where(
+          (entry) =>
+              entry.date == today &&
+              entry.mealType.isNotEmpty &&
+              entry.deletedAt == null,
+        )
+        .map((entry) => '${entry.mealId}:${entry.mealType}')
+        .toSet();
     final pantry = ref.watch(pantryStreamProvider).valueOrNull ?? const [];
     final shopping = ref.watch(shoppingStreamProvider).valueOrNull ?? const [];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Meals', style: Theme.of(context).textTheme.headlineMedium),
+        Text(
+          'Today’s meals',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          [
+            if (dailyPlan.cycleSnapshot.cycleDay != null)
+              'Cycle Day ${dailyPlan.cycleSnapshot.cycleDay}',
+            dailyPlan.cycleOutput.estimatedPhase,
+          ].join(' • '),
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Recommendations are ranked from your canonical cycle state, food preferences, prep-time preference, saved meals, pantry items and recent meal history.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         const SizedBox(height: 12),
         for (final mealType in const ['Breakfast', 'Lunch', 'Dinner', 'Snack'])
-          _MealRecommendationCard(
-            recipe: _recipeForType(mealType),
-            compactTitle: mealType,
-          ),
+          if (dailyPlan.meals[mealType] case final recipe?)
+            _MealRecommendationCard(
+              recipe: recipe,
+              compactTitle: mealType == 'Snack' ? 'Optional snack' : mealType,
+              whySuggested: recipe.whySuggested(
+                dailyPlan.cycleOutput.estimatedPhase,
+              ),
+              isSaved: savedIds.contains(recipe.id),
+              isPrepared: preparedTodayIds.contains(
+                '${recipe.id}:${recipe.mealType}',
+              ),
+            ),
         const SizedBox(height: 12),
-        _MealPlanPanel(plans: plans),
+        _SavedMealsPanel(savedIds: savedIds),
+        const SizedBox(height: 12),
+        _MealHistoryPanel(entries: preparedEntries),
         const SizedBox(height: 12),
         _RecipeSearchPanel(),
         const SizedBox(height: 12),
@@ -414,8 +480,17 @@ class _ProgressWorkspace extends ConsumerWidget {
 class _MealRecommendationCard extends ConsumerWidget {
   final NigerianRecipe recipe;
   final String? compactTitle;
+  final String? whySuggested;
+  final bool isSaved;
+  final bool isPrepared;
 
-  const _MealRecommendationCard({required this.recipe, this.compactTitle});
+  const _MealRecommendationCard({
+    required this.recipe,
+    this.compactTitle,
+    this.whySuggested,
+    this.isSaved = false,
+    this.isPrepared = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -470,9 +545,9 @@ class _MealRecommendationCard extends ConsumerWidget {
             children: [
               _MetadataChip(label: recipe.mealType),
               _MetadataChip(label: recipe.region),
-              const _MetadataChip(
-                label: '30 min',
-              ), // Placeholder for duration if not in entity
+              _MetadataChip(label: '${recipe.totalMinutes} min'),
+              _MetadataChip(label: recipe.difficulty),
+              _MetadataChip(label: recipe.budgetLevel),
             ],
           ),
           const SizedBox(height: QuevaaSpacing.s),
@@ -484,7 +559,7 @@ class _MealRecommendationCard extends ConsumerWidget {
           ),
           const SizedBox(height: QuevaaSpacing.s),
           Text(
-            'Nutrients: ${recipe.keyNutrients}',
+            whySuggested ?? 'Nutrients: ${recipe.keyNutrients}',
             style: theme.textTheme.bodySmall?.copyWith(
               fontStyle: FontStyle.italic,
               color: AppColors.sagePrimary,
@@ -496,11 +571,15 @@ class _MealRecommendationCard extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: () => ref
-                      .read(wellnessWorkspaceControllerProvider.notifier)
-                      .markMealPrepared(recipe),
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('Mark as Prepared'),
+                  onPressed: isPrepared
+                      ? null
+                      : () => _confirmPrepared(context, ref, recipe),
+                  icon: Icon(
+                    isPrepared
+                        ? Icons.check_circle_rounded
+                        : Icons.check_rounded,
+                  ),
+                  label: Text(isPrepared ? 'Prepared Today' : 'Mark Prepared'),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.terracottaPrimary,
                   ),
@@ -511,11 +590,62 @@ class _MealRecommendationCard extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => ref
-                          .read(wellnessWorkspaceControllerProvider.notifier)
-                          .planMeal(DateTime.now(), recipe),
-                      icon: const Icon(Icons.bookmark_add_rounded, size: 18),
-                      label: const Text('Save'),
+                      onPressed: () async {
+                        await ref
+                            .read(wellnessWorkspaceControllerProvider.notifier)
+                            .toggleSavedMeal(recipe);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                isSaved
+                                    ? 'Removed from saved meals.'
+                                    : 'Saved meal.',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      icon: Icon(
+                        isSaved
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        size: 18,
+                      ),
+                      label: Text(isSaved ? 'Saved' : 'Save'),
+                    ),
+                  ),
+                  const SizedBox(width: QuevaaSpacing.xs),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showMealDetailSheet(
+                        context,
+                        ref,
+                        recipe,
+                        initialTab: 0,
+                      ),
+                      icon: const Icon(Icons.menu_book_rounded, size: 18),
+                      label: const Text('View Recipe'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: QuevaaSpacing.xs),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showMealDetailSheet(
+                        context,
+                        ref,
+                        recipe,
+                        initialTab: 1,
+                      ),
+                      icon: const Icon(
+                        Icons.format_list_bulleted_rounded,
+                        size: 18,
+                      ),
+                      label: const Text('Ingredients'),
                     ),
                   ),
                   const SizedBox(width: QuevaaSpacing.xs),
@@ -523,9 +653,9 @@ class _MealRecommendationCard extends ConsumerWidget {
                     child: OutlinedButton.icon(
                       onPressed: () => ref
                           .read(wellnessWorkspaceControllerProvider.notifier)
-                          .addRecipeToShoppingList(recipe),
-                      icon: const Icon(Icons.shopping_bag_rounded, size: 18),
-                      label: const Text('Ingredients'),
+                          .showAnotherMeal(recipe.mealType),
+                      icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                      label: const Text('Another'),
                     ),
                   ),
                 ],
@@ -567,6 +697,243 @@ class _MetadataChip extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _confirmPrepared(
+  BuildContext context,
+  WidgetRef ref,
+  NigerianRecipe recipe,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Mark this meal as prepared?'),
+      content: Text(
+        'Quevaa will add ${recipe.title} to your meal history for today.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Mark Prepared'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  await ref
+      .read(wellnessWorkspaceControllerProvider.notifier)
+      .markMealPrepared(recipe);
+  if (context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Meal marked as prepared.')));
+  }
+}
+
+void _showMealDetailSheet(
+  BuildContext context,
+  WidgetRef ref,
+  NigerianRecipe recipe, {
+  int initialTab = 0,
+}) {
+  var servings = recipe.servings;
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) {
+        final scale = servings / recipe.servings;
+        return DefaultTabController(
+          length: 3,
+          initialIndex: initialTab,
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                20 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.82,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppColors.terracottaContainer.withValues(
+                              alpha: 0.35,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.restaurant_menu_rounded),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                recipe.title,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                recipe.description,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _MetadataChip(label: recipe.mealType),
+                        _MetadataChip(label: '${recipe.totalMinutes} min'),
+                        _MetadataChip(label: '$servings servings'),
+                        _MetadataChip(label: recipe.targetPhase),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Why Quevaa suggested this',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(recipe.whySuggested(recipe.targetPhase)),
+                    const SizedBox(height: 12),
+                    const TabBar(
+                      tabs: [
+                        Tab(text: 'Recipe'),
+                        Tab(text: 'Ingredients'),
+                        Tab(text: 'Notes'),
+                      ],
+                    ),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          ListView(
+                            children: [
+                              const SizedBox(height: 12),
+                              for (final step in recipe.instructions)
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: CircleAvatar(
+                                    child: Text(step.stepNumber.toString()),
+                                  ),
+                                  title: Text(step.title),
+                                  subtitle: Text(
+                                    '${step.instruction}\nAbout ${step.estimatedMinutes} min',
+                                  ),
+                                ),
+                            ],
+                          ),
+                          ListView(
+                            children: [
+                              const SizedBox(height: 12),
+                              SegmentedButton<int>(
+                                segments: const [
+                                  ButtonSegment(value: 1, label: Text('1')),
+                                  ButtonSegment(value: 2, label: Text('2')),
+                                  ButtonSegment(value: 4, label: Text('4')),
+                                  ButtonSegment(value: 6, label: Text('6')),
+                                ],
+                                selected: {servings},
+                                onSelectionChanged: (value) =>
+                                    setState(() => servings = value.single),
+                              ),
+                              const SizedBox(height: 12),
+                              for (final ingredient in recipe.ingredients)
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(
+                                    Icons.check_circle_outline_rounded,
+                                  ),
+                                  title: Text(ingredient.format(scale: scale)),
+                                  subtitle: Text(ingredient.category),
+                                ),
+                              const SizedBox(height: 12),
+                              FilledButton.icon(
+                                onPressed: () async {
+                                  await ref
+                                      .read(
+                                        wellnessWorkspaceControllerProvider
+                                            .notifier,
+                                      )
+                                      .addRecipeToShoppingList(recipe);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Ingredients added to shopping list.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.shopping_bag_rounded),
+                                label: const Text(
+                                  'Add Ingredients to Shopping List',
+                                ),
+                              ),
+                            ],
+                          ),
+                          ListView(
+                            children: [
+                              const SizedBox(height: 12),
+                              Text(
+                                'Substitutions',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              for (final item in recipe.substitutions)
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(Icons.swap_horiz_rounded),
+                                  title: Text(item),
+                                ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Serving suggestions',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              for (final item in recipe.servingSuggestions)
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(
+                                    Icons.room_service_rounded,
+                                  ),
+                                  title: Text(item),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
 }
 
 class _WorkoutCard extends ConsumerWidget {
@@ -890,35 +1257,79 @@ void _showJournalSheet(
   });
 }
 
-class _MealPlanPanel extends StatelessWidget {
-  final List<MealPlan> plans;
+class _SavedMealsPanel extends ConsumerWidget {
+  final Set<String> savedIds;
 
-  const _MealPlanPanel({required this.plans});
+  const _SavedMealsPanel({required this.savedIds});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final savedRecipes = NigerianRecipeDatabase.recipes
+        .where((recipe) => savedIds.contains(recipe.id))
+        .toList(growable: false);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _panelDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Seven-day meal plan',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Saved meals', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          if (plans.isEmpty)
+          if (savedRecipes.isEmpty)
             const Text(
-              'Create a meal plan based on your preferences and schedule.',
+              'No saved meals yet. Save recipes you would like to make again.',
             )
           else
-            for (final plan in plans)
+            for (final recipe in savedRecipes)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.event_available_rounded),
-                title: Text(plan.mealType),
-                subtitle: Text(DateFormat.yMMMd().format(plan.date)),
+                leading: const Icon(Icons.favorite_rounded),
+                title: Text(recipe.title),
+                subtitle: Text(
+                  '${recipe.mealType} • ${recipe.totalMinutes} min',
+                ),
+                onTap: () => _showMealDetailSheet(context, ref, recipe),
+                trailing: IconButton(
+                  tooltip: 'Unsave',
+                  onPressed: () => ref
+                      .read(wellnessWorkspaceControllerProvider.notifier)
+                      .toggleSavedMeal(recipe),
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MealHistoryPanel extends StatelessWidget {
+  final List<MealPreparationEntry> entries;
+
+  const _MealHistoryPanel({required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    final active = entries.take(14).toList(growable: false);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _panelDecoration(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Meal history', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          if (active.isEmpty)
+            const Text('Prepared meals will appear here after you mark them.')
+          else
+            for (final entry in active)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.check_circle_rounded),
+                title: Text(_titleForMealId(entry.mealId)),
+                subtitle: Text(
+                  '${entry.mealType} • ${DateFormat.yMMMd().format(entry.date)}',
+                ),
               ),
         ],
       ),
@@ -929,7 +1340,7 @@ class _MealPlanPanel extends StatelessWidget {
 class _RecipeSearchPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    const recipes = NigerianRecipeDatabase.recipes;
+    final recipes = NigerianRecipeDatabase.recipes;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _panelDecoration(context),
@@ -951,6 +1362,15 @@ class _RecipeSearchPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+String _titleForMealId(String mealId) {
+  return NigerianRecipeDatabase.recipes
+      .firstWhere(
+        (recipe) => recipe.id == mealId,
+        orElse: () => NigerianRecipeDatabase.recipes.first,
+      )
+      .title;
 }
 
 class _PantryPanel extends ConsumerWidget {
@@ -1015,7 +1435,23 @@ class _ShoppingPanel extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Shopping list', style: Theme.of(context).textTheme.titleLarge),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Shopping list',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              if (items.any((item) => item.isPurchased))
+                TextButton(
+                  onPressed: () => ref
+                      .read(wellnessWorkspaceControllerProvider.notifier)
+                      .clearCompletedShoppingItems(),
+                  child: const Text('Clear done'),
+                ),
+            ],
+          ),
           const SizedBox(height: 8),
           if (items.isEmpty)
             const Text('Add ingredients from a meal or enter pantry needs.')
@@ -1027,10 +1463,23 @@ class _ShoppingPanel extends ConsumerWidget {
                 onChanged: (_) => ref
                     .read(wellnessWorkspaceControllerProvider.notifier)
                     .toggleShoppingItem(item),
-                title: Text(item.itemName),
+                title: Text(
+                  [
+                    item.itemName,
+                    if (item.quantity != null && item.unit != null)
+                      '${item.quantity} ${item.unit}',
+                  ].join(' — '),
+                ),
                 subtitle: item.sourceMealTitle == null
                     ? null
                     : Text('From ${item.sourceMealTitle}'),
+                secondary: IconButton(
+                  tooltip: 'Remove',
+                  onPressed: () => ref
+                      .read(wellnessWorkspaceControllerProvider.notifier)
+                      .removeShoppingItem(item),
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
               ),
         ],
       ),
@@ -1150,13 +1599,6 @@ void _showWorkoutAlternatives(BuildContext context, WidgetRef ref) {
         ),
       ),
     ),
-  );
-}
-
-NigerianRecipe _recipeForType(String mealType) {
-  return NigerianRecipeDatabase.recipes.firstWhere(
-    (recipe) => recipe.mealType == mealType,
-    orElse: () => NigerianRecipeDatabase.recipes.first,
   );
 }
 

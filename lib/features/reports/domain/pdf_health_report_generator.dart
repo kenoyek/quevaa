@@ -101,12 +101,25 @@ class PdfHealthReportGenerator {
                   ),
                 ),
                 pw.SizedBox(height: 8),
-                pw.Bullet(
-                  text:
-                      'Primary Symptoms: Cramps (Moderate), Fatigue, Headache',
-                ),
-                pw.Bullet(text: 'Average Sleep Duration: 7.5 hours / night'),
-                pw.Bullet(text: 'Average Water Intake: 7 glasses / day'),
+                if (symptomLogs.isEmpty)
+                  pw.Text(
+                    'No symptom trends logged for this window.',
+                    style: const pw.TextStyle(color: PdfColors.grey700),
+                  )
+                else
+                  ...symptomLogs.map((log) {
+                    final category =
+                        log['category'] ??
+                        log['symptom'] ??
+                        log['name'] ??
+                        'Logged Entry';
+                    final details =
+                        log['details'] ?? log['severity'] ?? log['value'] ?? '';
+                    final textStr = details.toString().isNotEmpty
+                        ? '$category: $details'
+                        : '$category';
+                    return pw.Bullet(text: textStr);
+                  }),
                 pw.SizedBox(height: 24),
 
                 // Clinical Disclaimer Footer

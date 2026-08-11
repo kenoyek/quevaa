@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 enum AppEnvironment { dev, prod }
 
 class AppConfig {
@@ -31,4 +33,15 @@ class AppConfig {
       isOfflineOnly: true,
     );
   }
+
+  /// Auto-detect environment from build mode. Call from main.dart.
+  static void initializeFromPlatform() {
+    _instance = const AppConfig(
+      environment: kReleaseMode ? AppEnvironment.prod : AppEnvironment.dev,
+      enableLogging: !kReleaseMode,
+      isOfflineOnly: true,
+    );
+  }
+
+  bool get isProduction => environment == AppEnvironment.prod;
 }

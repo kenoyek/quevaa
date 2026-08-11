@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 import '../analytics/app_logger.dart';
 import '../database/app_database.dart';
+import '../providers/database_provider.dart';
 import '../providers/user_profile_provider.dart';
 
 final appLockProvider = StateNotifierProvider<AppLockNotifier, bool>((ref) {
@@ -14,7 +15,7 @@ class AppLockNotifier extends StateNotifier<bool> with WidgetsBindingObserver {
   final Ref ref;
   final LocalAuthentication _localAuth = LocalAuthentication();
   DateTime? _pausedAt;
-  static const int inactivityThresholdSeconds = 120;
+  int _inactivityThresholdSeconds = 120;
 
   AppLockNotifier(this.ref) : super(false) {
     WidgetsBinding.instance.addObserver(this);
@@ -27,7 +28,18 @@ class AppLockNotifier extends StateNotifier<bool> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  void updateLockTimeout(int seconds) {
+    _inactivityThresholdSeconds = seconds;
+  }
+
   void _initLockState() {
+    final db = ref.read(appDatabaseProvider);
+    (db.select(db.appSettings)..limit(1)).getSingleOrNull().then((settings) {
+      if (settings != null) {
+        _inactivityThresholdSeconds = settings.autoLockInactivitySeconds;
+      }
+    });
+
     final current = ref.read(userProfileProvider).valueOrNull;
     if (current?.isBiometricEnabled ?? false) {
       state = true;
@@ -37,9 +49,7 @@ class AppLockNotifier extends StateNotifier<bool> with WidgetsBindingObserver {
       final prevEnabled = previous?.valueOrNull?.isBiometricEnabled ?? false;
       final nextEnabled = next.valueOrNull?.isBiometricEnabled ?? false;
 
-      if (previous?.valueOrNull == null && nextEnabled) {
-        state = true;
-      } else if (!prevEnabled && nextEnabled) {
+      if (nextEnabled && (!prevEnabled || previous?.valueOrNull == null)) {
         state = true;
       } else if (prevEnabled && !nextEnabled) {
         state = false;
@@ -57,7 +67,7 @@ class AppLockNotifier extends StateNotifier<bool> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.resumed) {
       if (_pausedAt != null) {
         final elapsed = DateTime.now().difference(_pausedAt!).inSeconds;
-        if (elapsed >= inactivityThresholdSeconds) {
+        if (elapsed >= _inactivityThresholdSeconds) {
           this.state = true;
           AppLogger.info('App locked due to inactivity ($elapsed seconds)');
         }

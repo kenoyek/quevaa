@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/analytics/app_logger.dart';
 import '../../application/providers/onboarding_provider.dart';
 import '../widgets/cycle_care_hero.dart';
 
@@ -46,14 +47,43 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     _nextPage();
   }
 
+  bool _isFinishing = false;
+  String? _finishError;
+
   Future<void> _finishOnboarding() async {
+    if (_isFinishing) return;
+
     final profile = ref.read(onboardingProfileProvider);
-    await ref.read(onboardingProfileProvider.notifier).completeOnboarding();
-    if (mounted) {
-      if (profile.primaryGoal == 'Try to conceive') {
-        context.go('/conception/onboarding');
-      } else {
-        context.go('/');
+
+    setState(() {
+      _isFinishing = true;
+      _finishError = null;
+    });
+
+    try {
+      await ref.read(onboardingProfileProvider.notifier).completeOnboarding();
+
+      if (!mounted) return;
+
+      final destination = profile.primaryGoal == 'Try to conceive'
+          ? '/conception/onboarding'
+          : '/';
+
+      context.go(destination);
+    } catch (error, stackTrace) {
+      AppLogger.error('QUEVAA ONBOARDING COMPLETION FAILED', error, stackTrace);
+
+      if (!mounted) return;
+
+      setState(() {
+        _finishError =
+            "We couldn't finish setting up Quevaa. Please try again.";
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFinishing = false;
+        });
       }
     }
   }
@@ -907,23 +937,62 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 48),
+          if (_finishError != null) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Text(
+                _finishError!,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.terracottaDark,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
           ElevatedButton(
-            onPressed: _finishOnboarding,
+            onPressed: _isFinishing ? null : _finishOnboarding,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.terracottaPrimary,
+              disabledBackgroundColor: AppColors.terracottaPrimary.withValues(
+                alpha: 0.6,
+              ),
               minimumSize: const Size(double.infinity, 54),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: const Text(
-              'Enter Quevaa',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: _isFinishing
+                ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'Preparing Quevaa...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    _finishError != null ? 'Try Again' : 'Enter Quevaa',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           ),
         ],
       ),

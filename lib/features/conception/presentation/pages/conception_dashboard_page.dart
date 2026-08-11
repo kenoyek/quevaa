@@ -9,6 +9,7 @@ import '../../../../core/models/prediction_confidence.dart';
 import '../../application/conception_controller.dart';
 import '../../application/fertility_dashboard_provider.dart';
 import '../../domain/entities/fertility_assessment.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 import '../widgets/conception_widgets.dart';
 
 class ConceptionDashboardPage extends ConsumerWidget {
@@ -26,10 +27,8 @@ class ConceptionDashboardPage extends ConsumerWidget {
       title: 'Today',
       subtitle:
           'Conception dashboard for fertility observations, care planning and calm next steps.',
-      trailing: IconButton(
-        tooltip: 'Notifications',
-        onPressed: () => context.go('/notifications/settings'),
-        icon: const Icon(Icons.notifications_none_rounded),
+      trailing: NotificationBellButton(
+        onPressed: () => context.push('/notifications'),
       ),
       children: [
         _HeroAssessmentCard(
@@ -102,7 +101,7 @@ class ConceptionDashboardPage extends ConsumerWidget {
             children: [
               SectionTitle(
                 title: 'Daily checklist',
-                actionLabel: state.profile.gentleModeEnabled
+                actionLabel: (state.profile?.gentleModeEnabled ?? false)
                     ? 'Gentle mode on'
                     : 'Gentle mode',
                 onAction: controller.pausePredictionsForCycle,
@@ -125,7 +124,7 @@ class ConceptionDashboardPage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Trying for ${state.profile.tryingCycleCount} cycles',
+                'Trying for ${state.profile?.tryingCycleCount ?? 1} cycles',
                 style: theme.textTheme.headlineMedium?.copyWith(
                   color: isDark ? AppColors.sageLight : AppColors.sageDark,
                 ),

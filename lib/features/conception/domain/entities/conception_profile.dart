@@ -45,26 +45,6 @@ class ConceptionProfile {
     this.previousPregnancyContext,
   });
 
-  factory ConceptionProfile.defaultSample() {
-    final today = DateTime.now();
-    final currentPeriod = DateTime(
-      today.year,
-      today.month,
-      today.day,
-    ).subtract(const Duration(days: 12));
-
-    return ConceptionProfile(
-      status: ConceptionGoalStatus.paused,
-      tryingStartDate: DateTime(today.year, today.month - 2, today.day),
-      lastPeriodStartDate: currentPeriod,
-      previousPeriodStartDates: [
-        currentPeriod.subtract(const Duration(days: 29)),
-        currentPeriod.subtract(const Duration(days: 57)),
-        currentPeriod.subtract(const Duration(days: 86)),
-      ],
-    );
-  }
-
   int get tryingCycleCount {
     final days = DateTime.now().difference(tryingStartDate).inDays;
     return (days / typicalCycleLength).clamp(1, 999).ceil();

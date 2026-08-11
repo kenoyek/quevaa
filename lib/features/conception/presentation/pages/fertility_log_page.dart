@@ -164,7 +164,7 @@ class _FertilityLogPageState extends ConsumerState<FertilityLogPage> {
             ],
           ),
         ),
-        if (profile.logsIntimacy)
+        if (profile?.logsIntimacy ?? false)
           PremiumCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

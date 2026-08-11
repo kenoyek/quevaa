@@ -13,18 +13,45 @@ class AppLockWrapper extends ConsumerStatefulWidget {
   ConsumerState<AppLockWrapper> createState() => _AppLockWrapperState();
 }
 
-class _AppLockWrapperState extends ConsumerState<AppLockWrapper> {
+class _AppLockWrapperState extends ConsumerState<AppLockWrapper>
+    with WidgetsBindingObserver {
   bool _isAuthenticating = false;
   String? _errorMessage;
+  bool _showPrivacyOverlay = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (ref.read(appLockProvider)) {
         _triggerUnlock();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      if (!_showPrivacyOverlay) {
+        setState(() {
+          _showPrivacyOverlay = true;
+        });
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (_showPrivacyOverlay) {
+        setState(() {
+          _showPrivacyOverlay = false;
+        });
+      }
+    }
   }
 
   Future<void> _triggerUnlock() async {
@@ -142,6 +169,19 @@ class _AppLockWrapperState extends ConsumerState<AppLockWrapper> {
                       ),
                     ],
                   ),
+                ),
+              ),
+            ),
+          ),
+        if (_showPrivacyOverlay)
+          Positioned.fill(
+            child: Container(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              child: Center(
+                child: Image.asset(
+                  'assets/branding/quevaa_mark.png',
+                  width: 120,
+                  height: 120,
                 ),
               ),
             ),

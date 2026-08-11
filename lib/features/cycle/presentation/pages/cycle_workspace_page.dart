@@ -190,7 +190,9 @@ class _CycleHeader extends StatelessWidget {
           Text('Cycle Day $cycleDay', style: theme.textTheme.headlineMedium),
           const SizedBox(height: 4),
           Text(
-            'Estimated ${phase.toLowerCase()} phase',
+            phase.toLowerCase().contains('phase')
+                ? 'Estimated ${phase.toLowerCase()}'
+                : 'Estimated ${phase.toLowerCase()} phase',
             style: theme.textTheme.bodyLarge,
           ),
           const SizedBox(height: 4),

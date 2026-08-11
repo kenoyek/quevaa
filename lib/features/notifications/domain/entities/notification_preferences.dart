@@ -69,6 +69,7 @@ class QuevaaNotificationPreferences {
         'dinner': 19 * 60,
         'hydrationMorning': 10 * 60,
         'hydrationAfternoon': 15 * 60,
+        'dailyProductivity': 8 * 60 + 30,
         'journal': 20 * 60,
         'weeklyReview': 17 * 60,
       },

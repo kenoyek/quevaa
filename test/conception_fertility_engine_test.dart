@@ -14,16 +14,16 @@ void main() {
       final controller = ConceptionController();
       final initialObservations = controller.state.observations;
 
-      expect(controller.state.profile.status, ConceptionGoalStatus.paused);
+      expect(controller.state.profile?.status, ConceptionGoalStatus.paused);
 
       controller.enterConceptionMode();
       expect(
-        controller.state.profile.status,
+        controller.state.profile?.status,
         ConceptionGoalStatus.tryingToConceive,
       );
 
       controller.leaveConceptionMode();
-      expect(controller.state.profile.status, ConceptionGoalStatus.paused);
+      expect(controller.state.profile?.status, ConceptionGoalStatus.paused);
       expect(controller.state.observations, initialObservations);
     });
   });

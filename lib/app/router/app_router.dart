@@ -11,6 +11,7 @@ import '../../features/conception/presentation/pages/fertility_log_page.dart';
 import '../../features/conception/presentation/pages/pregnancy_transition_page.dart';
 import '../../features/cycle/presentation/pages/cycle_workspace_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
+import '../../features/notifications/presentation/notification_center_page.dart';
 import '../../features/notifications/presentation/notification_settings_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/productivity/presentation/pages/plan_workspace_page.dart';
@@ -28,30 +29,159 @@ final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'shell',
 );
 
+class RouterRefreshNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  RouterRefreshNotifier(this._ref) {
+    _ref.listen<AsyncValue<UserProfile?>>(userProfileProvider, (
+      previous,
+      next,
+    ) {
+      notifyListeners();
+    });
+  }
+}
+
+final routerRefreshNotifierProvider = Provider<RouterRefreshNotifier>((ref) {
+  return RouterRefreshNotifier(ref);
+});
+
+class StartupErrorPage extends ConsumerWidget {
+  final Object error;
+
+  const StartupErrorPage({super.key, required this.error});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.bgWarmDark : AppColors.bgWarmCream,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.terracottaPrimary,
+                size: 64,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Quevaa Database Error',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Quevaa encountered an issue opening your local data safely.\nYour data is preserved on your device.',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  error.toString(),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontFamily: 'monospace',
+                    color: AppColors.terracottaDark,
+                  ),
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(height: 36),
+              ElevatedButton(
+                onPressed: () {
+                  ref.invalidate(userProfileProvider);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.terracottaPrimary,
+                  minimumSize: const Size(double.infinity, 54),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  'Retry Loading Quevaa',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final userProfile = ref.watch(userProfileProvider);
+  final refreshNotifier = ref.watch(routerRefreshNotifierProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
-      final profile = userProfile.valueOrNull;
-      final onboardingLocation = state.matchedLocation == '/onboarding';
+      final userProfileState = ref.read(userProfileProvider);
+
+      final isOnboardingRoute =
+          state.matchedLocation == '/onboarding' ||
+          state.matchedLocation == '/conception/onboarding';
+      final isErrorRoute = state.matchedLocation == '/startup-error';
+
+      if (userProfileState.isLoading && !userProfileState.hasValue) {
+        return null;
+      }
+
+      if (userProfileState.hasError) {
+        if (!isErrorRoute) {
+          return '/startup-error';
+        }
+        return null;
+      }
+
+      final profile = userProfileState.valueOrNull;
 
       if (profile == null) {
-        // If profile doesn't exist and we aren't already going to onboarding, go there.
-        if (!onboardingLocation) {
+        if (!isOnboardingRoute) {
           return '/onboarding';
         }
       } else {
-        // If profile exists and we are trying to go to onboarding, redirect to home.
-        if (onboardingLocation) {
+        if (state.matchedLocation == '/onboarding' || isErrorRoute) {
+          if (profile.primaryGoal == 'Try to conceive') {
+            return '/conception/onboarding';
+          }
           return '/';
         }
       }
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/startup-error',
+        builder: (context, state) {
+          final err =
+              ref.read(userProfileProvider).error ?? 'Unknown Database Error';
+          return StartupErrorPage(error: err);
+        },
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingPage(),
@@ -63,6 +193,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/conception/log',
         builder: (context, state) => const FertilityLogPage(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationCenterPage(),
       ),
       GoRoute(
         path: '/notifications/settings',
@@ -88,7 +222,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/wellness',
-            builder: (context, state) => const _ModeAwareWellnessPage(),
+            builder: (context, state) => _ModeAwareWellnessPage(
+              initialSection: state.uri.queryParameters['section'],
+            ),
           ),
           GoRoute(
             path: '/me',
@@ -141,14 +277,16 @@ class _ModeAwarePlanPage extends ConsumerWidget {
 }
 
 class _ModeAwareWellnessPage extends ConsumerWidget {
-  const _ModeAwareWellnessPage();
+  final String? initialSection;
+
+  const _ModeAwareWellnessPage({this.initialSection});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final conceptionModeActive = ref.watch(conceptionModeActiveProvider);
     return conceptionModeActive
-        ? const WellnessWorkspacePage()
-        : const WellnessWorkspacePage();
+        ? WellnessWorkspacePage(initialSection: initialSection)
+        : WellnessWorkspacePage(initialSection: initialSection);
   }
 }
 
@@ -748,17 +886,27 @@ class MainNavigationShell extends ConsumerWidget {
 
     return Scaffold(
       body: child,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: FloatingActionButton(
-          onPressed: () =>
-              _showQuickActionBottomSheet(context, conceptionModeActive),
-          backgroundColor: AppColors.terracottaPrimary,
-          elevation: 4,
-          shape: const CircleBorder(),
-          child: const Icon(Icons.add_rounded, size: 32, color: Colors.white),
-        ),
-      ),
+      floatingActionButton:
+          selectedIndex == 0 ||
+              selectedIndex == 1 ||
+              selectedIndex == 2 ||
+              selectedIndex == 3
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: FloatingActionButton(
+                onPressed: () =>
+                    _showQuickActionBottomSheet(context, conceptionModeActive),
+                backgroundColor: AppColors.terracottaPrimary,
+                elevation: 4,
+                shape: const CircleBorder(),
+                child: const Icon(
+                  Icons.add_rounded,
+                  size: 32,
+                  color: Colors.white,
+                ),
+              ),
+            ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -1053,11 +1201,7 @@ class _EditProfileBottomSheetState
       db.userProfiles,
     )..where((tbl) => tbl.id.equals(widget.profile.id))).write(
       UserProfilesCompanion(
-        userName: Value(
-          _nameController.text.trim().isEmpty
-              ? 'Adaora'
-              : _nameController.text.trim(),
-        ),
+        userName: Value(_nameController.text.trim()),
         age: Value(ageParsed),
         averagePeriodLength: Value(_periodLength),
         averageCycleLength: Value(_cycleLength),

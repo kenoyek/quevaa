@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../../../core/models/prediction_confidence.dart';
 import 'models/cycle_engine_output.dart';
 import 'models/date_range.dart';
@@ -93,7 +95,9 @@ class CycleEngine {
           )
         : userConfiguredPeriodLength.toDouble();
 
-    final double variability = _calculateVariability(cycleLengths);
+    final double variability = _calculateCycleLengthStandardDeviation(
+      cycleLengths,
+    );
 
     // 3. Determine Confidence Level
     final PredictionConfidence confidence = _determineConfidence(
@@ -239,14 +243,14 @@ class CycleEngine {
     }
   }
 
-  static double _calculateVariability(List<int> lengths) {
+  static double _calculateCycleLengthStandardDeviation(List<int> lengths) {
     if (lengths.length < 2) return 0.0;
     final double mean = lengths.reduce((a, b) => a + b) / lengths.length;
     double sumOfSquares = 0.0;
     for (final l in lengths) {
       sumOfSquares += (l - mean) * (l - mean);
     }
-    return (sumOfSquares / lengths.length);
+    return math.sqrt(sumOfSquares / lengths.length);
   }
 
   static PredictionConfidence _determineConfidence({
@@ -255,7 +259,8 @@ class CycleEngine {
     required CycleMode mode,
   }) {
     if (mode == CycleMode.irregular ||
-        mode == CycleMode.hormonalContraception) {
+        mode == CycleMode.hormonalContraception ||
+        variability >= 4.5) {
       return PredictionConfidence.low;
     }
     if (usableCycleCount >= 6 && variability < 4.0) {

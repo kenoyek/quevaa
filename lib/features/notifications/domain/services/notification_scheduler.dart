@@ -133,6 +133,7 @@ class NotificationScheduler {
     }
     await repository.markSchedulesCancelled(obsoleteIds);
     await repository.upsertScheduleStates(desired);
+    await repository.upsertInboxEntries(desired);
     await repository.persistReconciliation(DateTime.now(), timezoneName);
 
     return NotificationReconciliationResult(

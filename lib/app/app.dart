@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,7 @@ import 'theme/quevaa_theme_mode.dart';
 import 'startup/app_startup_provider.dart';
 import '../core/notifications/notification_routing_provider.dart';
 import '../core/security/widgets/app_lock_wrapper.dart';
+import '../features/notifications/application/notification_preferences_provider.dart';
 
 class QuevaaApp extends ConsumerWidget {
   const QuevaaApp({super.key});
@@ -44,6 +47,14 @@ class QuevaaApp extends ConsumerWidget {
     // Listen for notification taps
     ref.listen(notificationRoutingProvider, (previous, next) {
       if (next != null) {
+        final notificationId = next.notificationId;
+        if (notificationId != null) {
+          unawaited(
+            ref
+                .read(notificationRepositoryProvider)
+                .markInboxEntryRead(notificationId),
+          );
+        }
         router.go(next.route);
         ref.read(notificationRoutingProvider.notifier).consume();
       }

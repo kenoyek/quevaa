@@ -120,7 +120,7 @@ class WaitingPhasePage extends ConsumerWidget {
               ),
               _ControlButton(
                 label: 'Reduce reminders',
-                onPressed: () => context.go('/notifications/settings'),
+                onPressed: () => context.push('/notifications/settings'),
               ),
               _ControlButton(
                 label: 'Remove intimacy scheduling',

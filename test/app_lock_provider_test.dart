@@ -4,17 +4,25 @@ import 'package:quevaa/core/security/app_lock_provider.dart';
 import 'package:quevaa/core/providers/user_profile_provider.dart';
 import 'package:quevaa/core/database/app_database.dart';
 
+import 'package:drift/native.dart';
+import 'package:quevaa/core/providers/database_provider.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AppLockNotifier Unit Tests', () {
     test('AppLockNotifier initializes unlocked when profile is null', () {
+      final inMemoryDb = AppDatabase(NativeDatabase.memory());
       final container = ProviderContainer(
         overrides: [
+          appDatabaseProvider.overrideWithValue(inMemoryDb),
           userProfileProvider.overrideWith((ref) => Stream.value(null)),
         ],
       );
-      addTearDown(container.dispose);
+      addTearDown(() {
+        container.dispose();
+        inMemoryDb.close();
+      });
 
       final isLocked = container.read(appLockProvider);
       expect(isLocked, false);
@@ -38,14 +46,19 @@ void main() {
           source: 'manual',
         );
 
+        final inMemoryDb = AppDatabase(NativeDatabase.memory());
         final container = ProviderContainer(
           overrides: [
+            appDatabaseProvider.overrideWithValue(inMemoryDb),
             userProfileProvider.overrideWith(
               (ref) => Stream.value(mockProfile),
             ),
           ],
         );
-        addTearDown(container.dispose);
+        addTearDown(() {
+          container.dispose();
+          inMemoryDb.close();
+        });
 
         // Trigger provider initialization
         container.read(appLockProvider);

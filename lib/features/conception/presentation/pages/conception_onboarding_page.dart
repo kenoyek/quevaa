@@ -69,7 +69,9 @@ class _ConceptionOnboardingPageState
         ),
         _SensitiveQuestionCard(
           title: 'When did you start trying?',
-          currentValue: dateFormat.format(profile.tryingStartDate),
+          currentValue: profile != null
+              ? dateFormat.format(profile.tryingStartDate)
+              : 'Not set',
           why:
               'Quevaa uses this to show a private Trying Duration counter and prepare doctor-ready summaries.',
           use:
@@ -77,7 +79,9 @@ class _ConceptionOnboardingPageState
         ),
         _SensitiveQuestionCard(
           title: 'First day of your most recent period',
-          currentValue: dateFormat.format(profile.lastPeriodStartDate),
+          currentValue: profile != null
+              ? dateFormat.format(profile.lastPeriodStartDate)
+              : 'Not set',
           why:
               'This anchors the first estimated ovulation range and expected period range.',
           use:
@@ -85,7 +89,8 @@ class _ConceptionOnboardingPageState
         ),
         _SensitiveQuestionCard(
           title: 'Previous cycle dates',
-          currentValue: '${profile.previousPeriodStartDates.length} saved',
+          currentValue:
+              '${profile?.previousPeriodStartDates.length ?? 0} saved',
           why:
               'At least three cycles can improve confidence when cycle lengths are consistent.',
           use:
@@ -188,7 +193,14 @@ class _ConceptionOnboardingPageState
         ),
         ElevatedButton.icon(
           onPressed: () {
-            final updated = profile.copyWith(
+            final baseProfile =
+                profile ??
+                ConceptionProfile(
+                  status: ConceptionGoalStatus.tryingToConceive,
+                  tryingStartDate: DateTime.now(),
+                  lastPeriodStartDate: DateTime.now(),
+                );
+            final updated = baseProfile.copyWith(
               status: ConceptionGoalStatus.tryingToConceive,
               cyclesUsuallyRegular: _cyclesRegular,
               usesOvulationTests: _usesOvulationTests,

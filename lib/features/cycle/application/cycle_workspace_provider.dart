@@ -8,6 +8,7 @@ import '../../../core/providers/database_provider.dart';
 import '../../../core/providers/user_profile_provider.dart';
 import '../../conception/application/conception_settings_provider.dart';
 import '../../notifications/application/notification_preferences_provider.dart';
+import '../../notifications/application/notification_snapshot_provider.dart';
 import '../../notifications/domain/services/notification_scheduler.dart';
 import '../domain/cycle_engine.dart';
 import '../domain/models/current_cycle_snapshot.dart';
@@ -51,7 +52,8 @@ final currentCycleSnapshotProvider = Provider<CurrentCycleSnapshot>((ref) {
   final history = ref.watch(periodHistoryProvider).valueOrNull ?? const [];
   final today = ref.watch(localTodayProvider);
   final userProfile = ref.watch(userProfileProvider).valueOrNull;
-  final isTtcEnabled = ref.watch(conceptionModeActiveProvider);
+  final isTtcEnabled =
+      ref.watch(persistedConceptionModeActiveProvider).valueOrNull ?? false;
 
   final activePeriod = history
       .where((p) => p.isOngoing || p.endDate == null)
@@ -98,7 +100,8 @@ final selectedDayCycleSnapshotProvider = Provider<CurrentCycleSnapshot>((ref) {
   final history = ref.watch(periodHistoryProvider).valueOrNull ?? const [];
   final selectedDate = ref.watch(selectedCycleDateProvider);
   final userProfile = ref.watch(userProfileProvider).valueOrNull;
-  final isTtcEnabled = ref.watch(conceptionModeActiveProvider);
+  final isTtcEnabled =
+      ref.watch(persistedConceptionModeActiveProvider).valueOrNull ?? false;
 
   final output = CycleEngine.calculate(
     periodHistory: [
@@ -218,6 +221,7 @@ class CycleWorkspaceController extends Notifier<bool> {
     required int energy,
     required int stress,
     required int sleepQuality,
+    double? sleepHours,
     required int water,
     required List<String> symptoms,
     String? notes,
@@ -243,6 +247,7 @@ class CycleWorkspaceController extends Notifier<bool> {
         energyLevel: Value(energy),
         stressLevel: Value(stress),
         sleepQuality: Value(sleepQuality),
+        sleepHours: Value(sleepHours),
         waterGlasses: Value(water),
         customSymptomsJson: Value(jsonEncode(symptoms)),
         generalNotes: Value(notes),
@@ -284,12 +289,57 @@ class CycleWorkspaceController extends Notifier<bool> {
               ),
             );
       }
-      // Reconcile notifications after logging data
-      await ref
-          .read(notificationSchedulerProvider)
-          .reconcileNotifications(
-            NotificationReconciliationReason.cycleDataChanged,
-          );
+      // Auto-start a period if flow is significant and no period is ongoing
+      final flowIsSignificant =
+          flow == 'Light' ||
+          flow == 'Medium' ||
+          flow == 'Heavy' ||
+          flow == 'Very Heavy';
+      if (flowIsSignificant) {
+        final ongoingPeriod =
+            await (_db.select(_db.cyclePeriods)
+                  ..where(
+                    (tbl) =>
+                        tbl.deletedAt.isNull() & tbl.isOngoing.equals(true),
+                  )
+                  ..limit(1))
+                .getSingleOrNull();
+        final periodForDate =
+            await (_db.select(_db.cyclePeriods)
+                  ..where(
+                    (tbl) =>
+                        tbl.deletedAt.isNull() &
+                        tbl.startDate.isSmallerOrEqualValue(normalized) &
+                        (tbl.endDate.isNull() |
+                            tbl.endDate.isBiggerOrEqualValue(normalized)),
+                  )
+                  ..limit(1))
+                .getSingleOrNull();
+        if (ongoingPeriod == null && periodForDate == null) {
+          await _db
+              .into(_db.cyclePeriods)
+              .insert(
+                CyclePeriodsCompanion.insert(
+                  uuid: localUuid('period'),
+                  createdAt: now,
+                  updatedAt: now,
+                  startDate: normalized,
+                  isOngoing: const Value(true),
+                  flowIntensity: Value(
+                    flow == 'Heavy'
+                        ? 4
+                        : flow == 'Very Heavy'
+                        ? 4
+                        : 3,
+                  ),
+                ),
+              );
+        }
+      }
+
+      await _reconcileNotifications(
+        NotificationReconciliationReason.cycleDataChanged,
+      );
     } finally {
       state = false;
     }
@@ -302,45 +352,100 @@ class CycleWorkspaceController extends Notifier<bool> {
       final now = DateTime.now();
       final normalized = normalizeDate(date);
 
-      // Close any existing ongoing periods first
-      final ongoing =
-          await (_db.select(_db.cyclePeriods)
-                ..where(
-                  (tbl) => tbl.deletedAt.isNull() & tbl.isOngoing.equals(true),
-                )
-                ..get())
-              .get();
+      await _db.transaction(() async {
+        final existingSameStart =
+            await (_db.select(_db.cyclePeriods)
+                  ..where(
+                    (tbl) =>
+                        tbl.deletedAt.isNull() &
+                        tbl.startDate.equals(normalized),
+                  )
+                  ..limit(1))
+                .getSingleOrNull();
 
-      for (final period in ongoing) {
-        await (_db.update(
-          _db.cyclePeriods,
-        )..where((tbl) => tbl.id.equals(period.id))).write(
-          CyclePeriodsCompanion(
-            isOngoing: const Value(false),
-            endDate: Value(normalized.subtract(const Duration(days: 1))),
-            updatedAt: Value(now),
-          ),
-        );
-      }
-
-      await _db
-          .into(_db.cyclePeriods)
-          .insert(
-            CyclePeriodsCompanion.insert(
-              uuid: localUuid('period'),
-              createdAt: now,
-              updatedAt: now,
-              startDate: normalized,
+        if (existingSameStart != null) {
+          await (_db.update(
+            _db.cyclePeriods,
+          )..where((tbl) => tbl.id.equals(existingSameStart.id))).write(
+            CyclePeriodsCompanion(
+              endDate: const Value(null),
               isOngoing: const Value(true),
               flowIntensity: const Value(3),
+              updatedAt: Value(now),
             ),
           );
-      // Reconcile notifications after starting a period
-      await ref
-          .read(notificationSchedulerProvider)
-          .reconcileNotifications(
-            NotificationReconciliationReason.cycleDataChanged,
+        } else {
+          final ongoing =
+              await (_db.select(_db.cyclePeriods)..where(
+                    (tbl) =>
+                        tbl.deletedAt.isNull() & tbl.isOngoing.equals(true),
+                  ))
+                  .get();
+
+          for (final period in ongoing) {
+            final endDate = normalized.isAfter(period.startDate)
+                ? normalized.subtract(const Duration(days: 1))
+                : period.startDate;
+            await (_db.update(
+              _db.cyclePeriods,
+            )..where((tbl) => tbl.id.equals(period.id))).write(
+              CyclePeriodsCompanion(
+                isOngoing: const Value(false),
+                endDate: Value(endDate),
+                updatedAt: Value(now),
+              ),
+            );
+          }
+
+          await _db
+              .into(_db.cyclePeriods)
+              .insert(
+                CyclePeriodsCompanion.insert(
+                  uuid: localUuid('period'),
+                  createdAt: now,
+                  updatedAt: now,
+                  startDate: normalized,
+                  isOngoing: const Value(true),
+                  flowIntensity: const Value(3),
+                ),
+              );
+        }
+
+        final existingLog =
+            await (_db.select(_db.dailyLogs)
+                  ..where(
+                    (tbl) =>
+                        tbl.deletedAt.isNull() & tbl.date.equals(normalized),
+                  )
+                  ..limit(1))
+                .getSingleOrNull();
+        if (existingLog == null) {
+          await _db
+              .into(_db.dailyLogs)
+              .insert(
+                DailyLogsCompanion.insert(
+                  uuid: localUuid('log'),
+                  createdAt: now,
+                  updatedAt: now,
+                  date: normalized,
+                  flow: const Value('Medium'),
+                ),
+              );
+        } else if (existingLog.flow == 'None') {
+          await (_db.update(
+            _db.dailyLogs,
+          )..where((tbl) => tbl.id.equals(existingLog.id))).write(
+            DailyLogsCompanion(
+              flow: const Value('Medium'),
+              updatedAt: Value(now),
+            ),
           );
+        }
+      });
+
+      await _reconcileNotifications(
+        NotificationReconciliationReason.cycleDataChanged,
+      );
     } finally {
       state = false;
     }
@@ -359,21 +464,22 @@ class CycleWorkspaceController extends Notifier<bool> {
                 ..limit(1))
               .getSingleOrNull();
       if (latest == null) return;
+      final normalized = normalizeDate(date);
+      final endDate = normalized.isBefore(latest.startDate)
+          ? latest.startDate
+          : normalized;
       await (_db.update(
         _db.cyclePeriods,
       )..where((tbl) => tbl.id.equals(latest.id))).write(
         CyclePeriodsCompanion(
-          endDate: Value(normalizeDate(date)),
+          endDate: Value(endDate),
           isOngoing: const Value(false),
           updatedAt: Value(DateTime.now()),
         ),
       );
-      // Reconcile notifications after ending a period
-      await ref
-          .read(notificationSchedulerProvider)
-          .reconcileNotifications(
-            NotificationReconciliationReason.cycleDataChanged,
-          );
+      await _reconcileNotifications(
+        NotificationReconciliationReason.cycleDataChanged,
+      );
     } finally {
       state = false;
     }
@@ -385,5 +491,17 @@ class CycleWorkspaceController extends Notifier<bool> {
           _db.dailyLogs,
         )..where((tbl) => tbl.deletedAt.isNull() & tbl.date.equals(normalized)))
         .write(DailyLogsCompanion(deletedAt: Value(DateTime.now())));
+  }
+
+  Future<void> _reconcileNotifications(
+    NotificationReconciliationReason reason,
+  ) async {
+    final snapshot = await buildNotificationSourceSnapshotFromDatabase(
+      _db,
+      today: ref.read(localTodayProvider),
+    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(reason, snapshot: snapshot);
   }
 }

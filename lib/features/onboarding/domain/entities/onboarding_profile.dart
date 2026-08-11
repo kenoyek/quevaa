@@ -50,7 +50,7 @@ class OnboardingProfile {
     this.lowImpactOnly = false,
     this.enableBiometrics = false,
     this.enableDiscreetNotifications = true,
-    this.userName = 'Adaora',
+    this.userName = '',
     this.age,
   });
 

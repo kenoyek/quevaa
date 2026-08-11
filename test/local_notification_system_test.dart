@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/native.dart';
+import 'package:quevaa/core/database/app_database.dart';
+import 'package:quevaa/core/notifications/notification_destination_resolver.dart';
 import 'package:quevaa/core/notifications/notification_constants.dart';
 import 'package:quevaa/core/notifications/notification_id.dart';
 import 'package:quevaa/core/notifications/notification_payload.dart';
+import 'package:quevaa/features/notifications/data/notification_repository_impl.dart';
 import 'package:quevaa/features/notifications/domain/entities/notification_preferences.dart';
 import 'package:quevaa/features/notifications/domain/entities/notification_schedule.dart';
 import 'package:quevaa/features/notifications/domain/entities/quevaa_notification.dart';
@@ -237,15 +241,16 @@ void main() {
   });
 
   group('Notification payload', () {
-    test('rejects malformed payloads and unsupported routes', () {
-      expect(QuevaaNotificationPayload.tryParse('not-json'), isNull);
-      expect(
-        QuevaaNotificationPayload.tryParse(
+    test(
+      'rejects malformed payloads and resolves unsupported routes safely',
+      () {
+        expect(QuevaaNotificationPayload.tryParse('not-json'), isNull);
+        final parsed = QuevaaNotificationPayload.tryParse(
           '{"version":1,"type":"hydration","route":"https://example.com"}',
-        ),
-        isNull,
-      );
-    });
+        );
+        expect(parsed?.route, QuevaaNotificationType.hydration.defaultRoute);
+      },
+    );
 
     test('parses valid privacy-safe typed payload', () {
       final payload = QuevaaNotificationPayload.forSchedule(
@@ -259,6 +264,178 @@ void main() {
       expect(parsed?.type, QuevaaNotificationType.hydration);
       expect(parsed?.route, '/wellness');
       expect(parsed?.entityId, 'hydration-am');
+    });
+
+    test('allows meal notification payloads to open the Meals tab', () {
+      final payload = QuevaaNotificationPayload.forSchedule(
+        type: QuevaaNotificationType.breakfast,
+        route: QuevaaNotificationType.breakfast.defaultRoute,
+        entityId: 'meal-breakfast-2026-08-14',
+      ).encode();
+
+      final parsed = QuevaaNotificationPayload.tryParse(payload);
+
+      expect(parsed?.route, '/wellness?section=Meals');
+      expect(parsed?.type, QuevaaNotificationType.breakfast);
+    });
+
+    test('resolves core notification destinations safely', () {
+      expect(
+        NotificationDestinationResolver.resolve(
+          type: QuevaaNotificationType.periodExpected,
+          route: '/cycle',
+        ),
+        '/cycle',
+      );
+      expect(
+        NotificationDestinationResolver.resolve(
+          type: QuevaaNotificationType.breakfast,
+          route: '/wellness?section=Meals',
+        ),
+        '/wellness?section=Meals',
+      );
+      expect(
+        NotificationDestinationResolver.resolve(
+          type: QuevaaNotificationType.workout,
+          route: '/wellness',
+        ),
+        '/wellness',
+      );
+      expect(
+        NotificationDestinationResolver.resolve(
+          type: QuevaaNotificationType.productivityGuidance,
+          route: '/plan',
+        ),
+        '/plan',
+      );
+      expect(
+        NotificationDestinationResolver.resolve(
+          type: QuevaaNotificationType.ovulationTest,
+          route: '/conception/log',
+        ),
+        '/conception/log',
+      );
+      expect(
+        NotificationDestinationResolver.resolve(
+          type: QuevaaNotificationType.hydration,
+          route: '/not-a-route',
+        ),
+        '/wellness?section=Meals',
+      );
+    });
+  });
+
+  group('Notification inbox repository', () {
+    late AppDatabase database;
+    late NotificationRepositoryImpl repository;
+
+    setUp(() {
+      database = AppDatabase(NativeDatabase.memory());
+      repository = NotificationRepositoryImpl(database);
+    });
+
+    tearDown(() async {
+      await database.close();
+    });
+
+    test('reports zero unread for an empty inbox', () async {
+      expect(await repository.unreadCount(), 0);
+      expect(await repository.watchUnreadCount().first, 0);
+    });
+
+    test('reports one unread and marks the item read', () async {
+      final schedule = _schedule(
+        lagos,
+        QuevaaNotificationType.hydration,
+        DateTime.now().subtract(const Duration(minutes: 5)),
+      );
+
+      await repository.upsertInboxEntries([schedule]);
+
+      expect(await repository.unreadCount(), 1);
+
+      await repository.markInboxEntryRead(schedule.id);
+      final items = await repository.watchInbox().first;
+
+      expect(await repository.unreadCount(), 0);
+      expect(items.single.readAt, isNotNull);
+    });
+
+    test('reports twelve unread and supports mark all read', () async {
+      final schedules = [
+        for (var i = 0; i < 12; i++)
+          _schedule(
+            lagos,
+            QuevaaNotificationType.hydration,
+            DateTime.now().subtract(Duration(minutes: i + 1)),
+            idSuffix: 'count-$i',
+          ),
+      ];
+
+      await repository.upsertInboxEntries(schedules);
+
+      expect(await repository.unreadCount(), 12);
+
+      await repository.markAllInboxRead();
+
+      expect(await repository.unreadCount(), 0);
+    });
+
+    test('supports badge cap inputs over ninety-nine unread', () async {
+      final schedules = [
+        for (var i = 0; i < 105; i++)
+          _schedule(
+            lagos,
+            QuevaaNotificationType.hydration,
+            DateTime.now().subtract(Duration(minutes: i + 1)),
+            idSuffix: 'bulk-$i',
+          ),
+      ];
+
+      await repository.upsertInboxEntries(schedules);
+
+      expect(await repository.unreadCount(), 105);
+    });
+
+    test('deduplicates the same logical inbox notification', () async {
+      final schedule = _schedule(
+        lagos,
+        QuevaaNotificationType.productivityGuidance,
+        DateTime.now().subtract(const Duration(minutes: 5)),
+      );
+
+      await repository.upsertInboxEntries([schedule]);
+      await repository.upsertInboxEntries([schedule]);
+
+      expect(await repository.unreadCount(), 1);
+      expect((await repository.watchInbox().first).length, 1);
+    });
+
+    test('persists explicit and discreet privacy mode changes', () async {
+      final explicit = QuevaaNotificationPreferences.defaults().copyWith(
+        privacyMode: QuevaaNotificationPrivacyMode.explicit,
+      );
+      await repository.savePreferences(explicit);
+      expect(
+        (await repository.loadPreferences()).privacyMode,
+        QuevaaNotificationPrivacyMode.explicit,
+      );
+
+      await repository.savePreferences(
+        explicit.copyWith(privacyMode: QuevaaNotificationPrivacyMode.discreet),
+      );
+      expect(
+        (await repository.loadPreferences()).privacyMode,
+        QuevaaNotificationPrivacyMode.discreet,
+      );
+
+      await repository.savePreferences(
+        explicit.copyWith(privacyMode: QuevaaNotificationPrivacyMode.explicit),
+      );
+      expect(
+        (await repository.loadPreferences()).privacyMode,
+        QuevaaNotificationPrivacyMode.explicit,
+      );
     });
   });
 }

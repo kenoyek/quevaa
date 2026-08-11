@@ -10,7 +10,17 @@ class QuevaaNotificationTimezoneService {
   String _lastKnownTimezone = QuevaaNotificationConstants.fallbackTimezone;
 
   String get lastKnownTimezone => _lastKnownTimezone;
-  tz.Location get localLocation => tz.local;
+  tz.Location get localLocation {
+    if (!_initialized) {
+      tz_data.initializeTimeZones();
+      final fallback = tz.getLocation(
+        QuevaaNotificationConstants.fallbackTimezone,
+      );
+      tz.setLocalLocation(fallback);
+      _initialized = true;
+    }
+    return tz.local;
+  }
 
   Future<String> initializeTimezone() async {
     if (!_initialized) {

@@ -80,6 +80,7 @@ class QuevaaLocalNotificationService {
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       payload: QuevaaNotificationPayload.forSchedule(
+        notificationId: notification.id,
         type: notification.type,
         route: notification.route,
         entityId: notification.localRecordId,
@@ -114,8 +115,9 @@ class QuevaaLocalNotificationService {
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       payload: QuevaaNotificationPayload.forSchedule(
+        notificationId: 900000001,
         type: QuevaaNotificationType.dailyCycleCheckIn,
-        route: '/notifications/settings',
+        route: '/notifications',
       ).encode(),
     );
   }

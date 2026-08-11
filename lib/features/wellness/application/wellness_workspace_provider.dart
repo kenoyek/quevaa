@@ -6,11 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/providers/database_provider.dart';
 import '../../cycle/application/cycle_workspace_provider.dart';
+import '../../cycle/domain/models/estimated_cycle_phase.dart';
 import '../../notifications/application/notification_preferences_provider.dart';
+import '../../notifications/application/notification_snapshot_provider.dart';
 import '../../notifications/domain/services/notification_scheduler.dart';
 import '../../nutrition/data/nigerian_recipe_database.dart';
+import '../../recommendations/application/daily_quevaa_plan_provider.dart';
 import '../../workouts/domain/entities/workout_entity.dart';
-import '../../workouts/domain/workout_recommendation_engine.dart';
+import '../../../core/security/secure_storage_service.dart';
 
 final wellnessSectionProvider = StateProvider<String>((ref) => 'For You');
 
@@ -57,6 +60,23 @@ final shoppingStreamProvider = StreamProvider<List<ShoppingItem>>((ref) {
       .watch();
 });
 
+final savedMealsStreamProvider = StreamProvider<List<SavedMeal>>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return (db.select(db.savedMeals)
+        ..where((tbl) => tbl.deletedAt.isNull())
+        ..orderBy([(tbl) => OrderingTerm.desc(tbl.savedAt)]))
+      .watch();
+});
+
+final mealPreparationHistoryProvider =
+    StreamProvider<List<MealPreparationEntry>>((ref) {
+      final db = ref.watch(appDatabaseProvider);
+      return (db.select(db.mealPreparationEntries)
+            ..where((tbl) => tbl.deletedAt.isNull())
+            ..orderBy([(tbl) => OrderingTerm.desc(tbl.preparedAt)]))
+          .watch();
+    });
+
 final workoutSessionStreamProvider = StreamProvider<List<WorkoutSession>>((
   ref,
 ) {
@@ -67,12 +87,33 @@ final workoutSessionStreamProvider = StreamProvider<List<WorkoutSession>>((
       .watch();
 });
 
-final journalStreamProvider = StreamProvider<List<JournalEntry>>((ref) {
+final journalStreamProvider = StreamProvider<List<JournalEntry>>((ref) async* {
   final db = ref.watch(appDatabaseProvider);
-  return (db.select(db.journalEntries)
-        ..where((tbl) => tbl.deletedAt.isNull())
-        ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
-      .watch();
+  final secureStorage = SecureStorageService();
+  final stream =
+      (db.select(db.journalEntries)
+            ..where((tbl) => tbl.deletedAt.isNull())
+            ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
+          .watch();
+
+  await for (final entries in stream) {
+    final decrypted = <JournalEntry>[];
+    for (final entry in entries) {
+      if (SecureStorageService.isEncrypted(entry.encryptedContent)) {
+        try {
+          final plainText = await secureStorage.decryptJournalContent(
+            entry.encryptedContent,
+          );
+          decrypted.add(entry.copyWith(encryptedContent: plainText));
+        } catch (_) {
+          decrypted.add(entry);
+        }
+      } else {
+        decrypted.add(entry);
+      }
+    }
+    yield decrypted;
+  }
 });
 
 final journalEntryCountProvider = StreamProvider<int>((ref) {
@@ -86,35 +127,14 @@ final journalEntryCountProvider = StreamProvider<int>((ref) {
 });
 
 final wellnessRecommendationProvider = Provider<WellnessRecommendation>((ref) {
-  final log = ref.watch(todaysWellnessLogProvider).valueOrNull;
-  final cycle = ref.watch(currentCycleOutputProvider);
-  final recipes = NigerianRecipeDatabase.getForPhase(cycle.estimatedPhase);
-  final meal = recipes.isEmpty
-      ? NigerianRecipeDatabase.recipes.first
-      : recipes.first;
-  final workouts = WorkoutRecommendationEngine.recommendWorkouts(
-    availableWorkouts: bundledWorkoutCatalog,
-    userEnergyLevel: log?.energyLevel ?? 3,
-    userPainLevel: log?.painLevel ?? 0,
-    sleepHours: log?.sleepHours ?? 7,
-  );
-  final workout = workouts.isEmpty
-      ? bundledWorkoutCatalog.first
-      : workouts.first;
-  final lowEnergy = (log?.energyLevel ?? 3) <= 2 || (log?.painLevel ?? 0) >= 3;
+  final plan = ref.watch(dailyQuevaaPlanProvider);
   return WellnessRecommendation(
-    focus: lowEnergy ? 'Gentle balance' : 'Steady nourishment',
-    reason: lowEnergy
-        ? 'Based on lower energy or higher pain logged today.'
-        : 'Based on today’s log and your estimated ${cycle.estimatedPhase.toLowerCase()} phase.',
-    meal: meal,
-    workout: workout,
-    hydrationTarget: log?.waterGlasses == null || log!.waterGlasses < 8
-        ? 8
-        : log.waterGlasses,
-    journalPrompt: lowEnergy
-        ? 'What would make today feel softer and more manageable?'
-        : 'What helped your energy feel steady today?',
+    focus: plan.wellnessFocus,
+    reason: plan.wellnessReason,
+    meal: plan.featuredMeal,
+    workout: plan.workout,
+    hydrationTarget: plan.hydrationTarget,
+    journalPrompt: plan.journalPrompt,
   );
 });
 
@@ -185,13 +205,9 @@ class WellnessWorkspaceController extends Notifier<bool> {
             glassesDrank: Value(glasses),
           ),
         );
-    // Reconcile notifications after logging water
-    await ref
-        .read(notificationSchedulerProvider)
-        .reconcileNotifications(
-          NotificationReconciliationReason
-              .mealPlanChanged, // Closest match or wellness
-        );
+    await _reconcileNotifications(
+      NotificationReconciliationReason.mealPlanChanged,
+    );
   }
 
   Future<void> planMeal(DateTime date, NigerianRecipe recipe) async {
@@ -210,8 +226,85 @@ class WellnessWorkspaceController extends Notifier<bool> {
         );
   }
 
-  Future<void> markMealPrepared(NigerianRecipe recipe) async {
+  Future<void> toggleSavedMeal(NigerianRecipe recipe) async {
     final now = DateTime.now();
+    final existing =
+        await (_db.select(_db.savedMeals)
+              ..where(
+                (tbl) => tbl.deletedAt.isNull() & tbl.mealId.equals(recipe.id),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    if (existing == null) {
+      await _db
+          .into(_db.savedMeals)
+          .insert(
+            SavedMealsCompanion.insert(
+              uuid: localUuid('saved-meal'),
+              createdAt: now,
+              updatedAt: now,
+              mealId: recipe.id,
+              savedAt: now,
+            ),
+          );
+    } else {
+      await (_db.update(
+        _db.savedMeals,
+      )..where((tbl) => tbl.id.equals(existing.id))).write(
+        SavedMealsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+      );
+    }
+  }
+
+  Future<void> markMealPrepared(
+    NigerianRecipe recipe, {
+    int? servings,
+    String? notes,
+  }) async {
+    final now = DateTime.now();
+    final today = ref.read(localTodayProvider);
+    final cycle = ref.read(currentCycleSnapshotProvider);
+    final existing =
+        await (_db.select(_db.mealPreparationEntries)
+              ..where(
+                (tbl) =>
+                    tbl.deletedAt.isNull() &
+                    tbl.mealId.equals(recipe.id) &
+                    tbl.date.equals(today) &
+                    tbl.mealType.equals(recipe.mealType),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    if (existing == null) {
+      await _db
+          .into(_db.mealPreparationEntries)
+          .insert(
+            MealPreparationEntriesCompanion.insert(
+              uuid: localUuid('meal-prepared'),
+              createdAt: now,
+              updatedAt: now,
+              mealId: recipe.id,
+              preparedAt: now,
+              date: today,
+              mealType: recipe.mealType,
+              servings: Value(servings ?? recipe.servings),
+              cycleDay: Value(cycle.cycleDay),
+              cyclePhase: Value(cycle.phase.label),
+              notes: Value(notes),
+            ),
+          );
+    } else {
+      await (_db.update(
+        _db.mealPreparationEntries,
+      )..where((tbl) => tbl.id.equals(existing.id))).write(
+        MealPreparationEntriesCompanion(
+          preparedAt: Value(now),
+          servings: Value(servings ?? existing.servings),
+          notes: Value(notes ?? existing.notes),
+          updatedAt: Value(now),
+        ),
+      );
+    }
     await _db
         .into(_db.mealLogs)
         .insert(
@@ -224,23 +317,60 @@ class WellnessWorkspaceController extends Notifier<bool> {
             notes: const Value('Prepared from Wellness workspace'),
           ),
         );
+    await _reconcileNotifications(
+      NotificationReconciliationReason.mealPlanChanged,
+    );
   }
 
   Future<void> addRecipeToShoppingList(NigerianRecipe recipe) async {
     final now = DateTime.now();
-    for (final item in _ingredientsForRecipe(recipe)) {
-      await _db
-          .into(_db.shoppingItems)
-          .insert(
-            ShoppingItemsCompanion.insert(
-              uuid: localUuid('shopping'),
-              createdAt: now,
-              updatedAt: now,
-              itemName: item,
-              category: const Value('Meal plan'),
-              sourceMealTitle: Value(recipe.title),
+    for (final ingredient in recipe.ingredients) {
+      final existing =
+          await (_db.select(_db.shoppingItems)
+                ..where(
+                  (tbl) =>
+                      tbl.deletedAt.isNull() &
+                      tbl.isPurchased.equals(false) &
+                      tbl.itemName.lower().equals(
+                        ingredient.name.toLowerCase(),
+                      ) &
+                      tbl.unit.equals(ingredient.unit),
+                )
+                ..limit(1))
+              .getSingleOrNull();
+      if (existing == null) {
+        await _db
+            .into(_db.shoppingItems)
+            .insert(
+              ShoppingItemsCompanion.insert(
+                uuid: localUuid('shopping'),
+                createdAt: now,
+                updatedAt: now,
+                itemName: ingredient.name,
+                quantity: Value(_formatQuantity(ingredient.quantity)),
+                unit: Value(ingredient.unit),
+                category: Value(ingredient.category),
+                sourceMealTitle: Value(recipe.title),
+              ),
+            );
+      } else {
+        final nextQuantity =
+            (_parseQuantity(existing.quantity) ?? 0) + ingredient.quantity;
+        await (_db.update(
+          _db.shoppingItems,
+        )..where((tbl) => tbl.id.equals(existing.id))).write(
+          ShoppingItemsCompanion(
+            quantity: Value(_formatQuantity(nextQuantity)),
+            sourceMealTitle: Value(
+              existing.sourceMealTitle == null ||
+                      existing.sourceMealTitle == recipe.title
+                  ? recipe.title
+                  : '${existing.sourceMealTitle}, ${recipe.title}',
             ),
-          );
+            updatedAt: Value(now),
+          ),
+        );
+      }
     }
   }
 
@@ -278,6 +408,30 @@ class WellnessWorkspaceController extends Notifier<bool> {
     );
   }
 
+  Future<void> removeShoppingItem(ShoppingItem item) async {
+    final now = DateTime.now();
+    await (_db.update(
+      _db.shoppingItems,
+    )..where((tbl) => tbl.id.equals(item.id))).write(
+      ShoppingItemsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
+  }
+
+  Future<void> clearCompletedShoppingItems() async {
+    final now = DateTime.now();
+    await (_db.update(
+      _db.shoppingItems,
+    )..where((tbl) => tbl.isPurchased.equals(true))).write(
+      ShoppingItemsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
+  }
+
+  void showAnotherMeal(String mealType) {
+    final notifier = ref.read(mealAlternativeOffsetsProvider.notifier);
+    final current = notifier.state;
+    notifier.state = {...current, mealType: (current[mealType] ?? 0) + 1};
+  }
+
   Future<void> completeWorkout(
     WorkoutEntity workout, {
     int exertion = 5,
@@ -310,12 +464,9 @@ class WellnessWorkspaceController extends Notifier<bool> {
             perceivedExertion: exertion,
           ),
         );
-    // Reconcile notifications after completing a workout
-    await ref
-        .read(notificationSchedulerProvider)
-        .reconcileNotifications(
-          NotificationReconciliationReason.workoutPlanChanged,
-        );
+    await _reconcileNotifications(
+      NotificationReconciliationReason.workoutPlanChanged,
+    );
   }
 
   Future<void> markRestDay() async {
@@ -347,12 +498,9 @@ class WellnessWorkspaceController extends Notifier<bool> {
             perceivedExertion: 1,
           ),
         );
-    // Reconcile notifications after marking a rest day
-    await ref
-        .read(notificationSchedulerProvider)
-        .reconcileNotifications(
-          NotificationReconciliationReason.workoutPlanChanged,
-        );
+    await _reconcileNotifications(
+      NotificationReconciliationReason.workoutPlanChanged,
+    );
   }
 
   Future<void> saveJournalEntry({
@@ -364,6 +512,11 @@ class WellnessWorkspaceController extends Notifier<bool> {
   }) async {
     final now = DateTime.now();
     final tagsStr = jsonEncode(tags ?? ['reflection']);
+    final secureStorage = SecureStorageService();
+    final encryptedContent = await secureStorage.encryptJournalContent(
+      content.trim(),
+    );
+
     if (id == null) {
       await _db
           .into(_db.journalEntries)
@@ -375,7 +528,7 @@ class WellnessWorkspaceController extends Notifier<bool> {
               title: Value(
                 title.trim().isEmpty ? 'Private Reflection' : title.trim(),
               ),
-              encryptedContent: content.trim(),
+              encryptedContent: encryptedContent,
               mood: Value(mood ?? 'Calm'),
               tagsJson: Value(tagsStr),
             ),
@@ -388,29 +541,25 @@ class WellnessWorkspaceController extends Notifier<bool> {
           title: Value(
             title.trim().isEmpty ? 'Private Reflection' : title.trim(),
           ),
-          encryptedContent: Value(content.trim()),
+          encryptedContent: Value(encryptedContent),
           mood: Value(mood ?? 'Calm'),
           tagsJson: Value(tagsStr),
           updatedAt: Value(now),
         ),
       );
     }
-    await ref
-        .read(notificationSchedulerProvider)
-        .reconcileNotifications(
-          NotificationReconciliationReason.journalChanged,
-        );
+    await _reconcileNotifications(
+      NotificationReconciliationReason.journalChanged,
+    );
   }
 
   Future<void> deleteJournalEntry(int id) async {
     final now = DateTime.now();
     await (_db.update(_db.journalEntries)..where((tbl) => tbl.id.equals(id)))
         .write(JournalEntriesCompanion(deletedAt: Value(now)));
-    await ref
-        .read(notificationSchedulerProvider)
-        .reconcileNotifications(
-          NotificationReconciliationReason.journalChanged,
-        );
+    await _reconcileNotifications(
+      NotificationReconciliationReason.journalChanged,
+    );
   }
 
   Future<void> addJournalPrompt(String prompt) async {
@@ -421,130 +570,26 @@ class WellnessWorkspaceController extends Notifier<bool> {
       tags: ['prompt', 'reflection'],
     );
   }
-}
 
-List<String> _ingredientsForRecipe(NigerianRecipe recipe) {
-  final lower = recipe.description.toLowerCase();
-  final items = <String>{};
-  for (final candidate in [
-    'ugu',
-    'plantain',
-    'fish',
-    'yam',
-    'okra',
-    'beans',
-    'sweet potato',
-    'egusi',
-    'spinach',
-    'ginger',
-    'zobo',
-  ]) {
-    if (lower.contains(candidate) ||
-        recipe.title.toLowerCase().contains(candidate)) {
-      items.add(candidate);
-    }
+  Future<void> _reconcileNotifications(
+    NotificationReconciliationReason reason,
+  ) async {
+    final snapshot = await buildNotificationSourceSnapshotFromDatabase(
+      _db,
+      today: ref.read(localTodayProvider),
+    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(reason, snapshot: snapshot);
   }
-  return items.isEmpty ? [recipe.title] : items.toList();
 }
 
-const bundledWorkoutCatalog = [
-  WorkoutEntity(
-    id: 'gentle-mobility-15',
-    title: 'Gentle Mobility Reset',
-    category: 'Gentle Mobility',
-    durationMinutes: 15,
-    intensity: 'Gentle',
-    warmup: [
-      ExerciseItem(
-        name: 'Breathing reset',
-        durationOrReps: '2 min',
-        modification: 'Sit or lie down with one hand on your belly.',
-      ),
-    ],
-    mainExercises: [
-      ExerciseItem(
-        name: 'Cat-cow',
-        durationOrReps: '8 reps',
-        modification: 'Use a chair if floor work is uncomfortable.',
-      ),
-      ExerciseItem(
-        name: 'Hip circles',
-        durationOrReps: '45 sec each way',
-        modification: 'Reduce range if the lower back feels tender.',
-      ),
-    ],
-    cooldown: [
-      ExerciseItem(
-        name: 'Child pose breathing',
-        durationOrReps: '2 min',
-        modification: 'Place a pillow under your torso.',
-      ),
-    ],
-  ),
-  WorkoutEntity(
-    id: 'walk-strength-25',
-    title: 'Walk and Strength Blend',
-    category: 'Walking',
-    durationMinutes: 25,
-    intensity: 'Moderate',
-    warmup: [
-      ExerciseItem(
-        name: 'Easy walk',
-        durationOrReps: '5 min',
-        modification: 'Keep conversation pace.',
-      ),
-    ],
-    mainExercises: [
-      ExerciseItem(
-        name: 'Brisk walk intervals',
-        durationOrReps: '10 min',
-        modification: 'Shorten intervals if energy dips.',
-      ),
-      ExerciseItem(
-        name: 'Wall push-up',
-        durationOrReps: '2 x 8',
-        modification: 'Step closer to the wall.',
-      ),
-    ],
-    cooldown: [
-      ExerciseItem(
-        name: 'Slow walk and calf stretch',
-        durationOrReps: '5 min',
-        modification: 'Hold a support for balance.',
-      ),
-    ],
-  ),
-  WorkoutEntity(
-    id: 'strength-30',
-    title: 'Mat Strength Flow',
-    category: 'Bodyweight Strength',
-    durationMinutes: 30,
-    intensity: 'High',
-    warmup: [
-      ExerciseItem(
-        name: 'Dynamic warm-up',
-        durationOrReps: '5 min',
-        modification: 'Keep all moves low impact.',
-      ),
-    ],
-    mainExercises: [
-      ExerciseItem(
-        name: 'Squat to chair',
-        durationOrReps: '3 x 10',
-        modification: 'Sit fully between reps.',
-      ),
-      ExerciseItem(
-        name: 'Glute bridge',
-        durationOrReps: '3 x 12',
-        modification: 'Reduce range if cramping.',
-      ),
-    ],
-    cooldown: [
-      ExerciseItem(
-        name: 'Full-body stretch',
-        durationOrReps: '5 min',
-        modification: 'Skip any position that feels sharp.',
-      ),
-    ],
-  ),
-];
+String _formatQuantity(double value) {
+  if (value == value.roundToDouble()) return value.round().toString();
+  return value.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+}
+
+double? _parseQuantity(String? value) {
+  if (value == null) return null;
+  return double.tryParse(value);
+}

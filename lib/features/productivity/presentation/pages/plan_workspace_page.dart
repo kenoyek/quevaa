@@ -6,6 +6,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/quevaa_layout.dart';
 import '../../../../app/theme/quevaa_spacing.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../recommendations/application/daily_quevaa_plan_provider.dart';
 import '../../application/plan_workspace_provider.dart';
 
 class PlanWorkspacePage extends ConsumerWidget {
@@ -95,6 +96,7 @@ class _PlanHeader extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final today = DateFormat.yMMMMEEEEd().format(DateTime.now());
+    final readiness = ref.watch(dailyQuevaaPlanProvider).readiness;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: QuevaaSpacing.l),
@@ -131,12 +133,16 @@ class _PlanHeader extends ConsumerWidget {
           ),
           const SizedBox(height: QuevaaSpacing.m),
           Text(
-            plannedCount == 0 ? 'Balanced day' : '$plannedCount planned tasks',
+            plannedCount == 0
+                ? '${readiness.label} day'
+                : '$plannedCount planned tasks',
             style: theme.textTheme.headlineMedium,
           ),
           const SizedBox(height: QuevaaSpacing.xxs),
           Text(
-            'Recommendations consider your energy, sleep and priorities.',
+            plannedCount == 0
+                ? readiness.primaryRecommendation
+                : 'Recommendations consider your readiness, tasks and priorities.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
             ),

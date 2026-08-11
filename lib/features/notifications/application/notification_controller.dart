@@ -5,6 +5,7 @@ import '../domain/entities/notification_preferences.dart';
 import '../domain/enums/notification_privacy_mode.dart';
 import '../domain/services/notification_scheduler.dart';
 import 'notification_preferences_provider.dart';
+import 'notification_snapshot_provider.dart';
 import 'pending_notifications_provider.dart';
 
 class NotificationController extends StateNotifier<AsyncValue<void>> {
@@ -32,6 +33,7 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
             .read(notificationSchedulerProvider)
             .reconcileNotifications(
               NotificationReconciliationReason.preferencesChanged,
+              snapshot: ref.read(notificationSourceSnapshotProvider),
             );
       }
       ref.invalidate(notificationPreferencesProvider);
@@ -63,6 +65,7 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
           .read(notificationSchedulerProvider)
           .reconcileNotifications(
             NotificationReconciliationReason.preferencesChanged,
+            snapshot: ref.read(notificationSourceSnapshotProvider),
           );
       ref.invalidate(notificationPreferencesProvider);
       ref.invalidate(pendingNotificationsProvider);

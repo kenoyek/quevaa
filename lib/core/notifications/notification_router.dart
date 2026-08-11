@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../analytics/app_logger.dart';
 import '../security/app_lock_service.dart';
+import 'notification_destination_resolver.dart';
 import 'notification_payload.dart';
 
 class QuevaaNotificationRouter {
@@ -14,7 +15,10 @@ class QuevaaNotificationRouter {
 
   void handlePayload(String? payload, GoRouter router) {
     final parsed = QuevaaNotificationPayload.tryParse(payload);
-    final route = parsed?.route ?? '/';
+    final route = NotificationDestinationResolver.resolve(
+      type: parsed?.type,
+      route: parsed?.route,
+    );
     if (appLockService.isLocked) {
       _queuedRoute = route;
       AppLogger.info('Notification route queued behind app lock');

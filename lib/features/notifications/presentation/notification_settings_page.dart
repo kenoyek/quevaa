@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../application/notification_controller.dart';
@@ -18,17 +19,58 @@ class NotificationSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final preferencesAsync = ref.watch(notificationPreferencesProvider);
     final pendingAsync = ref.watch(pendingNotificationsProvider);
+    final controllerState = ref.watch(notificationControllerProvider);
     final controller = ref.read(notificationControllerProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgWarmDark : AppColors.bgWarmCream,
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(
+        leading: BackButton(
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/me');
+            }
+          },
+        ),
+        title: const Text('Notification preferences'),
+      ),
       body: preferencesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) =>
-            Center(child: Text('Unable to load settings: $error')),
+        error: (_, __) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: AppColors.terracottaPrimary,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "We couldn't load notification preferences.",
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () =>
+                      ref.invalidate(notificationPreferencesProvider),
+                  child: const Text('Try again'),
+                ),
+              ],
+            ),
+          ),
+        ),
         data: (preferences) {
+          final notificationsEnabled = preferences.enabled;
+          final saving = controllerState.isLoading;
+          final previewMode =
+              preferences.privacyMode == QuevaaNotificationPrivacyMode.hidden
+              ? QuevaaNotificationPrivacyMode.discreet
+              : preferences.privacyMode;
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -45,23 +87,35 @@ class NotificationSettingsPage extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Privacy mode',
+                        'Notification previews',
                         style: Theme.of(context).textTheme.headlineMedium,
                       ),
                       const SizedBox(height: 8),
-                      SegmentedButton<QuevaaNotificationPrivacyMode>(
-                        segments: QuevaaNotificationPrivacyMode.values
-                            .map(
-                              (mode) => ButtonSegment(
-                                value: mode,
-                                label: Text(mode.label),
-                              ),
-                            )
-                            .toList(),
-                        selected: {preferences.privacyMode},
-                        onSelectionChanged: (selection) =>
-                            controller.updatePrivacyMode(selection.first),
+                      const Text(
+                        'Choose how much detail Quevaa shows outside the app.',
                       ),
+                      const SizedBox(height: 14),
+                      SegmentedButton<QuevaaNotificationPrivacyMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: QuevaaNotificationPrivacyMode.explicit,
+                            label: Text('Detailed'),
+                            icon: Icon(Icons.article_outlined),
+                          ),
+                          ButtonSegment(
+                            value: QuevaaNotificationPrivacyMode.discreet,
+                            label: Text('Discreet'),
+                            icon: Icon(Icons.visibility_off_outlined),
+                          ),
+                        ],
+                        selected: {previewMode},
+                        onSelectionChanged: saving
+                            ? null
+                            : (selection) =>
+                                  controller.updatePrivacyMode(selection.first),
+                      ),
+                      const SizedBox(height: 14),
+                      _PrivacyPreview(mode: previewMode),
                     ],
                   ),
                 ),
@@ -80,14 +134,18 @@ class NotificationSettingsPage extends ConsumerWidget {
                       QuietHoursSelector(
                         startMinutes: preferences.quietStartMinutes,
                         endMinutes: preferences.quietEndMinutes,
-                        onStartChanged: (value) => controller.updateQuietHours(
-                          startMinutes: value,
-                          endMinutes: preferences.quietEndMinutes,
-                        ),
-                        onEndChanged: (value) => controller.updateQuietHours(
-                          startMinutes: preferences.quietStartMinutes,
-                          endMinutes: value,
-                        ),
+                        onStartChanged: !notificationsEnabled || saving
+                            ? null
+                            : (value) => controller.updateQuietHours(
+                                startMinutes: value,
+                                endMinutes: preferences.quietEndMinutes,
+                              ),
+                        onEndChanged: !notificationsEnabled || saving
+                            ? null
+                            : (value) => controller.updateQuietHours(
+                                startMinutes: preferences.quietStartMinutes,
+                                endMinutes: value,
+                              ),
                       ),
                       Slider(
                         value: preferences.dailyCap.toDouble(),
@@ -95,11 +153,13 @@ class NotificationSettingsPage extends ConsumerWidget {
                         max: 8,
                         divisions: 7,
                         label: '${preferences.dailyCap} per day',
-                        onChanged: (value) {
-                          controller.savePreferences(
-                            preferences.copyWith(dailyCap: value.round()),
-                          );
-                        },
+                        onChanged: !notificationsEnabled || saving
+                            ? null
+                            : (value) {
+                                controller.savePreferences(
+                                  preferences.copyWith(dailyCap: value.round()),
+                                );
+                              },
                       ),
                     ],
                   ),
@@ -118,24 +178,32 @@ class NotificationSettingsPage extends ConsumerWidget {
                           subtitle: category.subtitle,
                           value:
                               preferences.categoryEnabled[category.key] ?? true,
-                          onChanged: (value) =>
-                              controller.toggleCategory(category.key, value),
+                          onChanged: !notificationsEnabled || saving
+                              ? null
+                              : (value) => controller.toggleCategory(
+                                  category.key,
+                                  value,
+                                ),
                         ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Notification sound'),
                         value: preferences.soundEnabled,
-                        onChanged: (value) => controller.savePreferences(
-                          preferences.copyWith(soundEnabled: value),
-                        ),
+                        onChanged: !notificationsEnabled || saving
+                            ? null
+                            : (value) => controller.savePreferences(
+                                preferences.copyWith(soundEnabled: value),
+                              ),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Vibration'),
                         value: preferences.vibrationEnabled,
-                        onChanged: (value) => controller.savePreferences(
-                          preferences.copyWith(vibrationEnabled: value),
-                        ),
+                        onChanged: !notificationsEnabled || saving
+                            ? null
+                            : (value) => controller.savePreferences(
+                                preferences.copyWith(vibrationEnabled: value),
+                              ),
                       ),
                     ],
                   ),
@@ -158,12 +226,14 @@ class NotificationSettingsPage extends ConsumerWidget {
                         runSpacing: 10,
                         children: [
                           FilledButton.icon(
-                            onPressed: controller.sendTestNotification,
+                            onPressed: saving
+                                ? null
+                                : controller.sendTestNotification,
                             icon: const Icon(Icons.notification_add_rounded),
                             label: const Text('Send test notification'),
                           ),
                           OutlinedButton.icon(
-                            onPressed: controller.cancelAll,
+                            onPressed: saving ? null : controller.cancelAll,
                             icon: const Icon(Icons.delete_outline_rounded),
                             label: const Text('Cancel all reminders'),
                           ),
@@ -172,8 +242,8 @@ class NotificationSettingsPage extends ConsumerWidget {
                       const SizedBox(height: 12),
                       pendingAsync.when(
                         loading: () => const LinearProgressIndicator(),
-                        error: (error, _) =>
-                            Text('Pending unavailable: $error'),
+                        error: (_, __) =>
+                            const Text('Pending reminders are unavailable.'),
                         data: (pending) =>
                             Text('${pending.length} native pending reminders'),
                       ),
@@ -212,6 +282,37 @@ class NotificationSettingsPage extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _PrivacyPreview extends StatelessWidget {
+  const _PrivacyPreview({required this.mode});
+
+  final QuevaaNotificationPrivacyMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final detailed = mode == QuevaaNotificationPrivacyMode.explicit;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.sageContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Preview', style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 6),
+          Text(
+            detailed
+                ? 'Your period may start tomorrow.'
+                : 'You have a Quevaa update.',
+          ),
+        ],
       ),
     );
   }

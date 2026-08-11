@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 class QuietHoursSelector extends StatelessWidget {
   final int startMinutes;
   final int endMinutes;
-  final ValueChanged<int> onStartChanged;
-  final ValueChanged<int> onEndChanged;
+  final ValueChanged<int>? onStartChanged;
+  final ValueChanged<int>? onEndChanged;
 
   const QuietHoursSelector({
     super.key,
@@ -36,7 +36,7 @@ class QuietHoursSelector extends StatelessWidget {
 class _TimeTile extends StatelessWidget {
   final String label;
   final int minutes;
-  final ValueChanged<int> onChanged;
+  final ValueChanged<int>? onChanged;
 
   const _TimeTile({
     required this.label,
@@ -51,15 +51,18 @@ class _TimeTile extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       title: Text(label),
       trailing: Text(time.format(context)),
-      onTap: () async {
-        final picked = await showTimePicker(
-          context: context,
-          initialTime: time,
-        );
-        if (picked != null) {
-          onChanged(picked.hour * 60 + picked.minute);
-        }
-      },
+      enabled: onChanged != null,
+      onTap: onChanged == null
+          ? null
+          : () async {
+              final picked = await showTimePicker(
+                context: context,
+                initialTime: time,
+              );
+              if (picked != null) {
+                onChanged?.call(picked.hour * 60 + picked.minute);
+              }
+            },
     );
   }
 }

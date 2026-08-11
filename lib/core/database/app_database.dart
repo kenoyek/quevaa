@@ -1,8 +1,21 @@
+import 'dart:io';
 import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
+import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
+import 'package:sqlite3/open.dart';
+
+import '../security/secure_storage_service.dart';
+import '../../features/conception/data/tables/conception_tables.dart';
 
 part 'app_database.g.dart';
+
+void _openSqlCipherOnAndroid() {
+  if (Platform.isAndroid) {
+    open.overrideFor(OperatingSystem.android, openCipherOnAndroid);
+  }
+}
 
 // --- Base Mixin for Standard Audit Columns ---
 mixin AuditColumns on Table {
@@ -19,7 +32,7 @@ mixin AuditColumns on Table {
 
 // 1. UserProfiles
 class UserProfiles extends Table with AuditColumns {
-  TextColumn get userName => text().withDefault(const Constant('Adaora'))();
+  TextColumn get userName => text().withDefault(const Constant(''))();
   IntColumn get age => integer().nullable()();
   IntColumn get averageCycleLength =>
       integer().withDefault(const Constant(28))();
@@ -209,6 +222,25 @@ class MealLogs extends Table with AuditColumns {
   TextColumn get notes => text().nullable()();
 }
 
+// 16b. SavedMeals
+class SavedMeals extends Table with AuditColumns {
+  TextColumn get mealId => text()();
+  DateTimeColumn get savedAt => dateTime()();
+}
+
+// 16c. MealPreparationEntries
+class MealPreparationEntries extends Table with AuditColumns {
+  TextColumn get mealId => text()();
+  DateTimeColumn get preparedAt => dateTime()();
+  DateTimeColumn get date => dateTime()();
+  TextColumn get mealType => text()();
+  IntColumn get servings => integer().withDefault(const Constant(2))();
+  IntColumn get cycleDay => integer().nullable()();
+  TextColumn get cyclePhase => text().nullable()();
+  IntColumn get rating => integer().nullable()();
+  TextColumn get notes => text().nullable()();
+}
+
 // 17. PantryItems
 class PantryItems extends Table with AuditColumns {
   TextColumn get name => text()();
@@ -331,6 +363,21 @@ class NotificationCompletionRecords extends Table with AuditColumns {
   TextColumn get action => text()();
 }
 
+// 24e. NotificationInboxEntries
+class NotificationInboxEntries extends Table with AuditColumns {
+  IntColumn get notificationId => integer().unique()();
+  TextColumn get category => text()();
+  TextColumn get title => text()();
+  TextColumn get explicitBody => text()();
+  TextColumn get discreetBody => text()();
+  DateTimeColumn get scheduledFor => dateTime()();
+  DateTimeColumn get deliveredAt => dateTime().nullable()();
+  DateTimeColumn get readAt => dateTime().nullable()();
+  TextColumn get deepLink => text()();
+  TextColumn get payload => text().nullable()();
+  TextColumn get priority => text()();
+}
+
 // 25. AppSettings
 class AppSettings extends Table with AuditColumns {
   TextColumn get themeMode =>
@@ -360,6 +407,37 @@ class SubscriptionEntitlements extends Table with AuditColumns {
   DateTimeColumn get expiresAt => dateTime().nullable()();
 }
 
+// 28. OnboardingPreferences
+class OnboardingPreferences extends Table with AuditColumns {
+  // Cycle
+  BoolColumn get isIrregular => boolean().withDefault(const Constant(false))();
+  TextColumn get contraceptionStatus =>
+      text().withDefault(const Constant('None'))();
+  // Productivity
+  TextColumn get wakeTime => text().withDefault(const Constant('07:00'))();
+  TextColumn get sleepTime => text().withDefault(const Constant('22:30'))();
+  IntColumn get focusSessionMinutes =>
+      integer().withDefault(const Constant(25))();
+  TextColumn get workType => text().withDefault(const Constant('Balanced'))();
+  // Nutrition
+  TextColumn get regionPreference =>
+      text().withDefault(const Constant('Pan-Nigerian / All Regions'))();
+  TextColumn get dietaryPattern =>
+      text().withDefault(const Constant('Flexible / Balanced'))();
+  TextColumn get prepTimePreference =>
+      text().withDefault(const Constant('30 minutes or less'))();
+  // Fitness
+  TextColumn get fitnessLevel =>
+      text().withDefault(const Constant('Intermediate'))();
+  TextColumn get workoutLocation =>
+      text().withDefault(const Constant('Home'))();
+  BoolColumn get lowImpactOnly =>
+      boolean().withDefault(const Constant(false))();
+  // Privacy
+  BoolColumn get enableDiscreetNotifications =>
+      boolean().withDefault(const Constant(true))();
+}
+
 @DriftDatabase(
   tables: [
     UserProfiles,
@@ -378,6 +456,8 @@ class SubscriptionEntitlements extends Table with AuditColumns {
     Recipes,
     MealPlans,
     MealLogs,
+    SavedMeals,
+    MealPreparationEntries,
     PantryItems,
     ShoppingItems,
     WorkoutPlans,
@@ -389,16 +469,31 @@ class SubscriptionEntitlements extends Table with AuditColumns {
     NotificationPreferenceRows,
     NotificationScheduleStates,
     NotificationCompletionRecords,
+    NotificationInboxEntries,
     AppSettings,
     ExportHistory,
     SubscriptionEntitlements,
+    OnboardingPreferences,
+    // TTC/Conception tables
+    ConceptionProfiles,
+    FertilityObservations,
+    BasalTemperatureEntries,
+    CervicalMucusEntries,
+    OvulationTestEntries,
+    IntimacyEntries,
+    PregnancyTestEntries,
+    ConceptionCycles,
+    FertilityAssessments,
+    PreconceptionChecklistItems,
+    PartnerSharePermissions,
+    FertilityReportExports,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -461,19 +556,49 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(appSettings, appSettings.cycleCalendarView);
         await m.addColumn(appSettings, appSettings.hideCycleInPlanner);
       }
+      if (from < 4) {
+        await m.createTable(onboardingPreferences);
+      }
+      if (from < 5) {
+        // TTC/Conception tables
+        await m.createTable(conceptionProfiles);
+        await m.createTable(fertilityObservations);
+        await m.createTable(basalTemperatureEntries);
+        await m.createTable(cervicalMucusEntries);
+        await m.createTable(ovulationTestEntries);
+        await m.createTable(intimacyEntries);
+        await m.createTable(pregnancyTestEntries);
+        await m.createTable(conceptionCycles);
+        await m.createTable(fertilityAssessments);
+        await m.createTable(preconceptionChecklistItems);
+        await m.createTable(partnerSharePermissions);
+        await m.createTable(fertilityReportExports);
+      }
+      if (from < 6) {
+        await m.createTable(savedMeals);
+        await m.createTable(mealPreparationEntries);
+      }
+      if (from < 7) {
+        await m.createTable(notificationInboxEntries);
+      }
     },
   );
 
   static QueryExecutor _openConnection() {
-    return driftDatabase(
-      name: 'quevaa_encrypted_db',
-      native: DriftNativeOptions(
-        databaseDirectory: () async {
-          final dir = await getApplicationDocumentsDirectory();
-          return dir.path;
+    return LazyDatabase(() async {
+      final passphrase = await SecureStorageService()
+          .getOrCreateDatabasePassphrase();
+      final dbFolder = await getApplicationDocumentsDirectory();
+      final file = File(p.join(dbFolder.path, 'quevaa_encrypted_db.sqlite'));
+      return NativeDatabase.createInBackground(
+        file,
+        isolateSetup: _openSqlCipherOnAndroid,
+        setup: (rawDb) {
+          final escaped = passphrase.replaceAll("'", "''");
+          rawDb.execute("PRAGMA key = '$escaped';");
         },
-      ),
-    );
+      );
+    });
   }
 
   /// Complete secure deletion workflow purging all local user records.

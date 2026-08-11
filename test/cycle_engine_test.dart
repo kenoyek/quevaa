@@ -123,6 +123,41 @@ void main() {
       expect(output.confidence, PredictionConfidence.high);
     });
 
+    test(
+      'Regular and irregular histories use standard deviation thresholds',
+      () {
+        final regular = [
+          CyclePeriodRecord(startDate: DateTime(2026, 1, 1)),
+          CyclePeriodRecord(startDate: DateTime(2026, 1, 29)),
+          CyclePeriodRecord(startDate: DateTime(2026, 2, 26)),
+          CyclePeriodRecord(startDate: DateTime(2026, 3, 27)),
+          CyclePeriodRecord(startDate: DateTime(2026, 4, 24)),
+        ];
+        final irregular = [
+          CyclePeriodRecord(startDate: DateTime(2026, 1, 1)),
+          CyclePeriodRecord(startDate: DateTime(2026, 1, 25)),
+          CyclePeriodRecord(startDate: DateTime(2026, 3, 1)),
+          CyclePeriodRecord(startDate: DateTime(2026, 3, 25)),
+          CyclePeriodRecord(startDate: DateTime(2026, 4, 30)),
+        ];
+
+        final regularOutput = CycleEngine.calculate(
+          periodHistory: regular,
+          targetDate: DateTime(2026, 5, 1),
+        );
+        final irregularOutput = CycleEngine.calculate(
+          periodHistory: irregular,
+          targetDate: DateTime(2026, 5, 1),
+        );
+
+        expect(regularOutput.cycleLengthVariability, lessThan(1));
+        expect(regularOutput.confidence, PredictionConfidence.moderate);
+        expect(irregularOutput.cycleLengthVariability, greaterThan(4.5));
+        expect(irregularOutput.confidence, PredictionConfidence.low);
+        expect(irregularOutput.isIrregularPattern, isTrue);
+      },
+    );
+
     test('Correctly calculates historical Cycle Day during browsing', () {
       final history = [
         CyclePeriodRecord(startDate: DateTime(2026, 1, 1)),
@@ -206,6 +241,39 @@ void main() {
         expect(pred.expectedDurationDays, 4);
         expect(pred.predictedBleedingRange.start, DateTime(2026, 8, 8));
         expect(pred.predictedBleedingRange.end, DateTime(2026, 8, 11));
+      });
+
+      test('Confirmed Aug 8 to Aug 11 remains a four-day period', () {
+        final output = CycleEngine.calculate(
+          periodHistory: [
+            CyclePeriodRecord(
+              startDate: DateTime(2026, 8, 8),
+              endDate: DateTime(2026, 8, 11),
+            ),
+          ],
+          targetDate: DateTime(2026, 8, 11),
+          userConfiguredAverageCycleLength: 28,
+          userConfiguredPeriodLength: 4,
+        );
+
+        expect(output.currentCycleDay, 4);
+        expect(output.estimatedPhase, 'Menstrual');
+        expect(
+          output.periodPredictions.first.estimatedStartDate,
+          DateTime(2026, 9, 5),
+        );
+        expect(
+          output.periodPredictions.first.predictedBleedingRange,
+          isNot(output.periodPredictions.first.possibleStartRange),
+        );
+        expect(
+          output.periodPredictions.first.predictedBleedingRange.start,
+          DateTime(2026, 9, 5),
+        );
+        expect(
+          output.periodPredictions.first.predictedBleedingRange.end,
+          DateTime(2026, 9, 8),
+        );
       });
 
       test('Five-day duration: start 8 Aug -> expected end 12 Aug', () {

@@ -4,12 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../../core/models/prediction_confidence.dart';
 import '../../../cycle/application/cycle_workspace_provider.dart';
 import '../../../cycle/domain/models/cycle_engine_output.dart';
 import '../../../dashboard/domain/readiness_calculator.dart';
 import '../../../insights/domain/insight_generator.dart';
 import '../../../nutrition/data/nigerian_recipe_database.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
+import '../../../recommendations/application/daily_quevaa_plan_provider.dart';
+import '../../../workouts/domain/entities/workout_entity.dart';
+import 'dart:convert';
 import '../../../../core/providers/user_profile_provider.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
@@ -24,45 +29,74 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   int _selectedPain = 0;
   double _selectedSleep = 7.5;
   int _activeMealIndex = 0;
+  bool _isInitialized = false;
+
+  Future<void> _updateLog({int? energy, int? pain, double? sleep}) async {
+    final newEnergy = energy ?? _selectedEnergy;
+    final newPain = pain ?? _selectedPain;
+    final newSleep = sleep ?? _selectedSleep;
+
+    setState(() {
+      _selectedEnergy = newEnergy;
+      _selectedPain = newPain;
+      _selectedSleep = newSleep;
+    });
+
+    final log = ref.read(todaysDailyLogProvider).valueOrNull;
+    final symptoms = <String>[];
+    if (log != null) {
+      try {
+        final decoded = jsonDecode(log.customSymptomsJson);
+        if (decoded is List) {
+          symptoms.addAll(decoded.map((e) => e.toString()));
+        }
+      } catch (_) {}
+    }
+
+    await ref
+        .read(cycleWorkspaceControllerProvider.notifier)
+        .saveDailyLog(
+          date: DateTime.now(),
+          flow: log?.flow ?? 'None',
+          pain: newPain,
+          mood: log?.mood ?? 'Neutral',
+          energy: newEnergy,
+          stress: log?.stressLevel ?? 3,
+          sleepQuality: log?.sleepQuality ?? 3,
+          sleepHours: newSleep,
+          water: log?.waterGlasses ?? 0,
+          symptoms: symptoms,
+          notes: log?.generalNotes,
+        );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final cycleOutput = ref.watch(currentCycleOutputProvider);
+    ref.listen(todaysDailyLogProvider, (prev, next) {
+      final log = next.valueOrNull;
+      if (log != null && (!_isInitialized || prev?.valueOrNull?.id != log.id)) {
+        setState(() {
+          _isInitialized = true;
+          _selectedEnergy = log.energyLevel;
+          _selectedPain = log.painLevel;
+          _selectedSleep = log.sleepHours ?? 7.5;
+        });
+      } else if (log == null && !_isInitialized) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    });
 
-    final readiness = ReadinessCalculator.calculate(
-      selfReportedEnergy: _selectedEnergy,
-      sleepHours: _selectedSleep,
-      painLevel: _selectedPain,
-      estimatedPhase: cycleOutput.estimatedPhase,
-    );
+    final dailyPlan = ref.watch(dailyQuevaaPlanProvider);
+    final cycleOutput = dailyPlan.cycleOutput;
+    final readiness = dailyPlan.readiness;
+    final currentRecipe = dailyPlan.mealForOffset(_activeMealIndex);
 
-    final recipes = NigerianRecipeDatabase.getForPhase(
-      cycleOutput.estimatedPhase,
-    );
-    final currentRecipe = recipes.isNotEmpty
-        ? recipes[_activeMealIndex % recipes.length]
-        : NigerianRecipeDatabase.recipes.first;
-
-    final insights = InsightGenerator.generateInsights(
-      loggedEntries: [
-        {
-          'symptoms': ['Cramps'],
-          'sleepHours': 8,
-          'energy': 4,
-          'waterGlasses': 8,
-        },
-        {
-          'symptoms': ['Cramps'],
-          'sleepHours': 7.5,
-          'energy': 4,
-          'waterGlasses': 8,
-        },
-        {'symptoms': [], 'sleepHours': 8, 'energy': 4, 'waterGlasses': 7},
-      ],
-    );
+    final insights = ref.watch(quickInsightsProvider);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgWarmDark : AppColors.bgWarmCream,
@@ -73,7 +107,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _DashboardHeader(
-                onNotificationsTap: () => context.go('/notifications/settings'),
+                onNotificationsTap: () => context.push('/notifications'),
               ),
               const SizedBox(height: 20),
 
@@ -82,26 +116,29 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   .animate()
                   .fadeIn(duration: 450.ms)
                   .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
 
-              // How are you today? (Quick Inputs)
+              _ReadinessCard(
+                readiness: readiness,
+                onSeeWhy: () => _showReadinessDetails(context, dailyPlan),
+              ).animate().fadeIn(duration: 450.ms),
+              const SizedBox(height: 14),
+
               _QuickInputsCard(
                 energy: _selectedEnergy,
                 pain: _selectedPain,
                 sleep: _selectedSleep,
-                onEnergyChanged: (v) => setState(() => _selectedEnergy = v),
-                onPainChanged: (v) => setState(() => _selectedPain = v),
-                onSleepChanged: (v) => setState(() => _selectedSleep = v),
+                onEnergyChanged: (v) => _updateLog(energy: v),
+                onPainChanged: (v) => _updateLog(pain: v),
+                onSleepChanged: (v) => _updateLog(sleep: v),
               ),
               const SizedBox(height: 20),
 
-              // Daily Readiness Card
-              _ReadinessCard(readiness: readiness),
-              const SizedBox(height: 20),
-
-              // Today's Focus
               _TodayFocusCard(
                 readiness: readiness,
+                recommendation: dailyPlan.productivityRecommendation,
+                task: dailyPlan.topFocusTask,
+                reason: dailyPlan.topFocusReason,
                 onAdjustPlan: () => context.go('/plan'),
               ),
               const SizedBox(height: 20),
@@ -119,7 +156,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
               // Move Today (Workouts)
               _MoveTodayCard(
-                readiness: readiness,
+                workout: dailyPlan.workout,
                 onSubstitute: () => context.go('/wellness'),
               ),
               const SizedBox(height: 20),
@@ -138,6 +175,246 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+void _showReadinessDetails(BuildContext context, DailyQuevaaPlan plan) {
+  final readiness = plan.readiness;
+  final theme = Theme.of(context);
+  final isDark = theme.brightness == Brightness.dark;
+  final accent = _readinessAccent(readiness.score, isDark);
+  final confidenceText = switch (readiness.confidence) {
+    ReadinessConfidence.personal => 'Personal pattern',
+    ReadinessConfidence.current => 'Current check-in',
+    ReadinessConfidence.low => 'Learning mode',
+  };
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: isDark ? AppColors.cardSurfaceDark : Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (context) {
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            20 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.borderDark
+                        : AppColors.borderLight,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: isDark ? 0.18 : 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(_readinessIcon(readiness.score), color: accent),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Why ${readiness.label} today?',
+                          style: theme.textTheme.headlineMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$confidenceText · score ${readiness.internalScore}/100',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text(readiness.description, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 18),
+              _FactorSection(
+                title: 'Supporting your capacity',
+                factors: readiness.supportingFactors,
+                icon: Icons.check_circle_rounded,
+                color: isDark ? AppColors.sageLight : AppColors.sagePrimary,
+                emptyText: 'No strong supporting signals yet.',
+              ),
+              const SizedBox(height: 14),
+              _FactorSection(
+                title: 'Plan around this',
+                factors: readiness.limitingFactors,
+                icon: Icons.info_rounded,
+                color: isDark
+                    ? AppColors.terracottaLight
+                    : AppColors.terracottaPrimary,
+                emptyText: 'No major limiting signals in this check-in.',
+              ),
+              const SizedBox(height: 14),
+              _DetailCallout(
+                title: 'Pattern',
+                body: readiness.historyInsight,
+                icon: Icons.timeline_rounded,
+                color: accent,
+              ),
+              const SizedBox(height: 12),
+              _DetailCallout(
+                title: 'Recommendation',
+                body: readiness.primaryRecommendation,
+                icon: Icons.route_rounded,
+                color: accent,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    context.go('/plan');
+                  },
+                  icon: const Icon(Icons.tune_rounded),
+                  label: const Text("Adjust Today's Plan"),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _FactorSection extends StatelessWidget {
+  final String title;
+  final List<ReadinessFactor> factors;
+  final IconData icon;
+  final Color color;
+  final String emptyText;
+
+  const _FactorSection({
+    required this.title,
+    required this.factors,
+    required this.icon,
+    required this.color,
+    required this.emptyText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        if (factors.isEmpty)
+          Text(emptyText, style: theme.textTheme.bodySmall)
+        else
+          ...factors.map(
+            (factor) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, color: color, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: theme.textTheme.bodySmall,
+                        children: [
+                          TextSpan(
+                            text: '${factor.label}: ',
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          TextSpan(text: factor.detail),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _DetailCallout extends StatelessWidget {
+  final String title;
+  final String body;
+  final IconData icon;
+  final Color color;
+
+  const _DetailCallout({
+    required this.title,
+    required this.body,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.12 : 0.08),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(body, style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -163,7 +440,11 @@ class _DashboardHeader extends ConsumerWidget {
         ? AppColors.textSecondaryDark
         : AppColors.textSecondaryLight;
     final profile = ref.watch(userProfileProvider).valueOrNull;
-    final name = profile?.userName ?? 'Adaora';
+    final name = profile?.userName ?? '';
+    final greetingText = name.trim().isEmpty
+        ? 'Hi there'
+        : '${_getGreeting()}, $name';
+    final todayText = DateFormat('EEEE, d MMMM').format(DateTime.now());
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -183,7 +464,7 @@ class _DashboardHeader extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_getGreeting()}, $name',
+                  greetingText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.headlineMedium?.copyWith(
@@ -201,6 +482,14 @@ class _DashboardHeader extends ConsumerWidget {
                     height: 1.35,
                   ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  todayText,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: secondaryText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -212,13 +501,11 @@ class _DashboardHeader extends ConsumerWidget {
                   : AppColors.terracottaContainer,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: IconButton(
-              tooltip: 'Notifications',
-              icon: const Icon(Icons.notifications_none_rounded, size: 24),
-              color: isDark
+            child: NotificationBellButton(
+              onPressed: onNotificationsTap,
+              iconColor: isDark
                   ? AppColors.terracottaLight
                   : AppColors.terracottaPrimary,
-              onPressed: onNotificationsTap,
             ),
           ),
         ],
@@ -240,24 +527,31 @@ class _RhythmCard extends StatelessWidget {
 
     final String periodText;
     final String? possibleStartText;
+    final String? durationText;
 
-    if (primaryPred != null) {
+    if (!output.hasEnoughData) {
+      periodText = 'Add your last period to unlock cycle predictions.';
+      possibleStartText = null;
+      durationText = null;
+    } else if (primaryPred != null) {
       final bleedingStart = df.format(primaryPred.predictedBleedingRange.start);
-      final bleedingEnd = df.format(primaryPred.predictedBleedingRange.end);
-      periodText =
-          'Next Period: $bleedingStart (${primaryPred.expectedDurationDays} days, $bleedingStart–$bleedingEnd)';
+      final possibleStart = df.format(primaryPred.possibleStartRange.start);
+      final possibleEnd = df.format(primaryPred.possibleStartRange.end);
+      periodText = 'Next period around $bleedingStart';
+      durationText =
+          'Typical duration ${primaryPred.expectedDurationDays} days';
 
       if (output.confidence == PredictionConfidence.low ||
           primaryPred.possibleStartRange.start !=
               primaryPred.estimatedStartDate) {
-        possibleStartText =
-            'Possible start range: ${df.format(primaryPred.possibleStartRange.start)}–${df.format(primaryPred.possibleStartRange.end)}';
+        possibleStartText = 'Possible start $possibleStart-$possibleEnd';
       } else {
         possibleStartText = null;
       }
     } else {
-      periodText = 'Next Period: ${output.formattedPeriodRange}';
+      periodText = 'Next period ${output.formattedPeriodRange}';
       possibleStartText = null;
+      durationText = null;
     }
 
     final isDark = theme.brightness == Brightness.dark;
@@ -328,8 +622,13 @@ class _RhythmCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            output.estimatedPhase,
-            style: theme.textTheme.displayMedium?.copyWith(color: Colors.white),
+            output.hasEnoughData
+                ? output.estimatedPhase.toUpperCase()
+                : 'CYCLE TRACKER',
+            style: theme.textTheme.displayMedium?.copyWith(
+              color: Colors.white,
+              letterSpacing: 0,
+            ),
           ),
           const SizedBox(height: 8),
           Row(
@@ -359,6 +658,16 @@ class _RhythmCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         possibleStartText,
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    if (durationText != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        durationText,
                         style: const TextStyle(
                           color: Colors.white60,
                           fontSize: 12,
@@ -399,31 +708,46 @@ class _QuickInputsCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'How are you feeling today?',
-              style: theme.textTheme.headlineMedium,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'How are you today?',
+                    style: theme.textTheme.headlineMedium,
+                  ),
+                ),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.sagePrimary,
+                  size: 18,
+                ),
+                const SizedBox(width: 4),
+                Text('Logged', style: theme.textTheme.labelMedium),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _RatingRow(
-              label: 'Energy Level',
+              label: 'Energy',
               selectedValue: energy,
               activeIcon: Icons.bolt_rounded,
               inactiveIcon: Icons.bolt_outlined,
               activeColor: AppColors.warmGold,
+              valueLabels: _energyLabels,
               onChanged: onEnergyChanged,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             _RatingRow(
-              label: 'Pain / Discomfort',
-              selectedValue: pain,
-              activeIcon: Icons.error_rounded,
-              inactiveIcon: Icons.error_outline_rounded,
+              label: 'Pain',
+              selectedValue: pain + 1,
+              activeIcon: Icons.circle_rounded,
+              inactiveIcon: Icons.circle_outlined,
               activeColor: AppColors.terracottaPrimary,
-              onChanged: onPainChanged,
+              valueLabels: _painLabels,
+              onChanged: (value) => onPainChanged(value - 1),
             ),
             const SizedBox(height: 12),
             Row(
@@ -467,6 +791,7 @@ class _RatingRow extends StatelessWidget {
   final IconData activeIcon;
   final IconData inactiveIcon;
   final Color activeColor;
+  final List<String> valueLabels;
   final ValueChanged<int> onChanged;
 
   const _RatingRow({
@@ -475,6 +800,7 @@ class _RatingRow extends StatelessWidget {
     required this.activeIcon,
     required this.inactiveIcon,
     required this.activeColor,
+    required this.valueLabels,
     required this.onChanged,
   });
 
@@ -495,79 +821,187 @@ class _RatingRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(5, (index) {
-            final value = index + 1;
-            final isSelected = value <= selectedValue;
+        Flexible(
+          child: Wrap(
+            spacing: 2,
+            runSpacing: 2,
+            alignment: WrapAlignment.end,
+            children: List.generate(5, (index) {
+              final value = index + 1;
+              final isSelected = value <= selectedValue;
+              final valueLabel = valueLabels[index];
 
-            return IconButton(
-              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-              padding: EdgeInsets.zero,
-              iconSize: 22,
-              tooltip: '$label $value',
-              icon: Icon(
-                isSelected ? activeIcon : inactiveIcon,
-                color: isSelected ? activeColor : Colors.grey,
-              ),
-              onPressed: () => onChanged(value),
-            );
-          }),
+              return IconButton(
+                constraints: const BoxConstraints.tightFor(
+                  width: 36,
+                  height: 36,
+                ),
+                padding: EdgeInsets.zero,
+                iconSize: 22,
+                tooltip: '$label: $valueLabel',
+                icon: Icon(
+                  isSelected ? activeIcon : inactiveIcon,
+                  color: isSelected ? activeColor : Colors.grey,
+                ),
+                onPressed: () => onChanged(value),
+              );
+            }),
+          ),
         ),
       ],
     );
   }
 }
 
+const _energyLabels = ['Very low', 'Low', 'Moderate', 'High', 'Very high'];
+
+const _painLabels = ['None', 'Mild', 'Moderate', 'High', 'Severe'];
+
 class _ReadinessCard extends StatelessWidget {
   final DailyReadinessResult readiness;
+  final VoidCallback onSeeWhy;
 
-  const _ReadinessCard({required this.readiness});
+  const _ReadinessCard({required this.readiness, required this.onSeeWhy});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final accent = _readinessAccent(readiness.score, isDark);
+    final chips = [
+      readiness.suggestedPace,
+      readiness.cycleContext,
+      ...readiness.supportingFactors.take(1).map((factor) => factor.label),
+      ...readiness.limitingFactors.take(1).map((factor) => factor.label),
+    ];
 
-    return Card(
-      color: isDark ? AppColors.cycleFollicularDark : AppColors.sageContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
+    return Semantics(
+      label:
+          'Daily readiness: ${readiness.label}. ${readiness.description}. ${readiness.primaryRecommendation}',
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardSurfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: isDark ? 0.18 : 0.12),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.spa_rounded,
-                  color: isDark ? AppColors.sageLight : AppColors.sageDark,
-                  size: 24,
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: isDark ? 0.18 : 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(_readinessIcon(readiness.score), color: accent),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Daily Readiness',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: accent,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        readiness.title,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          height: 1.12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(width: 8),
-                Expanded(
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: isDark ? 0.18 : 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Text(
-                    'Daily Readiness: ${readiness.label}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.textPrimaryDark
-                          : AppColors.sageDark,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                    readiness.label,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
             Text(
               readiness.description,
-              style: TextStyle(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: isDark
                     ? AppColors.textSecondaryDark
-                    : AppColors.textPrimaryLight,
-                fontSize: 14,
+                    : AppColors.textSecondaryLight,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: chips
+                  .where((chip) => chip.trim().isNotEmpty)
+                  .map((chip) => _SignalChip(label: chip, color: accent))
+                  .toList(growable: false),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: isDark ? 0.12 : 0.08),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.route_rounded, color: accent, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      readiness.primaryRecommendation,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onSeeWhy,
+                icon: const Icon(Icons.insights_rounded, size: 18),
+                label: const Text('See why'),
               ),
             ),
           ],
@@ -579,18 +1013,28 @@ class _ReadinessCard extends StatelessWidget {
 
 class _TodayFocusCard extends StatelessWidget {
   final DailyReadinessResult readiness;
+  final String recommendation;
+  final Task? task;
+  final String reason;
   final VoidCallback onAdjustPlan;
 
-  const _TodayFocusCard({required this.readiness, required this.onAdjustPlan});
+  const _TodayFocusCard({
+    required this.readiness,
+    required this.recommendation,
+    required this.task,
+    required this.reason,
+    required this.onAdjustPlan,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final accent = _readinessAccent(readiness.score, isDark);
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(18.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -604,59 +1048,106 @@ class _TodayFocusCard extends StatelessWidget {
                 ),
                 TextButton(
                   onPressed: onAdjustPlan,
-                  child: const Text('Adjust Plan'),
+                  child: const Text('Adjust'),
                 ),
               ],
             ),
             const SizedBox(height: 12),
+            Text(
+              recommendation,
+              style: theme.textTheme.bodyMedium?.copyWith(height: 1.35),
+            ),
+            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: isDark
-                    ? AppColors.cycleMenstrualPredictedDark
-                    : AppColors.terracottaContainer,
-                borderRadius: BorderRadius.circular(12),
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : AppColors.bgWarmCream,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.star_rounded,
-                    color: isDark
-                        ? AppColors.terracottaLight
-                        : AppColors.terracottaPrimary,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      readiness.recommendedPriority,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isDark
-                            ? AppColors.textPrimaryDark
-                            : AppColors.textPrimaryLight,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.flag_rounded, color: accent, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          task?.title ?? 'Choose one meaningful task',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (task != null) ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _SignalChip(
+                          label: '${task!.estimatedDurationMinutes} min',
+                          color: accent,
+                        ),
+                        _SignalChip(label: task!.priority, color: accent),
+                        _SignalChip(
+                          label: '${task!.recommendedEnergy} energy',
+                          color: accent,
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 10),
+                  ],
+                  Text(
+                    reason,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.self_improvement_rounded,
+                        color: isDark
+                            ? AppColors.sageLight
+                            : AppColors.sagePrimary,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          readiness.bestFor,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-            ...readiness.lighterTasks.map(
-              (task) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline_rounded,
-                      size: 18,
-                      color: isDark
-                          ? AppColors.sageLight
-                          : AppColors.sagePrimary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(task)),
-                  ],
-                ),
+            Text(
+              readiness.movementGuidance,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
               ),
             ),
           ],
@@ -664,6 +1155,60 @@ class _TodayFocusCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SignalChip extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _SignalChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 260),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.16 : 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+          height: 1.15,
+        ),
+      ),
+    );
+  }
+}
+
+Color _readinessAccent(ReadinessScore score, bool isDark) {
+  return switch (score) {
+    ReadinessScore.restore =>
+      isDark ? AppColors.terracottaLight : AppColors.terracottaPrimary,
+    ReadinessScore.gentle => isDark ? AppColors.sageLight : AppColors.sageDark,
+    ReadinessScore.steady => AppColors.warmGoldPrimary,
+    ReadinessScore.focused => AppColors.waterBlue,
+    ReadinessScore.strong =>
+      isDark ? AppColors.purpleLight : AppColors.purplePrimary,
+  };
+}
+
+IconData _readinessIcon(ReadinessScore score) {
+  return switch (score) {
+    ReadinessScore.restore => Icons.nights_stay_rounded,
+    ReadinessScore.gentle => Icons.self_improvement_rounded,
+    ReadinessScore.steady => Icons.spa_rounded,
+    ReadinessScore.focused => Icons.psychology_rounded,
+    ReadinessScore.strong => Icons.bolt_rounded,
+  };
 }
 
 class _NigerianMealCard extends StatelessWidget {
@@ -752,10 +1297,10 @@ class _NigerianMealCard extends StatelessWidget {
 }
 
 class _MoveTodayCard extends StatelessWidget {
-  final DailyReadinessResult readiness;
+  final WorkoutEntity workout;
   final VoidCallback onSubstitute;
 
-  const _MoveTodayCard({required this.readiness, required this.onSubstitute});
+  const _MoveTodayCard({required this.workout, required this.onSubstitute});
 
   @override
   Widget build(BuildContext context) {
@@ -780,9 +1325,15 @@ class _MoveTodayCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            Text(workout.title, style: theme.textTheme.titleLarge),
+            const SizedBox(height: 4),
             Text(
-              readiness.recommendedWorkout,
-              style: theme.textTheme.titleLarge,
+              '${workout.durationMinutes} min • ${workout.intensity} • ${workout.category}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(

@@ -14,7 +14,7 @@ import in_app_purchase_storekit
 import local_auth_darwin
 import printing
 import share_plus
-import sqlite3_flutter_libs
+import sqlcipher_flutter_libs
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   CryptographyFlutterPlugin.register(with: registry.registrar(forPlugin: "CryptographyFlutterPlugin"))

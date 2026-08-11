@@ -15,6 +15,7 @@ enum QuevaaNotificationType {
   lunch,
   dinner,
   workout,
+  productivityGuidance,
   taskDue,
   taskStarting,
   focusSession,
@@ -44,8 +45,10 @@ extension QuevaaNotificationTypeRoute on QuevaaNotificationType {
       case QuevaaNotificationType.breakfast:
       case QuevaaNotificationType.lunch:
       case QuevaaNotificationType.dinner:
+        return '/wellness?section=Meals';
       case QuevaaNotificationType.workout:
         return '/wellness';
+      case QuevaaNotificationType.productivityGuidance:
       case QuevaaNotificationType.taskDue:
       case QuevaaNotificationType.taskStarting:
       case QuevaaNotificationType.focusSession:
@@ -74,6 +77,7 @@ extension QuevaaNotificationTypeRoute on QuevaaNotificationType {
         return 'conception';
       case QuevaaNotificationType.medication:
         return 'medication';
+      case QuevaaNotificationType.productivityGuidance:
       case QuevaaNotificationType.taskDue:
       case QuevaaNotificationType.taskStarting:
       case QuevaaNotificationType.focusSession:

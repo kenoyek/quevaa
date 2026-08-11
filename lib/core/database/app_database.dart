@@ -212,7 +212,14 @@ class Recipes extends Table with AuditColumns {
 class MealPlans extends Table with AuditColumns {
   DateTimeColumn get date => dateTime()();
   IntColumn get mealId => integer()();
+  TextColumn get recipeId => text().withDefault(const Constant(''))();
+  TextColumn get recipeTitle => text().nullable()();
   TextColumn get mealType => text()();
+  IntColumn get servings => integer().withDefault(const Constant(2))();
+  TextColumn get selectedMemberIdsJson =>
+      text().withDefault(const Constant('[]'))();
+  TextColumn get notes => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('planned'))();
 }
 
 // 16. MealLogs
@@ -243,22 +250,91 @@ class MealPreparationEntries extends Table with AuditColumns {
 
 // 17. PantryItems
 class PantryItems extends Table with AuditColumns {
+  TextColumn get ingredientId => text().withDefault(const Constant(''))();
   TextColumn get name => text()();
   RealColumn get quantity => real()();
   TextColumn get unit => text()();
   TextColumn get category => text().withDefault(const Constant('General'))();
   BoolColumn get lowStock => boolean().withDefault(const Constant(false))();
   DateTimeColumn get expiryDate => dateTime().nullable()();
+  DateTimeColumn get purchaseDate => dateTime().nullable()();
+  RealColumn get minimumStockLevel => real().nullable()();
+  TextColumn get storageLocation =>
+      text().withDefault(const Constant('Pantry'))();
+  BoolColumn get opened => boolean().withDefault(const Constant(false))();
+  TextColumn get notes => text().nullable()();
 }
 
 // 18. ShoppingItems
 class ShoppingItems extends Table with AuditColumns {
+  TextColumn get ingredientId => text().withDefault(const Constant(''))();
   TextColumn get itemName => text()();
   TextColumn get quantity => text().nullable()();
+  RealColumn get requiredQuantity => real().nullable()();
   TextColumn get unit => text().nullable()();
   TextColumn get category => text().withDefault(const Constant('General'))();
   TextColumn get sourceMealTitle => text().nullable()();
+  TextColumn get sourceType => text().withDefault(const Constant('manual'))();
+  TextColumn get sourceIdsJson => text().withDefault(const Constant('[]'))();
+  BoolColumn get manuallyAdded =>
+      boolean().withDefault(const Constant(false))();
+  RealColumn get estimatedCost => real().nullable()();
+  RealColumn get actualCost => real().nullable()();
   BoolColumn get isPurchased => boolean().withDefault(const Constant(false))();
+}
+
+// 18b. HouseholdProfiles
+class HouseholdProfiles extends Table with AuditColumns {
+  TextColumn get householdName => text().nullable()();
+  IntColumn get adultCount => integer().withDefault(const Constant(1))();
+  IntColumn get childCount => integer().withDefault(const Constant(0))();
+  IntColumn get defaultServings => integer().withDefault(const Constant(2))();
+  TextColumn get dietaryPreferencesJson =>
+      text().withDefault(const Constant('[]'))();
+  TextColumn get allergensJson => text().withDefault(const Constant('[]'))();
+  TextColumn get dislikedIngredientsJson =>
+      text().withDefault(const Constant('[]'))();
+  IntColumn get weekdayPrepLimitMinutes =>
+      integer().withDefault(const Constant(45))();
+  IntColumn get weekendPrepLimitMinutes =>
+      integer().withDefault(const Constant(90))();
+  IntColumn get avoidRepeatDinnerDays =>
+      integer().withDefault(const Constant(4))();
+  RealColumn get weeklyBudget => real().nullable()();
+  RealColumn get monthlyBudget => real().nullable()();
+}
+
+// 18c. FamilyMembers
+class FamilyMembers extends Table with AuditColumns {
+  TextColumn get name => text()();
+  TextColumn get ageGroup => text().withDefault(const Constant('Adult'))();
+  TextColumn get dietaryPreferencesJson =>
+      text().withDefault(const Constant('[]'))();
+  TextColumn get allergensJson => text().withDefault(const Constant('[]'))();
+  TextColumn get dislikedIngredientsJson =>
+      text().withDefault(const Constant('[]'))();
+  TextColumn get notes => text().nullable()();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+}
+
+// 18d. LeftoverEntries
+class LeftoverEntries extends Table with AuditColumns {
+  IntColumn get sourceMealPlanEntryId => integer().nullable()();
+  TextColumn get recipeId => text()();
+  IntColumn get servingsRemaining => integer()();
+  DateTimeColumn get preparedAt => dateTime()();
+  DateTimeColumn get useByDate => dateTime().nullable()();
+  TextColumn get notes => text().nullable()();
+}
+
+// 18e. IngredientPriceHistory
+class IngredientPriceHistory extends Table with AuditColumns {
+  TextColumn get ingredientId => text()();
+  TextColumn get displayName => text()();
+  RealColumn get quantity => real()();
+  TextColumn get unit => text()();
+  RealColumn get price => real()();
+  DateTimeColumn get purchasedAt => dateTime()();
 }
 
 // 19. WorkoutPlans
@@ -460,6 +536,10 @@ class OnboardingPreferences extends Table with AuditColumns {
     MealPreparationEntries,
     PantryItems,
     ShoppingItems,
+    HouseholdProfiles,
+    FamilyMembers,
+    LeftoverEntries,
+    IngredientPriceHistory,
     WorkoutPlans,
     WorkoutSessions,
     ExerciseLogs,
@@ -493,7 +573,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -580,6 +660,34 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 7) {
         await m.createTable(notificationInboxEntries);
+      }
+      if (from < 8) {
+        await m.addColumn(mealPlans, mealPlans.recipeId);
+        await m.addColumn(mealPlans, mealPlans.recipeTitle);
+        await m.addColumn(mealPlans, mealPlans.servings);
+        await m.addColumn(mealPlans, mealPlans.selectedMemberIdsJson);
+        await m.addColumn(mealPlans, mealPlans.notes);
+        await m.addColumn(mealPlans, mealPlans.status);
+
+        await m.addColumn(pantryItems, pantryItems.ingredientId);
+        await m.addColumn(pantryItems, pantryItems.purchaseDate);
+        await m.addColumn(pantryItems, pantryItems.minimumStockLevel);
+        await m.addColumn(pantryItems, pantryItems.storageLocation);
+        await m.addColumn(pantryItems, pantryItems.opened);
+        await m.addColumn(pantryItems, pantryItems.notes);
+
+        await m.addColumn(shoppingItems, shoppingItems.ingredientId);
+        await m.addColumn(shoppingItems, shoppingItems.requiredQuantity);
+        await m.addColumn(shoppingItems, shoppingItems.sourceType);
+        await m.addColumn(shoppingItems, shoppingItems.sourceIdsJson);
+        await m.addColumn(shoppingItems, shoppingItems.manuallyAdded);
+        await m.addColumn(shoppingItems, shoppingItems.estimatedCost);
+        await m.addColumn(shoppingItems, shoppingItems.actualCost);
+
+        await m.createTable(householdProfiles);
+        await m.createTable(familyMembers);
+        await m.createTable(leftoverEntries);
+        await m.createTable(ingredientPriceHistory);
       }
     },
   );

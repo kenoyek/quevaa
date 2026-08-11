@@ -141,10 +141,10 @@ void main() {
     );
 
     test(
-      'TEST 6: Upgrade DB schema from v1 to v7 -> migrations execute cleanly',
+      'TEST 6: Upgrade DB schema from v1 to v8 -> migrations execute cleanly',
       () async {
         final db = AppDatabase(NativeDatabase.memory());
-        expect(db.schemaVersion, equals(7));
+        expect(db.schemaVersion, equals(8));
 
         // Verify all tables exist and work
         await db

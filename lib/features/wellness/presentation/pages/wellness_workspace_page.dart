@@ -165,6 +165,7 @@ class _MealsWorkspace extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final mealsSection = ref.watch(mealsSectionProvider);
     final dailyPlan = ref.watch(dailyQuevaaPlanProvider);
     final savedIds =
         ref
@@ -190,49 +191,376 @@ class _MealsWorkspace extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Today’s meals',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          [
-            if (dailyPlan.cycleSnapshot.cycleDay != null)
-              'Cycle Day ${dailyPlan.cycleSnapshot.cycleDay}',
-            dailyPlan.cycleOutput.estimatedPhase,
-          ].join(' • '),
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Recommendations are ranked from your canonical cycle state, food preferences, prep-time preference, saved meals, pantry items and recent meal history.',
-          style: Theme.of(context).textTheme.bodySmall,
+        QuevaaSectionTabs(
+          segments: const [
+            (value: 'Today', label: 'Today', icon: Icons.today_rounded),
+            (
+              value: 'Planner',
+              label: 'Planner',
+              icon: Icons.calendar_month_rounded,
+            ),
+            (value: 'Pantry', label: 'Pantry', icon: Icons.inventory_2_rounded),
+            (
+              value: 'Shopping',
+              label: 'Shopping',
+              icon: Icons.shopping_bag_rounded,
+            ),
+            (value: 'Saved', label: 'Saved', icon: Icons.favorite_rounded),
+            (value: 'History', label: 'History', icon: Icons.history_rounded),
+          ],
+          selected: mealsSection,
+          onSelectionChanged: (value) =>
+              ref.read(mealsSectionProvider.notifier).state = value,
         ),
         const SizedBox(height: 12),
-        for (final mealType in const ['Breakfast', 'Lunch', 'Dinner', 'Snack'])
-          if (dailyPlan.meals[mealType] case final recipe?)
-            _MealRecommendationCard(
-              recipe: recipe,
-              compactTitle: mealType == 'Snack' ? 'Optional snack' : mealType,
-              whySuggested: recipe.whySuggested(
-                dailyPlan.cycleOutput.estimatedPhase,
+        switch (mealsSection) {
+          'Planner' => const _MealPlannerPanel(),
+          'Pantry' => _PantryPanel(items: pantry, expanded: true),
+          'Shopping' => _ShoppingPanel(items: shopping, expanded: true),
+          'Saved' => _SavedMealsPanel(savedIds: savedIds),
+          'History' => _MealHistoryPanel(entries: preparedEntries),
+          _ => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Today’s meals',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-              isSaved: savedIds.contains(recipe.id),
-              isPrepared: preparedTodayIds.contains(
-                '${recipe.id}:${recipe.mealType}',
+              const SizedBox(height: 4),
+              Text(
+                [
+                  if (dailyPlan.cycleSnapshot.cycleDay != null)
+                    'Cycle Day ${dailyPlan.cycleSnapshot.cycleDay}',
+                  dailyPlan.cycleOutput.estimatedPhase,
+                ].join(' • '),
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Family meals prioritize household safety, pantry fit, servings, prep time and recent rotation. Your cycle context remains a light personal ranking signal.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              for (final mealType in const [
+                'Breakfast',
+                'Lunch',
+                'Dinner',
+                'Snack',
+              ])
+                if (dailyPlan.meals[mealType] case final recipe?)
+                  _MealRecommendationCard(
+                    recipe: recipe,
+                    compactTitle: mealType == 'Snack'
+                        ? 'Optional snack'
+                        : mealType,
+                    whySuggested:
+                        '${recipe.whySuggested(dailyPlan.cycleOutput.estimatedPhase)} For shared meals, Quevaa keeps household safety and preferences first.',
+                    isSaved: savedIds.contains(recipe.id),
+                    isPrepared: preparedTodayIds.contains(
+                      '${recipe.id}:${recipe.mealType}',
+                    ),
+                  ),
+              const SizedBox(height: 12),
+              _RecipeSearchPanel(),
+            ],
+          ),
+        },
+      ],
+    );
+  }
+}
+
+class _MealPlannerPanel extends ConsumerWidget {
+  const _MealPlannerPanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(plannerModeProvider);
+    final week = ref.watch(weeklyFamilyMealPlanProvider);
+    final month = ref.watch(monthlyFamilyMealPlanProvider);
+    final profile =
+        ref.watch(householdProfileStreamProvider).valueOrNull ??
+        const HouseholdProfileModelBridge();
+    final storedPlans = ref.watch(mealPlanStreamProvider).valueOrNull ?? [];
+    final formatter = DateFormat.MMMd();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _HouseholdProfileCard(profile: profile),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: _panelDecoration(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Meal planner',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'Week', label: Text('Week')),
+                      ButtonSegment(value: 'Month', label: Text('Month')),
+                    ],
+                    selected: {mode},
+                    onSelectionChanged: (value) =>
+                        ref.read(plannerModeProvider.notifier).state =
+                            value.single,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                mode == 'Week'
+                    ? '${formatter.format(week.weekStart)}-${formatter.format(week.weekStart.add(const Duration(days: 6)))}'
+                    : DateFormat.yMMMM().format(month.monthStart),
+              ),
+              const SizedBox(height: 12),
+              if (mode == 'Week') ...[
+                _WeeklyPlanStats(
+                  summary: week,
+                  storedCount: storedPlans.length,
+                ),
+                const SizedBox(height: 12),
+                for (var day = 0; day < 7; day++)
+                  _PlannerDayRows(
+                    date: week.weekStart.add(Duration(days: day)),
+                    slots: week.slots
+                        .where(
+                          (slot) =>
+                              normalizeDate(slot.date) ==
+                              normalizeDate(
+                                week.weekStart.add(Duration(days: day)),
+                              ),
+                        )
+                        .toList(growable: false),
+                  ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () async {
+                        await ref
+                            .read(wellnessWorkspaceControllerProvider.notifier)
+                            .applyGeneratedWeek();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Weekly family plan saved.'),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.auto_awesome_rounded),
+                      label: const Text('Generate Week'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        await ref
+                            .read(wellnessWorkspaceControllerProvider.notifier)
+                            .generateShoppingListFromWeek(week.weekStart);
+                        if (context.mounted) {
+                          ref.read(mealsSectionProvider.notifier).state =
+                              'Shopping';
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Shopping list generated from this week.',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.shopping_bag_rounded),
+                      label: const Text('Shopping List'),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                Text(
+                  '${month.plannedMeals} planned meals across ${month.weeks.length} rotating weeks.',
+                ),
+                const SizedBox(height: 8),
+                for (final weekSummary in month.weeks)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.calendar_view_week_rounded),
+                    title: Text(
+                      'Week of ${formatter.format(weekSummary.weekStart)}',
+                    ),
+                    subtitle: Text(
+                      '${weekSummary.plannedMeals} meals • ${weekSummary.uniqueRecipeCount} unique recipes • ${weekSummary.pantryFirstMeals} pantry-first',
+                    ),
+                  ),
+                const Divider(),
+                Text(
+                  'Monthly staples',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                if (month.monthlyStaples.isEmpty)
+                  const Text('Staple shopping appears after pantry gaps exist.')
+                else
+                  for (final item in month.monthlyStaples.take(8))
+                    _LineItem(
+                      icon: Icons.inventory_rounded,
+                      text:
+                          '${item.displayName} — ${item.quantityLabel} ${item.unit}',
+                    ),
+                const SizedBox(height: 8),
+                Text(
+                  'Fresh items stay grouped by week instead of becoming one large monthly produce list.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class HouseholdProfileModelBridge {
+  const HouseholdProfileModelBridge();
+
+  String get householdName => '';
+  int get adults => 1;
+  int get children => 0;
+  int get effectiveServings => 2;
+  List<String> get allergens => const [];
+  List<String> get dietaryPreferences => const [];
+  int get weekdayPrepLimitMinutes => 45;
+  int get weekendPrepLimitMinutes => 90;
+}
+
+class _HouseholdProfileCard extends ConsumerWidget {
+  final dynamic profile;
+
+  const _HouseholdProfileCard({required this.profile});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _panelDecoration(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  profile.householdName.toString().isEmpty
+                      ? 'Household profile'
+                      : profile.householdName.toString(),
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Edit household',
+                onPressed: () => _showHouseholdSheet(context, ref, profile),
+                icon: const Icon(Icons.edit_rounded),
+              ),
+            ],
+          ),
+          Text(
+            '${profile.adults} adult(s), ${profile.children} child(ren) • ${profile.effectiveServings} default servings',
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _MetadataChip(
+                label: '${profile.weekdayPrepLimitMinutes} min weekdays',
+              ),
+              _MetadataChip(
+                label: '${profile.weekendPrepLimitMinutes} min weekends',
+              ),
+              if (profile.allergens.isNotEmpty)
+                _MetadataChip(label: 'Avoids ${profile.allergens.join(', ')}'),
+              if (profile.dietaryPreferences.isNotEmpty)
+                _MetadataChip(
+                  label: profile.dietaryPreferences.take(2).join(', '),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyPlanStats extends StatelessWidget {
+  final dynamic summary;
+  final int storedCount;
+
+  const _WeeklyPlanStats({required this.summary, required this.storedCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _MetadataChip(label: '${summary.plannedMeals} meals'),
+        _MetadataChip(label: '${summary.uniqueRecipeCount} unique recipes'),
+        _MetadataChip(label: '${summary.pantryFirstMeals} pantry-first'),
+        _MetadataChip(label: '${summary.expiringIngredientMeals} use-soon'),
+        _MetadataChip(label: '$storedCount saved locally'),
+      ],
+    );
+  }
+}
+
+class _PlannerDayRows extends StatelessWidget {
+  final DateTime date;
+  final List<dynamic> slots;
+
+  const _PlannerDayRows({required this.date, required this.slots});
+
+  @override
+  Widget build(BuildContext context) {
+    final day = DateFormat.E().format(date).toUpperCase();
+    final dateLabel = DateFormat.MMMd().format(date);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$day  $dateLabel',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          for (final slot in slots)
+            Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white10
+                    : AppColors.bgWarmCream,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(width: 72, child: Text(slot.mealType)),
+                  Expanded(child: Text(slot.recipe.title)),
+                  Text('${slot.servings}p'),
+                ],
               ),
             ),
-        const SizedBox(height: 12),
-        _SavedMealsPanel(savedIds: savedIds),
-        const SizedBox(height: 12),
-        _MealHistoryPanel(entries: preparedEntries),
-        const SizedBox(height: 12),
-        _RecipeSearchPanel(),
-        const SizedBox(height: 12),
-        _PantryPanel(items: pantry),
-        const SizedBox(height: 12),
-        _ShoppingPanel(items: shopping),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1375,8 +1703,9 @@ String _titleForMealId(String mealId) {
 
 class _PantryPanel extends ConsumerWidget {
   final List<PantryItem> items;
+  final bool expanded;
 
-  const _PantryPanel({required this.items});
+  const _PantryPanel({required this.items, this.expanded = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1400,6 +1729,50 @@ class _PantryPanel extends ConsumerWidget {
               ),
             ],
           ),
+          if (expanded) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _MetadataChip(label: '${items.length} items'),
+                _MetadataChip(
+                  label:
+                      '${items.where((item) => item.lowStock).length} low stock',
+                ),
+                _MetadataChip(
+                  label:
+                      '${items.where((item) => _expiryStatus(item.expiryDate) == 'Use soon').length} use soon',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final ingredient in const [
+                  'Rice',
+                  'Eggs',
+                  'Tomatoes',
+                  'Onions',
+                  'Beans',
+                  'Yam',
+                  'Plantain',
+                  'Chicken',
+                  'Fish',
+                  'Oil',
+                ])
+                  ActionChip(
+                    avatar: const Icon(Icons.add_rounded, size: 18),
+                    label: Text(ingredient),
+                    onPressed: () => ref
+                        .read(wellnessWorkspaceControllerProvider.notifier)
+                        .addPantryItem(name: ingredient),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
           if (items.isEmpty)
             const Text('Pantry ingredients can improve local meal suggestions.')
           else
@@ -1413,8 +1786,39 @@ class _PantryPanel extends ConsumerWidget {
                 ),
                 title: Text(item.name),
                 subtitle: Text(
-                  '${item.quantity} ${item.unit}${item.lowStock ? ' • low stock' : ''}',
+                  [
+                    '${_formatQuantity(item.quantity)} ${item.unit}',
+                    item.category,
+                    _expiryStatus(item.expiryDate),
+                    if (item.lowStock) 'Low stock',
+                    item.storageLocation,
+                  ].where((value) => value.isNotEmpty).join(' • '),
                 ),
+                trailing: expanded
+                    ? Wrap(
+                        spacing: 4,
+                        children: [
+                          IconButton(
+                            tooltip: 'Decrease',
+                            onPressed: () => ref
+                                .read(
+                                  wellnessWorkspaceControllerProvider.notifier,
+                                )
+                                .adjustPantryItem(item, -1),
+                            icon: const Icon(Icons.remove_rounded),
+                          ),
+                          IconButton(
+                            tooltip: 'Increase',
+                            onPressed: () => ref
+                                .read(
+                                  wellnessWorkspaceControllerProvider.notifier,
+                                )
+                                .adjustPantryItem(item, 1),
+                            icon: const Icon(Icons.add_rounded),
+                          ),
+                        ],
+                      )
+                    : null,
               ),
         ],
       ),
@@ -1424,8 +1828,9 @@ class _PantryPanel extends ConsumerWidget {
 
 class _ShoppingPanel extends ConsumerWidget {
   final List<ShoppingItem> items;
+  final bool expanded;
 
-  const _ShoppingPanel({required this.items});
+  const _ShoppingPanel({required this.items, this.expanded = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1453,34 +1858,97 @@ class _ShoppingPanel extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
+          if (expanded) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _MetadataChip(label: '${items.length} items'),
+                _MetadataChip(
+                  label:
+                      '${items.where((item) => !item.isPurchased).length} remaining',
+                ),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final week = ref.read(plannerWeekStartProvider);
+                    await ref
+                        .read(wellnessWorkspaceControllerProvider.notifier)
+                        .generateShoppingListFromWeek(week);
+                  },
+                  icon: const Icon(Icons.calendar_view_week_rounded),
+                  label: const Text('Generate From Week'),
+                ),
+                FilledButton.icon(
+                  onPressed: items.any((item) => item.isPurchased)
+                      ? () => ref
+                            .read(wellnessWorkspaceControllerProvider.notifier)
+                            .finishShoppingTrip()
+                      : null,
+                  icon: const Icon(Icons.inventory_2_rounded),
+                  label: const Text('Finish Shopping'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
           if (items.isEmpty)
             const Text('Add ingredients from a meal or enter pantry needs.')
           else
-            for (final item in items)
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: item.isPurchased,
-                onChanged: (_) => ref
-                    .read(wellnessWorkspaceControllerProvider.notifier)
-                    .toggleShoppingItem(item),
-                title: Text(
-                  [
-                    item.itemName,
-                    if (item.quantity != null && item.unit != null)
-                      '${item.quantity} ${item.unit}',
-                  ].join(' — '),
-                ),
-                subtitle: item.sourceMealTitle == null
-                    ? null
-                    : Text('From ${item.sourceMealTitle}'),
-                secondary: IconButton(
-                  tooltip: 'Remove',
-                  onPressed: () => ref
-                      .read(wellnessWorkspaceControllerProvider.notifier)
-                      .removeShoppingItem(item),
-                  icon: const Icon(Icons.delete_outline_rounded),
-                ),
+            for (final category in _shoppingCategories(items))
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(category, style: Theme.of(context).textTheme.titleSmall),
+                  for (final item in items.where(
+                    (item) => item.category == category,
+                  ))
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: item.isPurchased,
+                      onChanged: (_) => ref
+                          .read(wellnessWorkspaceControllerProvider.notifier)
+                          .toggleShoppingItem(item),
+                      title: Text(
+                        [
+                          item.itemName,
+                          if (item.quantity != null && item.unit != null)
+                            '${item.quantity} ${item.unit}',
+                        ].join(' — '),
+                      ),
+                      subtitle: item.sourceMealTitle == null
+                          ? null
+                          : Text('From ${item.sourceMealTitle}'),
+                      secondary: IconButton(
+                        tooltip: 'Remove',
+                        onPressed: () => ref
+                            .read(wellnessWorkspaceControllerProvider.notifier)
+                            .removeShoppingItem(item),
+                        icon: const Icon(Icons.delete_outline_rounded),
+                      ),
+                    ),
+                ],
               ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LineItem extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _LineItem({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.sagePrimary),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text)),
         ],
       ),
     );
@@ -1519,8 +1987,19 @@ class _ProgressTile extends StatelessWidget {
   }
 }
 
-void _showPantrySheet(BuildContext context, WidgetRef ref) {
-  final name = TextEditingController();
+void _showHouseholdSheet(BuildContext context, WidgetRef ref, dynamic profile) {
+  final name = TextEditingController(text: profile.householdName.toString());
+  final adults = TextEditingController(text: profile.adults.toString());
+  final children = TextEditingController(text: profile.children.toString());
+  final servings = TextEditingController(
+    text: profile.effectiveServings.toString(),
+  );
+  final allergens = TextEditingController(
+    text: (profile.allergens as List).join(', '),
+  );
+  final prefs = TextEditingController(
+    text: (profile.dietaryPreferences as List).join(', '),
+  );
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -1533,32 +2012,210 @@ void _showPantrySheet(BuildContext context, WidgetRef ref) {
           20,
           20 + MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: name,
-              decoration: const InputDecoration(labelText: 'Ingredient'),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () async {
-                  await ref
-                      .read(wellnessWorkspaceControllerProvider.notifier)
-                      .addPantryItem(name: name.text);
-                  if (context.mounted) Navigator.pop(context);
-                },
-                icon: const Icon(Icons.check_rounded),
-                label: const Text('Add pantry item'),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Household profile',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(
+                  labelText: 'Household name (optional)',
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: adults,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Adults'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: children,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Children'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: servings,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Default meal servings',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: allergens,
+                decoration: const InputDecoration(
+                  labelText: 'Allergens to exclude',
+                  hintText: 'peanut, fish, egg',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: prefs,
+                decoration: const InputDecoration(
+                  labelText: 'Dietary preferences',
+                  hintText: 'Vegetarian, No fish',
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    await ref
+                        .read(wellnessWorkspaceControllerProvider.notifier)
+                        .saveHouseholdProfile(
+                          householdName: name.text,
+                          adults: int.tryParse(adults.text) ?? 1,
+                          children: int.tryParse(children.text) ?? 0,
+                          defaultServings: int.tryParse(servings.text),
+                          allergens: _csv(allergens.text),
+                          dietaryPreferences: _csv(prefs.text),
+                        );
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Save household'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
-  ).whenComplete(name.dispose);
+  ).whenComplete(() {
+    name.dispose();
+    adults.dispose();
+    children.dispose();
+    servings.dispose();
+    allergens.dispose();
+    prefs.dispose();
+  });
+}
+
+void _showPantrySheet(BuildContext context, WidgetRef ref) {
+  final name = TextEditingController();
+  final quantity = TextEditingController(text: '1');
+  var unit = 'pieces';
+  var storage = 'Pantry';
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            0,
+            20,
+            20 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Ingredient'),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: quantity,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Quantity'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: unit,
+                      decoration: const InputDecoration(labelText: 'Unit'),
+                      items:
+                          const [
+                                'g',
+                                'kg',
+                                'ml',
+                                'L',
+                                'cup',
+                                'tbsp',
+                                'tsp',
+                                'pieces',
+                                'bunch',
+                                'pack',
+                                'can',
+                                'bag',
+                              ]
+                              .map(
+                                (item) => DropdownMenuItem(
+                                  value: item,
+                                  child: Text(item),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (value) =>
+                          setState(() => unit = value ?? unit),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: storage,
+                decoration: const InputDecoration(labelText: 'Storage'),
+                items: const ['Pantry', 'Fridge', 'Freezer']
+                    .map(
+                      (item) =>
+                          DropdownMenuItem(value: item, child: Text(item)),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => storage = value ?? storage),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    await ref
+                        .read(wellnessWorkspaceControllerProvider.notifier)
+                        .addPantryItem(
+                          name: name.text,
+                          quantity: double.tryParse(quantity.text) ?? 1,
+                          unit: unit,
+                          storageLocation: storage,
+                        );
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Add pantry item'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  ).whenComplete(() {
+    name.dispose();
+    quantity.dispose();
+  });
 }
 
 void _showWorkoutAlternatives(BuildContext context, WidgetRef ref) {
@@ -1616,4 +2273,54 @@ BoxDecoration _panelDecoration(BuildContext context) {
       color: isDark ? AppColors.borderDark : AppColors.borderLight,
     ),
   );
+}
+
+String _expiryStatus(DateTime? expiryDate) {
+  if (expiryDate == null) return '';
+  final today = normalizeDate(DateTime.now());
+  final expiry = normalizeDate(expiryDate);
+  final days = expiry.difference(today).inDays;
+  if (days < 0) return 'Expired';
+  if (days == 0) return 'Expiring today';
+  if (days <= 3) return 'Use soon';
+  return 'Fresh';
+}
+
+List<String> _shoppingCategories(List<ShoppingItem> items) {
+  final categories = items.map((item) => item.category).toSet().toList();
+  categories.sort((a, b) {
+    const order = [
+      'Produce',
+      'Meat/Fish',
+      'Grains & Staples',
+      'Beans & Legumes',
+      'Dairy',
+      'Spices & Seasonings',
+      'Canned/Packaged',
+      'Frozen',
+      'Household',
+      'Other',
+      'General',
+    ];
+    final aIndex = order.indexOf(a);
+    final bIndex = order.indexOf(b);
+    if (aIndex == -1 && bIndex == -1) return a.compareTo(b);
+    if (aIndex == -1) return 1;
+    if (bIndex == -1) return -1;
+    return aIndex.compareTo(bIndex);
+  });
+  return categories;
+}
+
+List<String> _csv(String value) {
+  return value
+      .split(',')
+      .map((item) => item.trim())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+}
+
+String _formatQuantity(double value) {
+  if (value == value.roundToDouble()) return value.round().toString();
+  return value.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
 }

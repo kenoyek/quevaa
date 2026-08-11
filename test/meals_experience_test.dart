@@ -284,9 +284,9 @@ void main() {
 
         final onions = await (db.select(
           db.shoppingItems,
-        )..where((tbl) => tbl.itemName.equals('onion'))).get();
+        )..where((tbl) => tbl.ingredientId.equals('onion'))).get();
         expect(onions, hasLength(1));
-        expect(double.parse(onions.single.quantity!), greaterThan(1));
+        expect(onions.single.requiredQuantity, greaterThan(1));
       },
     );
   });

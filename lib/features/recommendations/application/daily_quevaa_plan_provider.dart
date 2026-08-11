@@ -78,6 +78,27 @@ final pantryIngredientNamesProvider = StreamProvider<List<String>>((ref) {
       .map((rows) => rows.map((row) => row.name).toList(growable: false));
 });
 
+final plannedMealsForTodayProvider =
+    StreamProvider<Map<String, NigerianRecipe>>((ref) {
+      final db = ref.watch(appDatabaseProvider);
+      final today = ref.watch(localTodayProvider);
+      return (db.select(db.mealPlans)..where(
+            (tbl) =>
+                tbl.deletedAt.isNull() &
+                tbl.date.equals(today) &
+                tbl.status.isNotIn(['skipped']),
+          ))
+          .watch()
+          .map((rows) {
+            final meals = <String, NigerianRecipe>{};
+            for (final row in rows) {
+              final recipe = _recipeForPlan(row);
+              if (recipe != null) meals[row.mealType] = recipe;
+            }
+            return meals;
+          });
+    });
+
 final dailyQuevaaPlanProvider = Provider<DailyQuevaaPlan>((ref) {
   final date = ref.watch(localTodayProvider);
   final cycleOutput = ref.watch(currentCycleOutputProvider);
@@ -90,6 +111,8 @@ final dailyQuevaaPlanProvider = Provider<DailyQuevaaPlan>((ref) {
       ref.watch(recentlyPreparedMealIdsProvider).valueOrNull ?? const {};
   final pantryItems =
       ref.watch(pantryIngredientNamesProvider).valueOrNull ?? const [];
+  final plannedMeals =
+      ref.watch(plannedMealsForTodayProvider).valueOrNull ?? const {};
   final alternativeOffsets = ref.watch(mealAlternativeOffsetsProvider);
   final todayTasks = ref.watch(rankedTodayTasksProvider);
 
@@ -119,7 +142,7 @@ final dailyQuevaaPlanProvider = Provider<DailyQuevaaPlan>((ref) {
   final phaseKey = NigerianRecipeDatabase.phaseKeyForCyclePhase(
     cycleOutput.estimatedPhase,
   );
-  final meals = NigerianRecipeDatabase.recommendDailyMeals(
+  final automaticMeals = NigerianRecipeDatabase.recommendDailyMeals(
     date: date,
     cyclePhase: cycleOutput.estimatedPhase,
     dietaryPattern: prefs?.dietaryPattern,
@@ -131,6 +154,7 @@ final dailyQuevaaPlanProvider = Provider<DailyQuevaaPlan>((ref) {
     savedMealIds: savedMealIds,
     alternativeOffsets: alternativeOffsets,
   );
+  final meals = {...automaticMeals, ...plannedMeals};
   final workout = _selectWorkout(
     date: date,
     phaseKey: phaseKey,
@@ -210,6 +234,17 @@ class DailyQuevaaPlan {
     final values = meals.values.toList(growable: false);
     return values[offset % values.length];
   }
+}
+
+NigerianRecipe? _recipeForPlan(MealPlan row) {
+  if (row.recipeId.isNotEmpty) {
+    return NigerianRecipeDatabase.recipes
+        .where((recipe) => recipe.id == row.recipeId)
+        .firstOrNull;
+  }
+  return NigerianRecipeDatabase.recipes
+      .where((recipe) => recipe.title.hashCode.abs() == row.mealId)
+      .firstOrNull;
 }
 
 WorkoutEntity _selectWorkout({

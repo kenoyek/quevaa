@@ -24,12 +24,12 @@ before copying, redistributing, forking, or building on this code.
 - Dedicated Trying to Conceive mode with fertility observations, LH tests, BBT, pregnancy-test journey, preconception wellness, and partner-support controls
 - Mode switching between normal period tracking and Conception Mode without deleting records
 - Premium onboarding, splash, app icon, and Quevaa branding assets
-- Nigerian meal recommendations and preconception wellness meals
+- Nigerian meal recommendations, household meal planning, pantry tracking, and shopping-list generation
 - Workout and daily readiness recommendations
 - Private journal and local report/export foundations
 - Offline local notification system using OS-scheduled notifications
 - Notification privacy modes: explicit, discreet, hidden
-- Quiet hours, daily caps, rolling schedule limits, stable deterministic notification IDs
+- Responsive notification settings with optimistic Detailed/Discreet switching, quiet-hours sliders, daily caps, rolling schedule limits, and stable deterministic notification IDs
 - Android boot receiver configuration for scheduled local notifications
 - iOS local-notification initialization without automatic permission prompts
 
@@ -98,9 +98,10 @@ flutter build ios --release --no-codesign
 Recent validation:
 
 - `flutter analyze`: passed
-- `flutter test`: passed, 39 tests
+- `flutter test`: passed, 134 tests
+- `flutter build apk --release`: passed
 - `flutter build appbundle --release`: passed
-- `flutter build ios --release --no-codesign`: passed
+- Pixel 9 Android emulator release install and launch: passed
 
 ## Project Structure
 

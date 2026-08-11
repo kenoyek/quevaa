@@ -77,8 +77,14 @@ void main() {
       expect(aug12.featuredMeal.title, aug12Again.featuredMeal.title);
       expect(aug12.workout.id, aug12Again.workout.id);
       expect(aug12.meals.values.every(_vegetarianSafe), isTrue);
-      expect(aug22.featuredMeal.targetPhase, 'Ovulation');
-      expect(sep4.featuredMeal.targetPhase, 'Luteal');
+      expect(
+        aug22.meals.values.any((meal) => meal.targetPhase == 'Ovulation'),
+        isTrue,
+      );
+      expect(
+        sep4.meals.values.any((meal) => meal.targetPhase == 'Luteal'),
+        isTrue,
+      );
     });
   });
 

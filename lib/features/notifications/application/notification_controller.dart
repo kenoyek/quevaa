@@ -26,7 +26,7 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
       final preferences = await repository.loadPreferences();
       await repository.savePreferences(
         preferences.copyWith(
-          enabled: permission,
+          enabled: true,
           permissionInvitationSeen: true,
           permissionPreviouslyDeclined: !permission,
         ),

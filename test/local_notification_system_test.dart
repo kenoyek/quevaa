@@ -1,10 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:quevaa/core/database/app_database.dart';
 import 'package:quevaa/core/notifications/notification_destination_resolver.dart';
 import 'package:quevaa/core/notifications/notification_constants.dart';
 import 'package:quevaa/core/notifications/notification_id.dart';
 import 'package:quevaa/core/notifications/notification_payload.dart';
+import 'package:quevaa/core/notifications/notification_permission_service.dart';
+import 'package:quevaa/features/notifications/application/notification_controller.dart';
+import 'package:quevaa/features/notifications/application/notification_preferences_provider.dart';
+import 'package:quevaa/features/notifications/application/notification_snapshot_provider.dart';
 import 'package:quevaa/features/notifications/data/notification_repository_impl.dart';
 import 'package:quevaa/features/notifications/domain/entities/notification_preferences.dart';
 import 'package:quevaa/features/notifications/domain/entities/notification_schedule.dart';
@@ -12,10 +18,20 @@ import 'package:quevaa/features/notifications/domain/entities/quevaa_notificatio
 import 'package:quevaa/features/notifications/domain/enums/notification_priority.dart';
 import 'package:quevaa/features/notifications/domain/enums/notification_privacy_mode.dart';
 import 'package:quevaa/features/notifications/domain/enums/notification_type.dart';
+import 'package:quevaa/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:quevaa/features/notifications/domain/services/notification_scheduler.dart';
 import 'package:quevaa/features/notifications/domain/services/notification_policy_engine.dart';
 import 'package:quevaa/features/notifications/domain/services/smart_notification_engine.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
+
+class MockNotificationRepository extends Mock
+    implements NotificationRepository {}
+
+class MockNotificationPermissionService extends Mock
+    implements QuevaaNotificationPermissionService {}
+
+class MockNotificationScheduler extends Mock implements NotificationScheduler {}
 
 void main() {
   late tz.Location lagos;
@@ -24,6 +40,9 @@ void main() {
     tz_data.initializeTimeZones();
     lagos = tz.getLocation('Africa/Lagos');
     tz.setLocalLocation(lagos);
+    registerFallbackValue(QuevaaNotificationPreferences.defaults());
+    registerFallbackValue(NotificationReconciliationReason.preferencesChanged);
+    registerFallbackValue(const NotificationSourceSnapshot());
   });
 
   group('Stable notification IDs', () {
@@ -165,6 +184,25 @@ void main() {
   });
 
   group('Smart notification engine', () {
+    test(
+      'rejects empty source snapshots instead of scheduling stale defaults',
+      () {
+        final preferences = QuevaaNotificationPreferences.defaults().copyWith(
+          enabled: true,
+        );
+
+        expect(
+          () => const SmartNotificationEngine().buildDesiredSchedules(
+            preferences: preferences,
+            snapshot: const NotificationSourceSnapshot(),
+            location: lagos,
+            now: tz.TZDateTime(lagos, 2026, 8, 16, 8),
+          ),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
+
     test('generates TTC reminders only in conception mode', () {
       final preferences = QuevaaNotificationPreferences.defaults().copyWith(
         enabled: true,
@@ -236,6 +274,89 @@ void main() {
               item.notification.type == QuevaaNotificationType.ovulationTest,
         ),
         isFalse,
+      );
+    });
+
+    test('schedules one daily meal notification for the stable meal plan', () {
+      final preferences = QuevaaNotificationPreferences.defaults().copyWith(
+        enabled: true,
+        dailyCap: 20,
+        privacyMode: QuevaaNotificationPrivacyMode.explicit,
+      );
+      final schedules = const SmartNotificationEngine().buildDesiredSchedules(
+        preferences: preferences,
+        snapshot: const NotificationSourceSnapshot(
+          estimatedPhase: 'Follicular',
+          mealSuggestion: 'Rice and Beans with Tomato Stew',
+          workoutSuggestion: 'Gentle Walk',
+          todayEnergyLevel: 4,
+          todayPainLevel: 0,
+          todaySleepHours: 8,
+        ),
+        location: lagos,
+        now: tz.TZDateTime(lagos, 2026, 8, 16, 8),
+      );
+      final mealSchedules = schedules
+          .where((item) => item.notification.type.categoryKey == 'meals')
+          .toList();
+
+      expect(mealSchedules, hasLength(1));
+      expect(
+        mealSchedules.single.notification.title,
+        "Today's Quevaa meal ideas are ready.",
+      );
+      expect(
+        mealSchedules.single.notification.route,
+        '/wellness?section=Meals',
+      );
+    });
+  });
+
+  group('Notification preference controller', () {
+    test('keeps Quevaa reminders on when Android blocks permission', () async {
+      final repository = MockNotificationRepository();
+      final permissionService = MockNotificationPermissionService();
+      final scheduler = MockNotificationScheduler();
+      when(
+        repository.loadPreferences,
+      ).thenAnswer((_) async => QuevaaNotificationPreferences.defaults());
+      when(() => repository.savePreferences(any())).thenAnswer((_) async {});
+      when(permissionService.requestPermission).thenAnswer((_) async => false);
+      when(
+        permissionService.status,
+      ).thenAnswer((_) async => QuevaaNotificationPermissionStatus.denied);
+      final container = ProviderContainer(
+        overrides: [
+          notificationRepositoryProvider.overrideWithValue(repository),
+          notificationPermissionServiceProvider.overrideWithValue(
+            permissionService,
+          ),
+          notificationSchedulerProvider.overrideWithValue(scheduler),
+          notificationSourceSnapshotProvider.overrideWithValue(
+            const NotificationSourceSnapshot(
+              estimatedPhase: 'Follicular',
+              mealSuggestion: 'Rice and Beans',
+              workoutSuggestion: 'Walk',
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container
+          .read(notificationControllerProvider.notifier)
+          .requestAndEnable();
+
+      final saved =
+          verify(() => repository.savePreferences(captureAny())).captured.single
+              as QuevaaNotificationPreferences;
+      expect(saved.enabled, isTrue);
+      expect(saved.permissionPreviouslyDeclined, isTrue);
+      verifyNever(
+        () => scheduler.reconcileNotifications(
+          any(),
+          snapshot: any(named: 'snapshot'),
+        ),
       );
     });
   });

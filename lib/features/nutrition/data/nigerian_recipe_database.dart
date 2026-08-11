@@ -113,6 +113,8 @@ class NigerianRecipe {
   int get totalMinutes => prepMinutes + cookMinutes;
   bool get isVegetarian => dietaryTags.contains('Vegetarian');
   bool get hasHealthyFat => healthyFatSources.isNotEmpty;
+  String get dishFamily => NigerianRecipeDatabase.dishFamilyFor(this);
+  String get dominantStaple => NigerianRecipeDatabase.dominantStapleFor(this);
 
   String whySuggested(String phase, {String? prepPreference}) {
     final phaseCopy = NigerianRecipeDatabase.phaseLabelForCyclePhase(phase);
@@ -120,7 +122,7 @@ class NigerianRecipe {
     final time = prepPreference == null || prepPreference.trim().isEmpty
         ? ''
         : ' It also fits your $prepPreference preparation preference when possible.';
-    return 'Quevaa ranked this meal for your $phaseCopy context because it contains $nutrients and matches your food preferences.$time';
+    return 'Quevaa ranked this meal because it fits your $phaseCopy context, adds ${dishFamily.replaceAll('_', ' ')} variety, contains $nutrients, and matches your food preferences.$time';
   }
 }
 
@@ -136,6 +138,10 @@ class MealRecommendationInput {
   final List<String> pantryItems;
   final Set<String> recentlyPreparedMealIds;
   final Set<String> savedMealIds;
+  final Set<String> selectedDishFamilies;
+  final Set<String> recentDishFamilies;
+  final Set<String> selectedStaples;
+  final Set<String> recentStaples;
   final int alternativeOffset;
 
   const MealRecommendationInput({
@@ -150,6 +156,10 @@ class MealRecommendationInput {
     this.pantryItems = const [],
     this.recentlyPreparedMealIds = const {},
     this.savedMealIds = const {},
+    this.selectedDishFamilies = const {},
+    this.recentDishFamilies = const {},
+    this.selectedStaples = const {},
+    this.recentStaples = const {},
     this.alternativeOffset = 0,
   });
 }
@@ -174,7 +184,17 @@ class NigerianRecipeDatabase {
           .toList(growable: false);
       return (fallback.isEmpty ? recipes : fallback).first;
     }
-    return ranked[input.alternativeOffset % ranked.length];
+    final familyDistinct = <NigerianRecipe>[];
+    final seenFamilies = <String>{};
+    for (final recipe in ranked) {
+      if (seenFamilies.add(recipe.dishFamily)) {
+        familyDistinct.add(recipe);
+      }
+    }
+    final pool = familyDistinct.length > input.alternativeOffset
+        ? familyDistinct
+        : ranked;
+    return pool[input.alternativeOffset % pool.length];
   }
 
   static List<NigerianRecipe> rankedRecommendations(
@@ -197,7 +217,8 @@ class NigerianRecipeDatabase {
       if (_containsDislikedFood(recipe, dislikes)) continue;
 
       var score = 40;
-      if (recipe.cyclePhaseTags.contains(phaseKey)) score += 24;
+      score -= _familyOverrepresentationPenalty(recipe);
+      if (recipe.cyclePhaseTags.contains(phaseKey)) score += 14;
       if (recipe.cyclePhaseTags.contains('all')) score += 8;
       if (_regionScore(recipe, input.preferredRegion) > 0) score += 12;
       if (maxPrepMinutes == null || recipe.totalMinutes <= maxPrepMinutes) {
@@ -210,9 +231,18 @@ class NigerianRecipeDatabase {
             (ingredient) => pantry.contains(_normalizeToken(ingredient.name)),
           )
           .length;
-      score += pantryMatches * 3;
+      score += pantryMatches.clamp(0, 3) * 3;
       if (input.savedMealIds.contains(recipe.id)) score += 8;
-      if (input.recentlyPreparedMealIds.contains(recipe.id)) score -= 18;
+      if (input.recentlyPreparedMealIds.contains(recipe.id)) score -= 80;
+      if (input.selectedDishFamilies.contains(recipe.dishFamily)) score -= 95;
+      if (input.recentDishFamilies.contains(recipe.dishFamily)) score -= 55;
+      final staple = recipe.dominantStaple;
+      if (staple.isNotEmpty && input.selectedStaples.contains(staple)) {
+        score -= 28;
+      }
+      if (staple.isNotEmpty && input.recentStaples.contains(staple)) {
+        score -= 12;
+      }
       score += _stableTiebreak(input.date, recipe.id);
       scored.add((recipe: recipe, score: score));
     }
@@ -243,24 +273,130 @@ class NigerianRecipeDatabase {
     Set<String> savedMealIds = const {},
     Map<String, int> alternativeOffsets = const {},
   }) {
-    return {
-      for (final mealType in const ['Breakfast', 'Lunch', 'Dinner', 'Snack'])
-        mealType: recommend(
-          MealRecommendationInput(
-            date: date,
-            cyclePhase: cyclePhase,
-            mealType: mealType,
-            dietaryPattern: dietaryPattern,
-            preferredRegion: preferredRegion,
-            prepTimePreference: prepTimePreference,
-            excludedAllergens: excludedAllergens,
-            pantryItems: pantryItems,
-            recentlyPreparedMealIds: recentlyPreparedMealIds,
-            savedMealIds: savedMealIds,
-            alternativeOffset: alternativeOffsets[mealType] ?? 0,
-          ),
-        ),
+    final selectedFamilies = <String>{};
+    final selectedStaples = <String>{};
+    final recentFamilies = {
+      for (final id in recentlyPreparedMealIds)
+        if (recipeById(id) case final recipe?) recipe.dishFamily,
     };
+    final recentStaples = {
+      for (final id in recentlyPreparedMealIds)
+        if (recipeById(id) case final recipe?)
+          if (recipe.dominantStaple.isNotEmpty) recipe.dominantStaple,
+    };
+    final meals = <String, NigerianRecipe>{};
+    for (final mealType in const ['Breakfast', 'Lunch', 'Dinner', 'Snack']) {
+      final recipe = recommend(
+        MealRecommendationInput(
+          date: date,
+          cyclePhase: cyclePhase,
+          mealType: mealType,
+          dietaryPattern: dietaryPattern,
+          preferredRegion: preferredRegion,
+          prepTimePreference: prepTimePreference,
+          excludedAllergens: excludedAllergens,
+          pantryItems: pantryItems,
+          recentlyPreparedMealIds: recentlyPreparedMealIds,
+          savedMealIds: savedMealIds,
+          selectedDishFamilies: selectedFamilies,
+          recentDishFamilies: recentFamilies,
+          selectedStaples: selectedStaples,
+          recentStaples: recentStaples,
+          alternativeOffset: alternativeOffsets[mealType] ?? 0,
+        ),
+      );
+      meals[mealType] = recipe;
+      selectedFamilies.add(recipe.dishFamily);
+      if (recipe.dominantStaple.isNotEmpty) {
+        selectedStaples.add(recipe.dominantStaple);
+      }
+    }
+    return meals;
+  }
+
+  static NigerianRecipe? recipeById(String id) {
+    for (final recipe in recipes) {
+      if (recipe.id == id) return recipe;
+    }
+    return null;
+  }
+
+  static String dishFamilyFor(NigerianRecipe recipe) {
+    final tokens = [
+      recipe.id,
+      recipe.title,
+      ...recipe.ingredients.map((item) => item.name),
+    ].join(' ').toLowerCase();
+    if (tokens.contains('moi moi') || tokens.contains('moi-moi')) {
+      return 'moi_moi';
+    }
+    if (tokens.contains('jollof')) return 'jollof';
+    if (tokens.contains('fried rice')) return 'fried_rice';
+    if (tokens.contains('ofada')) return 'ofada_rice';
+    if (tokens.contains('native rice')) return 'native_rice';
+    if (tokens.contains('rice and beans')) return 'rice_beans';
+    if (tokens.contains('rice')) return 'rice';
+    if (tokens.contains('beans')) return 'beans';
+    if (tokens.contains('yam')) return 'yam';
+    if (tokens.contains('plantain')) return 'plantain';
+    if (tokens.contains('sweet potato') || tokens.contains('potato')) {
+      return 'potato';
+    }
+    if (tokens.contains('spaghetti') || tokens.contains('pasta')) {
+      return 'pasta';
+    }
+    if (tokens.contains('oat')) return 'oats';
+    if (tokens.contains('pap') || tokens.contains('akamu')) return 'pap';
+    if (tokens.contains('egg') || tokens.contains('omelette')) return 'eggs';
+    if (tokens.contains('okra')) return 'okra_soup';
+    if (tokens.contains('egusi')) return 'egusi_soup';
+    if (tokens.contains('ogbono')) return 'ogbono_soup';
+    if (tokens.contains('pepper soup')) return 'pepper_soup';
+    if (tokens.contains('soup')) return 'soups';
+    if (tokens.contains('salad')) return 'salad';
+    if (tokens.contains('fruit')) return 'fruit';
+    if (tokens.contains('groundnut')) return 'groundnuts';
+    return _normalizeToken(
+      recipe.title,
+    ).replaceAll(RegExp(r'[^a-z0-9]+'), '_').replaceAll(RegExp(r'^_|_$'), '');
+  }
+
+  static String dominantStapleFor(NigerianRecipe recipe) {
+    final ingredientText = recipe.ingredients
+        .map((item) => item.name.toLowerCase())
+        .join(' ');
+    for (final staple in const [
+      'rice',
+      'beans',
+      'yam',
+      'plantain',
+      'sweet potato',
+      'spaghetti',
+      'oats',
+      'millet pap',
+      'corn pap',
+      'akamu',
+      'bread',
+      'corn',
+    ]) {
+      if (ingredientText.contains(staple)) {
+        if (staple.contains('pap') || staple == 'akamu') return 'pap';
+        if (staple == 'spaghetti') return 'pasta';
+        return staple.replaceAll(' ', '_');
+      }
+    }
+    return '';
+  }
+
+  static int _familyOverrepresentationPenalty(NigerianRecipe recipe) {
+    final count = recipes
+        .where(
+          (candidate) =>
+              candidate.mealType == recipe.mealType &&
+              candidate.dishFamily == recipe.dishFamily,
+        )
+        .length;
+    return count <= 1 ? 0 : (count - 1) * 8;
   }
 
   static String phaseKeyForCyclePhase(String phase) {
@@ -1767,7 +1903,7 @@ int _regionScore(NigerianRecipe recipe, String? preferredRegion) {
 
 int _stableTiebreak(DateTime date, String id) {
   final seed = DateTime(date.year, date.month, date.day).millisecondsSinceEpoch;
-  return Object.hash(seed, id).abs() % 9;
+  return Object.hash(seed, id).abs() % 41;
 }
 
 String _normalizeToken(String value) => value.trim().toLowerCase();

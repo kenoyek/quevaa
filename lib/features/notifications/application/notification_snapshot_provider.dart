@@ -56,7 +56,10 @@ final notificationSourceSnapshotProvider = Provider<NotificationSourceSnapshot>(
       todayEnergyLevel: todayLog?.energyLevel,
       todayPainLevel: todayLog?.painLevel,
       todaySleepHours: todayLog?.sleepHours,
-      mealSuggestion: _mealSuggestion(cycleOutput.estimatedPhase),
+      mealSuggestion: _mealSuggestion(
+        cycleOutput.estimatedPhase,
+        date: ref.watch(localTodayProvider),
+      ),
       workoutSuggestion: _workoutSuggestion(todayLog),
 
       // Logged days — will be populated by TTC repository once persisted
@@ -142,15 +145,21 @@ Future<NotificationSourceSnapshot> buildNotificationSourceSnapshotFromDatabase(
     todayEnergyLevel: todayLog?.energyLevel,
     todayPainLevel: todayLog?.painLevel,
     todaySleepHours: todayLog?.sleepHours,
-    mealSuggestion: _mealSuggestion(output.estimatedPhase),
+    mealSuggestion: _mealSuggestion(
+      output.estimatedPhase,
+      date: effectiveToday,
+    ),
     workoutSuggestion: _workoutSuggestion(todayLog),
     hydrationTargetReached: (todayLog?.waterGlasses ?? 0) >= 8,
   );
 }
 
-String _mealSuggestion(String phase) {
-  final meals = NigerianRecipeDatabase.getForPhase(phase);
-  return (meals.isEmpty ? NigerianRecipeDatabase.recipes : meals).first.title;
+String _mealSuggestion(String phase, {DateTime? date}) {
+  final meals = NigerianRecipeDatabase.recommendDailyMeals(
+    date: date ?? DateTime.now(),
+    cyclePhase: phase,
+  );
+  return meals['Lunch']?.title ?? meals.values.first.title;
 }
 
 String _workoutSuggestion(DailyLog? log) {

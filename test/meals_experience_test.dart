@@ -164,6 +164,91 @@ void main() {
       );
       expect(another.id, isNot(first.id));
       expect(another.mealType, 'Lunch');
+      if (first.dishFamily == 'moi_moi') {
+        expect(another.dishFamily, isNot('moi_moi'));
+      }
+    });
+
+    test(
+      'same-day meals avoid repeating dish families where alternatives exist',
+      () {
+        final meals = NigerianRecipeDatabase.recommendDailyMeals(
+          date: DateTime(2026, 8, 14),
+          cyclePhase: 'Menstrual',
+        );
+        final families = meals.values
+            .map((recipe) => recipe.dishFamily)
+            .toList();
+
+        expect(families.toSet().length, families.length);
+        expect(
+          families.where((family) => family == 'moi_moi').length,
+          lessThanOrEqualTo(1),
+        );
+      },
+    );
+
+    test(
+      'fourteen day unrestricted recommendations show real family variety',
+      () {
+        final metrics = _mealDiversityMetrics(
+          start: DateTime(2026, 8, 8),
+          days: 14,
+          cyclePhase: 'Menstrual',
+        );
+
+        expect(metrics.uniqueRecipes, greaterThanOrEqualTo(28));
+        expect(metrics.uniqueFamilies, greaterThanOrEqualTo(12));
+        expect(metrics.moiMoiCount, lessThanOrEqualTo(6));
+        expect(metrics.maxSameFamilyStreak, lessThanOrEqualTo(1));
+      },
+    );
+
+    test('vegetarian recommendations stay diverse and allergen-safe', () {
+      final metrics = _mealDiversityMetrics(
+        start: DateTime(2026, 8, 8),
+        days: 14,
+        cyclePhase: 'Luteal',
+        dietaryPattern: 'Vegetarian',
+      );
+
+      expect(metrics.uniqueRecipes, greaterThanOrEqualTo(20));
+      expect(metrics.uniqueFamilies, greaterThanOrEqualTo(10));
+      expect(metrics.moiMoiCount, lessThanOrEqualTo(8));
+      expect(metrics.maxSameFamilyStreak, lessThanOrEqualTo(1));
+      expect(metrics.recipes.every((recipe) => recipe.isVegetarian), isTrue);
+    });
+
+    test('recently prepared Moi Moi penalizes the whole dish family', () {
+      final recentMoiMoi = NigerianRecipeDatabase.recipes.firstWhere(
+        (recipe) => recipe.dishFamily == 'moi_moi',
+      );
+      final lunch = NigerianRecipeDatabase.recommend(
+        MealRecommendationInput(
+          date: DateTime(2026, 8, 14),
+          cyclePhase: 'Menstrual',
+          mealType: 'Lunch',
+          recentlyPreparedMealIds: {recentMoiMoi.id},
+          recentDishFamilies: {'moi_moi'},
+        ),
+      );
+
+      expect(lunch.dishFamily, isNot('moi_moi'));
+    });
+
+    test('pantry match does not override dish-family diversity', () {
+      final meals = NigerianRecipeDatabase.recommendDailyMeals(
+        date: DateTime(2026, 8, 14),
+        cyclePhase: 'Menstrual',
+        pantryItems: const ['moi moi', 'beans', 'rice', 'tomatoes'],
+      );
+      final families = meals.values.map((recipe) => recipe.dishFamily).toList();
+
+      expect(
+        families.where((family) => family == 'moi_moi').length,
+        lessThanOrEqualTo(1),
+      );
+      expect(families.toSet().length, greaterThanOrEqualTo(3));
     });
   });
 
@@ -290,4 +375,59 @@ void main() {
       },
     );
   });
+}
+
+class _MealDiversityMetrics {
+  final List<NigerianRecipe> recipes;
+  final int uniqueRecipes;
+  final int uniqueFamilies;
+  final int moiMoiCount;
+  final int maxSameFamilyStreak;
+
+  const _MealDiversityMetrics({
+    required this.recipes,
+    required this.uniqueRecipes,
+    required this.uniqueFamilies,
+    required this.moiMoiCount,
+    required this.maxSameFamilyStreak,
+  });
+}
+
+_MealDiversityMetrics _mealDiversityMetrics({
+  required DateTime start,
+  required int days,
+  required String cyclePhase,
+  String? dietaryPattern,
+}) {
+  final all = <NigerianRecipe>[];
+  String? previousFamily;
+  var currentStreak = 0;
+  var maxStreak = 0;
+  for (var day = 0; day < days; day++) {
+    final recent = all.reversed.take(12).map((recipe) => recipe.id).toSet();
+    final meals = NigerianRecipeDatabase.recommendDailyMeals(
+      date: start.add(Duration(days: day)),
+      cyclePhase: cyclePhase,
+      dietaryPattern: dietaryPattern,
+      prepTimePreference: '45 minutes or less',
+      recentlyPreparedMealIds: recent,
+    );
+    for (final recipe in meals.values) {
+      all.add(recipe);
+      if (recipe.dishFamily == previousFamily) {
+        currentStreak++;
+      } else {
+        currentStreak = 1;
+        previousFamily = recipe.dishFamily;
+      }
+      if (currentStreak > maxStreak) maxStreak = currentStreak;
+    }
+  }
+  return _MealDiversityMetrics(
+    recipes: all,
+    uniqueRecipes: all.map((recipe) => recipe.id).toSet().length,
+    uniqueFamilies: all.map((recipe) => recipe.dishFamily).toSet().length,
+    moiMoiCount: all.where((recipe) => recipe.dishFamily == 'moi_moi').length,
+    maxSameFamilyStreak: maxStreak,
+  );
 }

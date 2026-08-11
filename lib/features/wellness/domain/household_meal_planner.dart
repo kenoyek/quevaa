@@ -226,6 +226,13 @@ class HouseholdMealPlanner {
     };
     final selected = <PlannedMealSlot>[];
     final dinnerHistory = <DateTime, String>{};
+    final familyHistory = <DateTime, Set<String>>{};
+    final selectedFamilies = <String>{};
+    final recentFamilies = {
+      for (final id in recentlyPreparedMealIds)
+        if (NigerianRecipeDatabase.recipeById(id) case final recipe?)
+          recipe.dishFamily,
+    };
     var pantryFirstMeals = 0;
     var expiringIngredientMeals = 0;
     final prepHeavyDays = <String>{};
@@ -242,10 +249,12 @@ class HouseholdMealPlanner {
           cyclePhase: cyclePhase,
           savedMealIds: savedMealIds,
           recentlyPreparedMealIds: recentlyPreparedMealIds,
+          selectedDishFamilies: selectedFamilies,
+          recentDishFamilies: recentFamilies,
           allergens: allergens,
           dislikes: dislikes,
         ).where((recipe) => recipe.totalMinutes <= prepLimit + 15).toList();
-        final recipe = _firstNonRepeatingDinner(
+        final recipe = _firstDiverseRecipe(
           ranked.isEmpty
               ? _rankRecipes(
                   date: date,
@@ -255,6 +264,8 @@ class HouseholdMealPlanner {
                   cyclePhase: cyclePhase,
                   savedMealIds: savedMealIds,
                   recentlyPreparedMealIds: recentlyPreparedMealIds,
+                  selectedDishFamilies: selectedFamilies,
+                  recentDishFamilies: recentFamilies,
                   allergens: allergens,
                   dislikes: dislikes,
                 )
@@ -262,10 +273,15 @@ class HouseholdMealPlanner {
           mealType,
           date,
           dinnerHistory,
+          familyHistory,
           household.avoidRepeatDinnerDays,
         );
         if (recipe == null) continue;
         if (mealType == 'Dinner') dinnerHistory[date] = recipe.id;
+        selectedFamilies.add(recipe.dishFamily);
+        familyHistory
+            .putIfAbsent(date, () => <String>{})
+            .add(recipe.dishFamily);
         final coverage = pantryCoverage(
           recipe: recipe,
           pantry: pantry,
@@ -472,6 +488,8 @@ class HouseholdMealPlanner {
     required String cyclePhase,
     required Set<String> savedMealIds,
     required Set<String> recentlyPreparedMealIds,
+    required Set<String> selectedDishFamilies,
+    required Set<String> recentDishFamilies,
     required Set<String> allergens,
     required Set<String> dislikes,
   }) {
@@ -511,7 +529,9 @@ class HouseholdMealPlanner {
               .length *
           10;
       if (savedMealIds.contains(recipe.id)) score += 12;
-      if (recentlyPreparedMealIds.contains(recipe.id)) score -= 24;
+      if (recentlyPreparedMealIds.contains(recipe.id)) score -= 80;
+      if (selectedDishFamilies.contains(recipe.dishFamily)) score -= 95;
+      if (recentDishFamilies.contains(recipe.dishFamily)) score -= 55;
       if (recipe.cyclePhaseTags.contains(phaseKey)) score += 4;
       if (recipe.totalMinutes <= _prepLimitForDate(household, date)) score += 8;
       if (recipe.budgetLevel.toLowerCase().contains('budget')) score += 3;
@@ -581,22 +601,29 @@ class HouseholdMealPlanner {
     );
   }
 
-  NigerianRecipe? _firstNonRepeatingDinner(
+  NigerianRecipe? _firstDiverseRecipe(
     List<NigerianRecipe> ranked,
     String mealType,
     DateTime date,
     Map<DateTime, String> dinnerHistory,
+    Map<DateTime, Set<String>> familyHistory,
     int repeatDays,
   ) {
     if (ranked.isEmpty) return null;
-    if (mealType != 'Dinner') return ranked.first;
     for (final recipe in ranked) {
-      final repeated = dinnerHistory.entries.any(
+      final repeatedDinner =
+          mealType == 'Dinner' &&
+          dinnerHistory.entries.any(
+            (entry) =>
+                entry.value == recipe.id &&
+                date.difference(entry.key).inDays.abs() < repeatDays,
+          );
+      final repeatedFamily = familyHistory.entries.any(
         (entry) =>
-            entry.value == recipe.id &&
-            date.difference(entry.key).inDays.abs() < repeatDays,
+            entry.value.contains(recipe.dishFamily) &&
+            date.difference(entry.key).inDays.abs() < 4,
       );
-      if (!repeated) return recipe;
+      if (!repeatedDinner && !repeatedFamily) return recipe;
     }
     return ranked.first;
   }

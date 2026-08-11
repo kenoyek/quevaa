@@ -59,6 +59,50 @@ class NotificationSourceSnapshot {
     this.journaledDays = const {},
     this.hydrationTargetReached = false,
   });
+
+  bool get hasMeaningfulHealthState {
+    return estimatedPeriodStart != null ||
+        fertileWindowStart != null ||
+        fertileWindowEnd != null ||
+        estimatedOvulationDate != null ||
+        currentCycleDay != null ||
+        estimatedPhase != null ||
+        todayEnergyLevel != null ||
+        todayPainLevel != null ||
+        todaySleepHours != null ||
+        mealSuggestion != null ||
+        workoutSuggestion != null ||
+        conceptionModeActive ||
+        loggedOvulationTestDays.isNotEmpty ||
+        loggedBbtDays.isNotEmpty ||
+        loggedPregnancyTestDays.isNotEmpty ||
+        completedTaskIds.isNotEmpty ||
+        completedWorkoutIds.isNotEmpty ||
+        journaledDays.isNotEmpty ||
+        hydrationTargetReached;
+  }
+
+  Map<String, Object?> toDebugMap({DateTime? today}) {
+    return {
+      if (today != null) 'today': today.toIso8601String(),
+      'cycleTrackingPaused': cycleTrackingPaused,
+      'pregnancyMode': pregnancyMode,
+      'conceptionModeActive': conceptionModeActive,
+      'estimatedPeriodStart': estimatedPeriodStart?.toIso8601String(),
+      'fertileWindowStart': fertileWindowStart?.toIso8601String(),
+      'fertileWindowEnd': fertileWindowEnd?.toIso8601String(),
+      'estimatedOvulationDate': estimatedOvulationDate?.toIso8601String(),
+      'predictionConfidence': predictionConfidence.name,
+      'currentCycleDay': currentCycleDay,
+      'estimatedPhase': estimatedPhase,
+      'todayEnergyLevel': todayEnergyLevel,
+      'todayPainLevel': todayPainLevel,
+      'todaySleepHours': todaySleepHours,
+      'mealSuggestion': mealSuggestion,
+      'workoutSuggestion': workoutSuggestion,
+      'hydrationTargetReached': hydrationTargetReached,
+    };
+  }
 }
 
 class SmartNotificationEngine {
@@ -74,6 +118,11 @@ class SmartNotificationEngine {
     required tz.Location location,
     required tz.TZDateTime now,
   }) {
+    if (!snapshot.hasMeaningfulHealthState) {
+      throw StateError(
+        'Notification reconciliation requires a real NotificationSourceSnapshot.',
+      );
+    }
     final desired = <QuevaaNotificationSchedule>[];
     if (!snapshot.cycleTrackingPaused && !snapshot.pregnancyMode) {
       desired.addAll(_cycleSchedules(snapshot, location, now));
@@ -351,15 +400,15 @@ class SmartNotificationEngine {
     final schedules = <QuevaaNotificationSchedule>[
       _schedule(
         type: QuevaaNotificationType.breakfast,
-        entityId: 'meal-breakfast-${_dayKey(tomorrow)}',
+        entityId: 'meal-daily-${_dayKey(tomorrow)}',
         scheduledAt: _atTime(
           tomorrow,
           preferences.categoryTimes['breakfast'] ?? 8 * 60,
         ),
-        title: 'Your meal suggestion is ready.',
+        title: "Today's Quevaa meal ideas are ready.",
         body: snapshot.mealSuggestion == null
-            ? 'See today’s Nigerian meal recommendation.'
-            : 'Today’s Quevaa meal idea: ${snapshot.mealSuggestion}.',
+            ? 'Open Wellness to review your Nigerian meal recommendations.'
+            : 'Open Wellness to review ${snapshot.mealSuggestion} and the rest of today’s meal ideas.',
         privacyTitle: 'You have a wellness reminder.',
         privacyBody: 'Open Quevaa to continue.',
         priority: QuevaaNotificationPriority.low,

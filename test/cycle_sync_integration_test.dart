@@ -111,9 +111,84 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Cycle Day 3'), findsOneWidget);
-      expect(find.text('Confidence: LOW'), findsOneWidget);
+      expect(find.text('Period in progress'), findsOneWidget);
+      expect(find.text('Menstrual phase'), findsOneWidget);
+      expect(find.text('Menstrual'), findsOneWidget);
+      expect(find.text('Follicular'), findsOneWidget);
+      expect(find.text('Ovulatory'), findsOneWidget);
+      expect(find.text('Luteal'), findsOneWidget);
+      expect(find.text('Low confidence'), findsOneWidget);
     },
   );
+
+  testWidgets('Today check-in saves explicitly and keeps existing notes', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final today = DateTime(2026, 8, 8);
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        notificationSchedulerProvider.overrideWithValue(mockScheduler),
+        localTodayProvider.overrideWithValue(today),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container
+        .read(cycleWorkspaceControllerProvider.notifier)
+        .saveDailyLog(
+          date: today,
+          flow: 'None',
+          pain: 2,
+          mood: 'Calm',
+          energy: 3,
+          stress: 1,
+          sleepQuality: 4,
+          sleepHours: 7,
+          water: 4,
+          symptoms: ['Cramps'],
+          notes: 'Keep this note',
+        );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.4)),
+            child: child!,
+          ),
+          home: const DashboardPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final edit = find.text('Edit check-in');
+    await tester.ensureVisible(edit);
+    await tester.tap(edit);
+    await tester.pumpAndSettle();
+    final energy = find.byType(Slider).first;
+    tester.widget<Slider>(energy).onChanged!(5);
+    await tester.pump();
+    expect((await db.select(db.dailyLogs).get()).single.energyLevel, 3);
+    final save = find.text('Save check-in');
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    final updated = (await db.select(db.dailyLogs).get()).single;
+    expect(updated.energyLevel, 5);
+    expect(updated.sleepHours, 7);
+    expect(updated.waterGlasses, 4);
+    expect(updated.generalNotes, 'Keep this note');
+    expect(updated.customSymptomsJson, contains('Cramps'));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
 
   group('formatPredictionConfidence regression', () {
     test('formats low confidence', () {

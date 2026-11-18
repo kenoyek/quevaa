@@ -1,22 +1,26 @@
+import 'dart:convert';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/models/prediction_confidence.dart';
+import '../../../../core/providers/user_profile_provider.dart';
 import '../../../cycle/application/cycle_workspace_provider.dart';
-import '../../../cycle/domain/models/cycle_engine_output.dart';
-import '../../../dashboard/domain/readiness_calculator.dart';
+import '../../../cycle/domain/models/current_cycle_snapshot.dart';
+import '../../../cycle/domain/models/estimated_cycle_phase.dart';
 import '../../../insights/domain/insight_generator.dart';
-import '../../../nutrition/data/nigerian_recipe_database.dart';
 import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 import '../../../notifications/presentation/widgets/notification_permission_invitation.dart';
 import '../../../recommendations/application/daily_quevaa_plan_provider.dart';
-import '../../../workouts/domain/entities/workout_entity.dart';
-import 'dart:convert';
-import '../../../../core/providers/user_profile_provider.dart';
+import '../../domain/readiness_calculator.dart';
+
+const _rose = Color(0xFF843C59);
+const _lightRose = Color(0xFFFFBDD3);
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -26,159 +30,851 @@ class DashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
-  int _selectedEnergy = 3;
-  int _selectedPain = 0;
-  double _selectedSleep = 7.5;
-  int _activeMealIndex = 0;
-  bool _isInitialized = false;
+  int _mealIndex = 0;
 
-  Future<void> _updateLog({int? energy, int? pain, double? sleep}) async {
-    final newEnergy = energy ?? _selectedEnergy;
-    final newPain = pain ?? _selectedPain;
-    final newSleep = sleep ?? _selectedSleep;
+  @override
+  Widget build(BuildContext context) {
+    final plan = ref.watch(dailyQuevaaPlanProvider);
+    final profile = ref.watch(userProfileProvider).valueOrNull;
+    final logState = ref.watch(todaysDailyLogProvider);
+    final log = logState.valueOrNull;
+    final logSaving = ref.watch(cycleWorkspaceControllerProvider);
+    final insights = ref.watch(quickInsightsProvider);
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final recipe = plan.mealForOffset(_mealIndex);
+    final accent = dark ? _lightRose : _rose;
 
-    setState(() {
-      _selectedEnergy = newEnergy;
-      _selectedPain = newPain;
-      _selectedSleep = newSleep;
-    });
-
-    final log = ref.read(todaysDailyLogProvider).valueOrNull;
-    final symptoms = <String>[];
-    if (log != null) {
-      try {
-        final decoded = jsonDecode(log.customSymptomsJson);
-        if (decoded is List) {
-          symptoms.addAll(decoded.map((e) => e.toString()));
-        }
-      } catch (_) {}
-    }
-
-    await ref
-        .read(cycleWorkspaceControllerProvider.notifier)
-        .saveDailyLog(
-          date: DateTime.now(),
-          flow: log?.flow ?? 'None',
-          pain: newPain,
-          mood: log?.mood ?? 'Neutral',
-          energy: newEnergy,
-          stress: log?.stressLevel ?? 3,
-          sleepQuality: log?.sleepQuality ?? 3,
-          sleepHours: newSleep,
-          water: log?.waterGlasses ?? 0,
-          symptoms: symptoms,
-          notes: log?.generalNotes,
-        );
+    return Scaffold(
+      backgroundColor: dark ? AppColors.bgWarmDark : const Color(0xFFFCF7F9),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              math.max(16, (constraints.maxWidth - 680) / 2),
+              18,
+              math.max(16, (constraints.maxWidth - 680) / 2),
+              24,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _TodayHeader(date: plan.date, name: profile?.userName),
+                const SizedBox(height: 18),
+                _CycleHero(
+                  snapshot: plan.cycleSnapshot,
+                  onOpen: () => context.go('/cycle'),
+                ),
+                const SizedBox(height: 14),
+                _CheckInCard(
+                  log: log,
+                  onOpen: logState.hasValue && !logSaving
+                      ? () => _showCheckIn(context, ref, plan.date, log)
+                      : null,
+                ),
+                if (logState.hasError)
+                  TextButton.icon(
+                    onPressed: () => ref.invalidate(todaysDailyLogProvider),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Retry loading check-in'),
+                  ),
+                const SizedBox(height: 16),
+                const _SectionHeading('Your daily plan'),
+                const SizedBox(height: 10),
+                _DailyCard(
+                  icon: _readinessIcon(plan.readiness.score),
+                  accent: accent,
+                  tint: dark
+                      ? const Color(0xFF382631)
+                      : const Color(0xFFF9E9F0),
+                  label: 'Readiness',
+                  title: plan.readiness.title,
+                  detail: plan.readiness.primaryRecommendation,
+                  action: 'See why',
+                  onOpen: () => _showReadinessDetails(context, plan),
+                ),
+                const SizedBox(height: 10),
+                _DailyCard(
+                  icon: Icons.flag_outlined,
+                  accent: accent,
+                  label: 'Focus',
+                  title: plan.topFocusTask?.title ?? 'Choose one priority',
+                  detail: plan.topFocusTask == null
+                      ? null
+                      : plan.topFocusReason,
+                  action: 'Open plan',
+                  onOpen: () => context.go('/plan'),
+                ),
+                const SizedBox(height: 24),
+                const NotificationPermissionInvitation(),
+                const _SectionHeading('Wellness picks'),
+                const SizedBox(height: 10),
+                _DailyCard(
+                  icon: Icons.restaurant_menu_rounded,
+                  accent: dark
+                      ? const Color(0xFFFBC1A7)
+                      : AppColors.terracottaDark,
+                  tint: dark
+                      ? const Color(0xFF392A26)
+                      : const Color(0xFFFAECE3),
+                  label: '${recipe.mealType} · ${recipe.totalMinutes} min',
+                  title: recipe.title,
+                  detail: recipe.description,
+                  action: 'Explore meals',
+                  onOpen: () => context.go('/wellness?section=Meals'),
+                  accessory: plan.meals.length > 1
+                      ? IconButton(
+                          tooltip: 'Next meal',
+                          onPressed: () => setState(() => _mealIndex++),
+                          icon: const Icon(Icons.swap_horiz_rounded),
+                        )
+                      : null,
+                ),
+                const SizedBox(height: 10),
+                _DailyCard(
+                  icon: Icons.directions_walk_rounded,
+                  accent: dark ? AppColors.sageLight : AppColors.sageDark,
+                  tint: dark
+                      ? const Color(0xFF24322B)
+                      : const Color(0xFFEAF2EC),
+                  label: 'Movement · ${plan.workout.durationMinutes} min',
+                  title: plan.workout.title,
+                  detail: plan.workout.intensity,
+                  action: 'Explore movement',
+                  onOpen: () => context.go('/wellness?section=Movement'),
+                ),
+                const SizedBox(height: 10),
+                _DailyCard(
+                  icon: Icons.edit_note_rounded,
+                  accent: accent,
+                  label: 'Journal',
+                  title: plan.journalPrompt,
+                  action: 'Open journal',
+                  onOpen: () => context.go('/wellness?section=Mind'),
+                ),
+                if (insights.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const _SectionHeading('Your patterns'),
+                  const SizedBox(height: 10),
+                  for (final insight in insights)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _InsightTile(insight: insight),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
+}
+
+class _TodayHeader extends StatelessWidget {
+  const _TodayHeader({required this.date, required this.name});
+
+  final DateTime date;
+  final String? name;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    ref.listen(todaysDailyLogProvider, (prev, next) {
-      final log = next.valueOrNull;
-      if (log != null && (!_isInitialized || prev?.valueOrNull?.id != log.id)) {
-        setState(() {
-          _isInitialized = true;
-          _selectedEnergy = log.energyLevel;
-          _selectedPain = log.painLevel;
-          _selectedSleep = log.sleepHours ?? 7.5;
-        });
-      } else if (log == null && !_isInitialized) {
-        setState(() {
-          _isInitialized = true;
-        });
-      }
-    });
-
-    final dailyPlan = ref.watch(dailyQuevaaPlanProvider);
-    final cycleOutput = dailyPlan.cycleOutput;
-    final readiness = dailyPlan.readiness;
-    final currentRecipe = dailyPlan.mealForOffset(_activeMealIndex);
-
-    final insights = ref.watch(quickInsightsProvider);
-
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.bgWarmDark : AppColors.bgWarmCream,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
+    final dark = theme.brightness == Brightness.dark;
+    final firstName = name?.trim().split(RegExp(r'\s+')).first;
+    final format = DateFormat.MMMEd(Localizations.localeOf(context).toString());
+    return Row(
+      children: [
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _DashboardHeader(
-                onNotificationsTap: () => context.push('/notifications'),
+              Text(format.format(date), style: theme.textTheme.labelLarge),
+              const SizedBox(height: 2),
+              Text(
+                'Today',
+                style: theme.textTheme.displayMedium?.copyWith(
+                  fontSize: 36,
+                  height: 1.05,
+                ),
+                semanticsLabel: 'Today',
               ),
-              const SizedBox(height: 20),
-
-              const NotificationPermissionInvitation(),
-
-              // Rhythm Card
-              _RhythmCard(output: cycleOutput)
-                  .animate()
-                  .fadeIn(duration: 450.ms)
-                  .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-              const SizedBox(height: 14),
-
-              _ReadinessCard(
-                readiness: readiness,
-                onSeeWhy: () => _showReadinessDetails(context, dailyPlan),
-              ).animate().fadeIn(duration: 450.ms),
-              const SizedBox(height: 14),
-
-              _QuickInputsCard(
-                energy: _selectedEnergy,
-                pain: _selectedPain,
-                sleep: _selectedSleep,
-                onEnergyChanged: (v) => _updateLog(energy: v),
-                onPainChanged: (v) => _updateLog(pain: v),
-                onSleepChanged: (v) => _updateLog(sleep: v),
-              ),
-              const SizedBox(height: 20),
-
-              _TodayFocusCard(
-                readiness: readiness,
-                recommendation: dailyPlan.productivityRecommendation,
-                task: dailyPlan.topFocusTask,
-                reason: dailyPlan.topFocusReason,
-                onAdjustPlan: () => context.go('/plan'),
-              ),
-              const SizedBox(height: 20),
-
-              // Eat Well Today (Nigerian Cuisine)
-              _NigerianMealCard(
-                recipe: currentRecipe,
-                onSwapMeal: () {
-                  setState(() {
-                    _activeMealIndex++;
-                  });
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // Move Today (Workouts)
-              _MoveTodayCard(
-                workout: dailyPlan.workout,
-                onSubstitute: () => context.go('/wellness'),
-              ),
-              const SizedBox(height: 20),
-
-              // Reflect & Journal Prompt
-              _ReflectCard(),
-              const SizedBox(height: 20),
-
-              // Quick Insights Section
-              if (insights.isNotEmpty) ...[
-                Text('Quick Insights', style: theme.textTheme.headlineMedium),
-                const SizedBox(height: 12),
-                ...insights.map((insight) => _InsightTile(insight: insight)),
+              if (firstName != null && firstName.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Text('Hi, $firstName', style: theme.textTheme.bodyMedium),
               ],
-              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: dark ? const Color(0xFF372632) : const Color(0xFFF5E4EC),
+            shape: BoxShape.circle,
+          ),
+          child: NotificationBellButton(
+            onPressed: () => context.push('/notifications'),
+            iconColor: dark ? _lightRose : _rose,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CycleHero extends StatelessWidget {
+  const _CycleHero({required this.snapshot, required this.onOpen});
+
+  final CurrentCycleSnapshot snapshot;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final day = snapshot.cycleDay;
+    final phase = snapshot.isPeriodActive
+        ? EstimatedCyclePhase.menstrual
+        : snapshot.hasEnoughData
+        ? snapshot.phase
+        : EstimatedCyclePhase.unknown;
+    final activePhase = _ringPhases.indexOf(phase);
+    final colors = dark
+        ? const [
+            Color(0xFFF39CB3),
+            Color(0xFF9DD6B9),
+            Color(0xFFF1C58B),
+            Color(0xFFCAA4EF),
+          ]
+        : const [
+            Color(0xFFC7577E),
+            Color(0xFF559D81),
+            Color(0xFFB67A32),
+            Color(0xFF9862C6),
+          ];
+    final range = snapshot.nextPeriodRange;
+    final format = DateFormat.MMMd(Localizations.localeOf(context).toString());
+    final estimate = range == null
+        ? null
+        : range.start == range.end
+        ? format.format(range.start)
+        : '${format.format(range.start)} – ${format.format(range.end)}';
+    final accent = dark ? _lightRose : _rose;
+    final phaseTitle = activePhase < 0
+        ? 'Phase unavailable'
+        : '${phase.shortName} phase';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark
+              ? const [Color(0xFF38283F), Color(0xFF291D2A)]
+              : const [Color(0xFFF1E9FA), Color(0xFFFFF5F8)],
+        ),
+        border: Border.all(
+          color: dark ? AppColors.borderDark : const Color(0xFFEADDEE),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 254),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ExcludeSemantics(
+                      child: CustomPaint(
+                        painter: _PhaseRingPainter(
+                          colors: colors,
+                          activePhase: activePhase,
+                          badgeFill: dark
+                              ? const Color(0xFF35243B)
+                              : Colors.white,
+                        ),
+                      ),
+                    ),
+                    FractionallySizedBox(
+                      widthFactor: 0.65,
+                      heightFactor: 0.62,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: SizedBox(
+                          width: 150,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                snapshot.isPeriodActive
+                                    ? 'Period in progress'
+                                    : activePhase < 0
+                                    ? 'Your cycle'
+                                    : 'Estimated phase',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.labelMedium,
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                phaseTitle,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.headlineMedium?.copyWith(
+                                  height: 1.1,
+                                ),
+                              ),
+                              if (day != null) ...[
+                                const SizedBox(height: 8),
+                                DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: dark
+                                        ? const Color(0xFF603F69)
+                                        : const Color(0xFFEBDDF3),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    child: Text(
+                                      'Cycle Day $day',
+                                      style: theme.textTheme.labelMedium,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 14,
+            runSpacing: 7,
+            children: [
+              for (var index = 0; index < _ringPhases.length; index++)
+                Semantics(
+                  label:
+                      '${_ringPhases[index].shortName} phase'
+                      '${index == activePhase ? ', current phase' : ''}',
+                  excludeSemantics: true,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        index == activePhase
+                            ? Icons.check_circle_rounded
+                            : Icons.circle,
+                        size: index == activePhase ? 14 : 9,
+                        color: colors[index],
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _ringPhases[index].shortName,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: index == activePhase
+                              ? FontWeight.w800
+                              : FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.water_drop_outlined, size: 21, color: accent),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (estimate != null) ...[
+                        Text(
+                          'Next period · estimated',
+                          style: theme.textTheme.labelMedium,
+                        ),
+                        const SizedBox(height: 3),
+                      ],
+                      Text(
+                        estimate ??
+                            (day == null
+                                ? 'Log your last period to see estimates.'
+                                : 'Your next period estimate is unavailable.'),
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      if (estimate != null && day != null)
+                        Text(
+                          '${formatPredictionConfidence(snapshot.confidence)} confidence',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: accent),
+              onPressed: onOpen,
+              icon: const Icon(Icons.calendar_month_outlined, size: 19),
+              label: Text(
+                day == null ? 'Open period tracker' : 'Open cycle calendar',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+const _ringPhases = [
+  EstimatedCyclePhase.menstrual,
+  EstimatedCyclePhase.follicular,
+  EstimatedCyclePhase.ovulatoryWindow,
+  EstimatedCyclePhase.luteal,
+];
+
+class _PhaseRingPainter extends CustomPainter {
+  const _PhaseRingPainter({
+    required this.colors,
+    required this.activePhase,
+    required this.badgeFill,
+  });
+
+  final List<Color> colors;
+  final int activePhase;
+  final Color badgeFill;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide * 0.404;
+    final dial = Rect.fromCircle(center: center, radius: radius);
+    final thickness = size.shortestSide * 0.083;
+    const origin = -math.pi / 2;
+    const span = math.pi / 2;
+    const gap = 0.13;
+    final brush = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    for (var index = 0; index < colors.length; index++) {
+      final start = origin + index * span + gap;
+      final current = index == activePhase;
+      if (current) {
+        brush
+          ..strokeWidth = thickness + 9
+          ..color = colors[index].withValues(alpha: 0.14);
+        canvas.drawArc(dial, start, span - 2 * gap, false, brush);
+      }
+      brush
+        ..strokeWidth = thickness
+        ..color = colors[index].withValues(alpha: current ? 0.89 : 0.50);
+      canvas.drawArc(dial, start, span - 2 * gap, false, brush);
+    }
+
+    if (activePhase < 0) return;
+    final angle = origin + (activePhase + 0.5) * span;
+    final marker = center + Offset(math.cos(angle), math.sin(angle)) * radius;
+    final badge = Path()
+      ..addOval(Rect.fromCircle(center: marker, radius: thickness * 0.78));
+    canvas.drawShadow(badge, const Color(0x6656284F), 4, false);
+    canvas.drawPath(badge, Paint()..color = badgeFill);
+    const flower = Icons.local_florist_rounded;
+    final glyph = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(flower.codePoint),
+        style: TextStyle(
+          fontFamily: flower.fontFamily,
+          package: flower.fontPackage,
+          fontSize: thickness,
+          color: colors[activePhase],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    glyph.paint(canvas, marker - Offset(glyph.width / 2, glyph.height / 2));
+    glyph.dispose();
+  }
+
+  @override
+  bool shouldRepaint(_PhaseRingPainter oldDelegate) =>
+      oldDelegate.activePhase != activePhase ||
+      oldDelegate.badgeFill != badgeFill ||
+      oldDelegate.colors != colors;
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    header: true,
+    child: Text(label, style: Theme.of(context).textTheme.headlineMedium),
+  );
+}
+
+class _CheckInCard extends StatelessWidget {
+  const _CheckInCard({required this.log, required this.onOpen});
+
+  final DailyLog? log;
+  final VoidCallback? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = log;
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final accent = dark ? _lightRose : _rose;
+    final values = [
+      (Icons.bolt_outlined, 'Energy', '${entry?.energyLevel ?? 0}/5'),
+      (Icons.favorite_border_rounded, 'Pain', '${entry?.painLevel ?? 0}/5'),
+      (
+        Icons.bedtime_outlined,
+        'Sleep',
+        entry?.sleepHours == null
+            ? '—'
+            : '${entry!.sleepHours!.toStringAsFixed(1)} h',
+      ),
+    ];
+    return _Surface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Daily check-in', style: theme.textTheme.headlineMedium),
+          const SizedBox(height: 6),
+          if (entry == null)
+            Text(
+              'Record your energy, pain and sleep.',
+              style: theme.textTheme.bodyMedium,
+            )
+          else
+            Wrap(
+              spacing: 15,
+              runSpacing: 6,
+              children: [
+                for (final (icon, name, value) in values)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 14, color: accent),
+                      const SizedBox(width: 4),
+                      Text('$name $value', style: theme.textTheme.bodySmall),
+                    ],
+                  ),
+              ],
+            ),
+          const SizedBox(height: 10),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: _rose,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 46),
+            ),
+            onPressed: onOpen,
+            icon: Icon(
+              entry == null ? Icons.add_rounded : Icons.edit_outlined,
+              size: 18,
+            ),
+            label: Text(entry == null ? 'Log how you feel' : 'Edit check-in'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Surface extends StatelessWidget {
+  const _Surface({required this.child, this.tint});
+
+  final Widget child;
+  final Color? tint;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        color: tint ?? (dark ? AppColors.cardSurfaceDark : Colors.white),
+        border: Border.all(
+          color: dark ? AppColors.borderDark : const Color(0xFFEFE4E9),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _DailyCard extends StatelessWidget {
+  const _DailyCard({
+    required this.icon,
+    required this.accent,
+    required this.label,
+    required this.title,
+    required this.action,
+    required this.onOpen,
+    this.detail,
+    this.tint,
+    this.accessory,
+  });
+
+  final IconData icon;
+  final Color accent;
+  final String label;
+  final String title;
+  final String action;
+  final String? detail;
+  final Color? tint;
+  final Widget? accessory;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _Surface(
+      tint: tint,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 17,
+                backgroundColor: accent.withValues(alpha: 0.15),
+                foregroundColor: accent,
+                child: Icon(icon, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelLarge?.copyWith(color: accent),
+                ),
+              ),
+              if (accessory != null) accessory!,
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(title, style: theme.textTheme.headlineSmall),
+          if (detail case final description?) ...[
+            const SizedBox(height: 5),
+            Text(description, style: theme.textTheme.bodyMedium),
+          ],
+          const SizedBox(height: 4),
+          TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: accent),
+            onPressed: onOpen,
+            label: Text(action),
+            icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+            iconAlignment: IconAlignment.end,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+void _showCheckIn(
+  BuildContext context,
+  WidgetRef ref,
+  DateTime date,
+  DailyLog? log,
+) {
+  var energy = (log?.energyLevel ?? 3).clamp(1, 5).toDouble();
+  var pain = (log?.painLevel ?? 0).clamp(0, 5).toDouble();
+  final originalSleep = log?.sleepHours;
+  var sleepEnabled = originalSleep != null;
+  final maxSleep = math.max(16.0, originalSleep ?? 0);
+  var sleep = (originalSleep ?? 7.5).clamp(0.0, maxSleep);
+  var saving = false;
+  String? failure;
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    constraints: const BoxConstraints(maxWidth: 560),
+    builder: (context) => StatefulBuilder(
+      builder: (context, update) => SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Daily check-in',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(MaterialLocalizations.of(context).formatFullDate(date)),
+              const SizedBox(height: 14),
+              _CheckInSlider(
+                label: 'Energy',
+                value: energy,
+                minimum: 1,
+                maximum: 5,
+                onChanged: saving
+                    ? null
+                    : (value) => update(() => energy = value),
+              ),
+              _CheckInSlider(
+                label: 'Pain',
+                value: pain,
+                minimum: 0,
+                maximum: 5,
+                onChanged: saving
+                    ? null
+                    : (value) => update(() => pain = value),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Include sleep'),
+                value: sleepEnabled,
+                onChanged: saving
+                    ? null
+                    : (value) => update(() => sleepEnabled = value),
+              ),
+              if (sleepEnabled)
+                _CheckInSlider(
+                  label: 'Sleep',
+                  value: sleep,
+                  minimum: 0,
+                  maximum: maxSleep,
+                  suffix: ' h',
+                  onChanged: saving
+                      ? null
+                      : (value) => update(() => sleep = value),
+                ),
+              if (failure != null)
+                Text(
+                  failure!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        update(() {
+                          saving = true;
+                          failure = null;
+                        });
+                        try {
+                          await ref
+                              .read(cycleWorkspaceControllerProvider.notifier)
+                              .saveDailyLog(
+                                date: date,
+                                flow: log?.flow ?? 'None',
+                                pain: pain.round(),
+                                mood: log?.mood ?? 'Neutral',
+                                energy: energy.round(),
+                                stress: log?.stressLevel ?? 3,
+                                sleepQuality: log?.sleepQuality ?? 3,
+                                sleepHours: sleepEnabled ? sleep : null,
+                                water: log?.waterGlasses ?? 0,
+                                symptoms: _savedSymptoms(log),
+                                notes: log?.generalNotes,
+                              );
+                          if (context.mounted) Navigator.of(context).pop();
+                        } catch (_) {
+                          if (context.mounted) {
+                            update(() {
+                              saving = false;
+                              failure =
+                                  'Could not finish saving your check-in. Please try again.';
+                            });
+                          }
+                        }
+                      },
+                icon: const Icon(Icons.check_rounded),
+                label: Text(saving ? 'Saving…' : 'Save check-in'),
+              ),
             ],
           ),
         ),
       ),
+    ),
+  );
+}
+
+List<String> _savedSymptoms(DailyLog? log) {
+  if (log == null) return const [];
+  try {
+    final decoded = jsonDecode(log.customSymptomsJson);
+    return decoded is List ? decoded.whereType<String>().toList() : const [];
+  } on FormatException {
+    return const [];
+  }
+}
+
+class _CheckInSlider extends StatelessWidget {
+  const _CheckInSlider({
+    required this.label,
+    required this.value,
+    required this.minimum,
+    required this.maximum,
+    required this.onChanged,
+    this.suffix = '',
+  });
+
+  final String label;
+  final double value;
+  final double minimum;
+  final double maximum;
+  final String suffix;
+  final ValueChanged<double>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = suffix.isEmpty
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(1);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$label · $total$suffix',
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        Slider(
+          value: value,
+          min: minimum,
+          max: maximum,
+          divisions: ((maximum - minimum) * (suffix.isEmpty ? 1 : 2)).round(),
+          label: '$label $total$suffix',
+          semanticFormatterCallback: (value) =>
+              '$label ${value.toStringAsFixed(suffix.isEmpty ? 0 : 1)}$suffix',
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 }
@@ -423,775 +1119,6 @@ class _DetailCallout extends StatelessWidget {
   }
 }
 
-class _DashboardHeader extends ConsumerWidget {
-  final VoidCallback onNotificationsTap;
-
-  const _DashboardHeader({required this.onNotificationsTap});
-
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final secondaryText = isDark
-        ? AppColors.textSecondaryDark
-        : AppColors.textSecondaryLight;
-    final profile = ref.watch(userProfileProvider).valueOrNull;
-    final name = profile?.userName ?? '';
-    final greetingText = name.trim().isEmpty
-        ? 'Hi there'
-        : '${_getGreeting()}, $name';
-    final todayText = DateFormat('EEEE, d MMMM').format(DateTime.now());
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.cardSurfaceDark
-            : Colors.white.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  greetingText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontSize: 22,
-                    height: 1.05,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your personal rhythm and wellness overview',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: secondaryText,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  todayText,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: secondaryText,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.07)
-                  : AppColors.terracottaContainer,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: NotificationBellButton(
-              onPressed: onNotificationsTap,
-              iconColor: isDark
-                  ? AppColors.terracottaLight
-                  : AppColors.terracottaPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RhythmCard extends StatelessWidget {
-  final CycleEngineOutput output;
-
-  const _RhythmCard({required this.output});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final df = DateFormat('d MMM');
-    final primaryPred = output.periodPredictions.firstOrNull;
-
-    final String periodText;
-    final String? possibleStartText;
-    final String? durationText;
-
-    if (!output.hasEnoughData) {
-      periodText = 'Add your last period to unlock cycle predictions.';
-      possibleStartText = null;
-      durationText = null;
-    } else if (primaryPred != null) {
-      final bleedingStart = df.format(primaryPred.predictedBleedingRange.start);
-      final possibleStart = df.format(primaryPred.possibleStartRange.start);
-      final possibleEnd = df.format(primaryPred.possibleStartRange.end);
-      periodText = 'Next period around $bleedingStart';
-      durationText =
-          'Typical duration ${primaryPred.expectedDurationDays} days';
-
-      if (output.confidence == PredictionConfidence.low ||
-          primaryPred.possibleStartRange.start !=
-              primaryPred.estimatedStartDate) {
-        possibleStartText = 'Possible start $possibleStart-$possibleEnd';
-      } else {
-        possibleStartText = null;
-      }
-    } else {
-      periodText = 'Next period ${output.formattedPeriodRange}';
-      possibleStartText = null;
-      durationText = null;
-    }
-
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardSurfaceDark : AppColors.deepPlum,
-        borderRadius: BorderRadius.circular(24),
-        border: isDark
-            ? Border.all(color: AppColors.borderDark, width: 1)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: (isDark ? Colors.black : AppColors.deepPlum).withValues(
-              alpha: 0.25,
-            ),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.terracottaPrimary.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  output.hasEnoughData
-                      ? 'Cycle Day ${output.currentCycleDay}'
-                      : 'Cycle Tracker',
-                  style: const TextStyle(
-                    color: AppColors.terracottaLight,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  'Confidence: ${formatPredictionConfidence(output.confidence).toUpperCase()}',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            output.hasEnoughData
-                ? output.estimatedPhase.toUpperCase()
-                : 'CYCLE TRACKER',
-            style: theme.textTheme.displayMedium?.copyWith(
-              color: Colors.white,
-              letterSpacing: 0,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 2),
-                child: Icon(
-                  Icons.calendar_month_rounded,
-                  color: AppColors.terracottaLight,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      periodText,
-                      style: const TextStyle(
-                        color: Color(0xE6FFFFFF),
-                        fontSize: 14,
-                      ),
-                    ),
-                    if (possibleStartText != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        possibleStartText,
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                    if (durationText != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        durationText,
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickInputsCard extends StatelessWidget {
-  final int energy;
-  final int pain;
-  final double sleep;
-  final ValueChanged<int> onEnergyChanged;
-  final ValueChanged<int> onPainChanged;
-  final ValueChanged<double> onSleepChanged;
-
-  const _QuickInputsCard({
-    required this.energy,
-    required this.pain,
-    required this.sleep,
-    required this.onEnergyChanged,
-    required this.onPainChanged,
-    required this.onSleepChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'How are you today?',
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                ),
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: AppColors.sagePrimary,
-                  size: 18,
-                ),
-                const SizedBox(width: 4),
-                Text('Logged', style: theme.textTheme.labelMedium),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _RatingRow(
-              label: 'Energy',
-              selectedValue: energy,
-              activeIcon: Icons.bolt_rounded,
-              inactiveIcon: Icons.bolt_outlined,
-              activeColor: AppColors.warmGold,
-              valueLabels: _energyLabels,
-              onChanged: onEnergyChanged,
-            ),
-            const SizedBox(height: 8),
-            _RatingRow(
-              label: 'Pain',
-              selectedValue: pain + 1,
-              activeIcon: Icons.circle_rounded,
-              inactiveIcon: Icons.circle_outlined,
-              activeColor: AppColors.terracottaPrimary,
-              valueLabels: _painLabels,
-              onChanged: (value) => onPainChanged(value - 1),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Sleep',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${sleep.toStringAsFixed(1)}h',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? AppColors.sageLight
-                        : AppColors.sageDark,
-                  ),
-                ),
-              ],
-            ),
-            Slider(
-              value: sleep,
-              min: 4,
-              max: 10,
-              divisions: 12,
-              label: '${sleep.toStringAsFixed(1)}h',
-              onChanged: onSleepChanged,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RatingRow extends StatelessWidget {
-  final String label;
-  final int selectedValue;
-  final IconData activeIcon;
-  final IconData inactiveIcon;
-  final Color activeColor;
-  final List<String> valueLabels;
-  final ValueChanged<int> onChanged;
-
-  const _RatingRow({
-    required this.label,
-    required this.selectedValue,
-    required this.activeIcon,
-    required this.inactiveIcon,
-    required this.activeColor,
-    required this.valueLabels,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Wrap(
-            spacing: 2,
-            runSpacing: 2,
-            alignment: WrapAlignment.end,
-            children: List.generate(5, (index) {
-              final value = index + 1;
-              final isSelected = value <= selectedValue;
-              final valueLabel = valueLabels[index];
-
-              return IconButton(
-                constraints: const BoxConstraints.tightFor(
-                  width: 36,
-                  height: 36,
-                ),
-                padding: EdgeInsets.zero,
-                iconSize: 22,
-                tooltip: '$label: $valueLabel',
-                icon: Icon(
-                  isSelected ? activeIcon : inactiveIcon,
-                  color: isSelected ? activeColor : Colors.grey,
-                ),
-                onPressed: () => onChanged(value),
-              );
-            }),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-const _energyLabels = ['Very low', 'Low', 'Moderate', 'High', 'Very high'];
-
-const _painLabels = ['None', 'Mild', 'Moderate', 'High', 'Severe'];
-
-class _ReadinessCard extends StatelessWidget {
-  final DailyReadinessResult readiness;
-  final VoidCallback onSeeWhy;
-
-  const _ReadinessCard({required this.readiness, required this.onSeeWhy});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final accent = _readinessAccent(readiness.score, isDark);
-    final chips = [
-      readiness.suggestedPace,
-      readiness.cycleContext,
-      ...readiness.supportingFactors.take(1).map((factor) => factor.label),
-      ...readiness.limitingFactors.take(1).map((factor) => factor.label),
-    ];
-
-    return Semantics(
-      label:
-          'Daily readiness: ${readiness.label}. ${readiness.description}. ${readiness.primaryRecommendation}',
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardSurfaceDark : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: accent.withValues(alpha: isDark ? 0.18 : 0.12),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: isDark ? 0.18 : 0.12),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(_readinessIcon(readiness.score), color: accent),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Daily Readiness',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: accent,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        readiness.title,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          height: 1.12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: isDark ? 0.18 : 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    readiness.label,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              readiness.description,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: chips
-                  .where((chip) => chip.trim().isNotEmpty)
-                  .map((chip) => _SignalChip(label: chip, color: accent))
-                  .toList(growable: false),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: isDark ? 0.12 : 0.08),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.route_rounded, color: accent, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      readiness.primaryRecommendation,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onSeeWhy,
-                icon: const Icon(Icons.insights_rounded, size: 18),
-                label: const Text('See why'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TodayFocusCard extends StatelessWidget {
-  final DailyReadinessResult readiness;
-  final String recommendation;
-  final Task? task;
-  final String reason;
-  final VoidCallback onAdjustPlan;
-
-  const _TodayFocusCard({
-    required this.readiness,
-    required this.recommendation,
-    required this.task,
-    required this.reason,
-    required this.onAdjustPlan,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final accent = _readinessAccent(readiness.score, isDark);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    "Today's Focus",
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                ),
-                TextButton(
-                  onPressed: onAdjustPlan,
-                  child: const Text('Adjust'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              recommendation,
-              style: theme.textTheme.bodyMedium?.copyWith(height: 1.35),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : AppColors.bgWarmCream,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.flag_rounded, color: accent, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          task?.title ?? 'Choose one meaningful task',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  if (task != null) ...[
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _SignalChip(
-                          label: '${task!.estimatedDurationMinutes} min',
-                          color: accent,
-                        ),
-                        _SignalChip(label: task!.priority, color: accent),
-                        _SignalChip(
-                          label: '${task!.recommendedEnergy} energy',
-                          color: accent,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  Text(
-                    reason,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondaryLight,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.self_improvement_rounded,
-                        color: isDark
-                            ? AppColors.sageLight
-                            : AppColors.sagePrimary,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          readiness.bestFor,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              readiness.movementGuidance,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SignalChip extends StatelessWidget {
-  final String label;
-  final Color color;
-
-  const _SignalChip({required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 260),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.16 : 0.1),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        label,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-          height: 1.15,
-        ),
-      ),
-    );
-  }
-}
-
 Color _readinessAccent(ReadinessScore score, bool isDark) {
   return switch (score) {
     ReadinessScore.restore =>
@@ -1212,190 +1139,6 @@ IconData _readinessIcon(ReadinessScore score) {
     ReadinessScore.focused => Icons.psychology_rounded,
     ReadinessScore.strong => Icons.bolt_rounded,
   };
-}
-
-class _NigerianMealCard extends StatelessWidget {
-  final NigerianRecipe recipe;
-  final VoidCallback onSwapMeal;
-
-  const _NigerianMealCard({required this.recipe, required this.onSwapMeal});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.restaurant_rounded,
-                  color: AppColors.terracottaPrimary,
-                  size: 22,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Eat Well Today',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: onSwapMeal,
-                  icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-                  label: const Text('Swap'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              recipe.title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: isDark
-                    ? AppColors.terracottaLight
-                    : AppColors.terracottaDark,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              recipe.description,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? AppColors.cycleOvulationDark
-                    : AppColors.warmGoldContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Key Nutrients: ${recipe.keyNutrients}',
-                style: TextStyle(
-                  color: isDark
-                      ? AppColors.warmGold
-                      : AppColors.warmGoldPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MoveTodayCard extends StatelessWidget {
-  final WorkoutEntity workout;
-  final VoidCallback onSubstitute;
-
-  const _MoveTodayCard({required this.workout, required this.onSubstitute});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.fitness_center_rounded,
-                  color: isDark ? AppColors.sageLight : AppColors.sageDark,
-                  size: 22,
-                ),
-                const SizedBox(width: 8),
-                Text('Move Today', style: theme.textTheme.headlineMedium),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(workout.title, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              '${workout.durationMinutes} min • ${workout.intensity} • ${workout.category}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
-              ),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: onSubstitute,
-              icon: const Icon(Icons.alt_route_rounded, size: 18),
-              label: const Text('Substitute Exercise'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ReflectCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.edit_note_rounded,
-                  color: isDark
-                      ? AppColors.purpleLight
-                      : AppColors.purplePrimary,
-                  size: 22,
-                ),
-                const SizedBox(width: 8),
-                Text('Reflect', style: theme.textTheme.headlineMedium),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Journal Prompt:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '"What is one thing your body needed today, and how did you listen?"',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontStyle: FontStyle.italic,
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _InsightTile extends StatelessWidget {

@@ -220,6 +220,28 @@ void main() {
   );
 
   test(
+    'Today includes overdue and unscheduled tasks and excludes future tasks',
+    () async {
+      final controller = container.read(
+        planWorkspaceControllerProvider.notifier,
+      );
+      for (final (title, date) in [
+        ('Tomorrow', DateTime(2026, 8, 6)),
+        ('Overdue', DateTime(2026, 8, 4)),
+        ('Inbox', null),
+        ('Today', DateTime(2026, 8, 5)),
+      ]) {
+        await controller.saveTask(title: title, scheduledDate: date);
+      }
+      await container.read(taskStreamProvider.future);
+      final titles = container
+          .read(todayTasksProvider)
+          .map((task) => task.title);
+      expect(titles, unorderedEquals(['Overdue', 'Inbox', 'Today']));
+    },
+  );
+
+  test(
     'Wellness workspace persists hydration, pantry, shopping, meals, and workouts',
     () async {
       final controller = container.read(
@@ -285,6 +307,7 @@ void main() {
       final updated = await db.select(db.journalEntries).get();
       expect(updated.single.title, 'Updated morning thought');
       expect(updated.single.mood, 'Energized');
+      expect(updated.single.tagsJson, contains('mindfulness'));
 
       await controller.deleteJournalEntry(entries.single.id);
       container.invalidate(journalStreamProvider);

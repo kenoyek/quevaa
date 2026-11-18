@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/analytics/app_logger.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/providers/database_provider.dart';
 import '../../cycle/application/cycle_workspace_provider.dart';
@@ -273,7 +274,8 @@ final journalStreamProvider = StreamProvider<List<JournalEntry>>((ref) async* {
           );
           decrypted.add(entry.copyWith(encryptedContent: plainText));
         } catch (_) {
-          decrypted.add(entry);
+          // Keep the entry visible without exposing ciphertext to the editor.
+          decrypted.add(entry.copyWith(encryptedContent: ''));
         }
       } else {
         decrypted.add(entry);
@@ -1150,7 +1152,7 @@ class WellnessWorkspaceController extends Notifier<bool> {
           ),
           encryptedContent: Value(encryptedContent),
           mood: Value(mood ?? 'Calm'),
-          tagsJson: Value(tagsStr),
+          tagsJson: tags == null ? const Value.absent() : Value(tagsStr),
           updatedAt: Value(now),
         ),
       );
@@ -1181,13 +1183,19 @@ class WellnessWorkspaceController extends Notifier<bool> {
   Future<void> _reconcileNotifications(
     NotificationReconciliationReason reason,
   ) async {
-    final snapshot = await buildNotificationSourceSnapshotFromDatabase(
-      _db,
-      today: ref.read(localTodayProvider),
-    );
-    await ref
-        .read(notificationSchedulerProvider)
-        .reconcileNotifications(reason, snapshot: snapshot);
+    try {
+      final snapshot = await buildNotificationSourceSnapshotFromDatabase(
+        _db,
+        today: ref.read(localTodayProvider),
+      );
+      await ref
+          .read(notificationSchedulerProvider)
+          .reconcileNotifications(reason, snapshot: snapshot);
+    } catch (_) {
+      AppLogger.error(
+        'Could not refresh reminders after updating wellness data',
+      );
+    }
   }
 }
 

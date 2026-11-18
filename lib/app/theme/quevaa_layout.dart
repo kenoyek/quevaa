@@ -8,7 +8,7 @@ class QuevaaBreakpoints {
   static const expanded = 840.0;
 }
 
-class QuevaaSectionTabs extends StatelessWidget {
+class QuevaaSectionTabs extends StatefulWidget {
   final List<({String value, String label, IconData icon})> segments;
   final String selected;
   final ValueChanged<String> onSelectionChanged;
@@ -21,16 +21,53 @@ class QuevaaSectionTabs extends StatelessWidget {
   });
 
   @override
+  State<QuevaaSectionTabs> createState() => _QuevaaSectionTabsState();
+}
+
+class _QuevaaSectionTabsState extends State<QuevaaSectionTabs> {
+  final _scroll = ScrollController();
+  final _selectedTab = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _revealSelection();
+  }
+
+  @override
+  void didUpdateWidget(covariant QuevaaSectionTabs oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selected != widget.selected) _revealSelection();
+  }
+
+  void _revealSelection() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final tab = _selectedTab.currentContext?.findRenderObject();
+      if (tab == null) return;
+      _scroll.position.ensureVisible(tab, alignment: 0.5);
+    });
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
+      controller: _scroll,
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: QuevaaSpacing.m),
       child: Row(
-        children: segments.map((s) {
-          final isSelected = s.value == selected;
+        children: widget.segments.map((s) {
+          final isSelected = s.value == widget.selected;
           return Padding(
+            key: isSelected ? _selectedTab : null,
             padding: const EdgeInsets.only(right: QuevaaSpacing.s),
             child: ChoiceChip(
               showCheckmark: false,
@@ -58,7 +95,7 @@ class QuevaaSectionTabs extends StatelessWidget {
                 ],
               ),
               selected: isSelected,
-              onSelected: (_) => onSelectionChanged(s.value),
+              onSelected: (_) => widget.onSelectionChanged(s.value),
               selectedColor: isDark
                   ? AppColors.terracottaDark
                   : AppColors.terracottaPrimary,

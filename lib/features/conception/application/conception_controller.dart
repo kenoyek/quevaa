@@ -1,10 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:drift/drift.dart';
 
 import '../domain/entities/conception_profile.dart';
 import '../domain/entities/fertility_observation.dart';
 import '../data/repositories/conception_repository.dart';
-import '../../../../core/database/app_database.dart' as db;
+import '../../../../core/analytics/app_logger.dart';
 
 class ConceptionState {
   final ConceptionProfile? profile;
@@ -42,6 +41,7 @@ class ConceptionState {
 
 class ConceptionController extends StateNotifier<ConceptionState> {
   final ConceptionRepository? _repository;
+  Future<void>? _initialization;
 
   ConceptionController([this._repository])
     : super(
@@ -55,98 +55,95 @@ class ConceptionController extends StateNotifier<ConceptionState> {
         ),
       ) {
     if (_repository != null) {
-      _init();
+      _initialization = _init();
     }
   }
 
   Future<void> _init() async {
     final repository = _repository;
     if (repository == null) return;
-    final profileData = await repository.getActiveProfile();
-    final profile = profileData as ConceptionProfile?;
+    try {
+      final profile = await repository.getActiveProfile();
+      final observations = await repository.getObservations();
 
-    final observations = (await repository.getObservations())
-        .cast<FertilityObservation>();
+      final checklist = await repository.getChecklistItems();
+      final permissions = await repository.getPermissions();
 
-    final checklist = await repository.getChecklistItems();
-    final permissions = await repository.getPermissions();
-
-    state = state.copyWith(
-      profile: profile,
-      observations: observations,
-      completedChecklistItems: checklist
-          .where((c) => c.isCompleted)
-          .map((c) => c.title)
-          .toSet(),
-      partnerSharePermissions: permissions
-          .where((p) => p.isEnabled)
-          .map((p) => p.permission)
-          .toSet(),
-      isLoading: false,
-    );
+      if (!mounted) return;
+      state = state.copyWith(
+        profile: profile,
+        observations: observations,
+        completedChecklistItems: checklist
+            .where((c) => c.isCompleted)
+            .map((c) => c.title)
+            .toSet(),
+        partnerSharePermissions: permissions
+            .where((p) => p.isEnabled)
+            .map((p) => p.permission)
+            .toSet(),
+        isLoading: false,
+      );
+    } catch (_) {
+      AppLogger.error('Could not load conception history');
+    }
   }
 
   Future<void> enterConceptionMode() async {
-    if (state.profile == null) return;
-    final updatedProfile = state.profile!.copyWith(
-      status: ConceptionGoalStatus.tryingToConceive,
-    );
-
-    state = state.copyWith(profile: updatedProfile);
-
-    // Save to DB
-    await _repository?.saveProfile(
-      db.ConceptionProfilesCompanion(status: Value(updatedProfile.status.name)),
-    );
+    await _initialization;
+    if (!mounted) return;
+    final profile = state.profile;
+    if (profile != null) {
+      await updateProfile(
+        profile.copyWith(status: ConceptionGoalStatus.tryingToConceive),
+      );
+    }
   }
 
   Future<void> pausePredictionsForCycle() async {
-    if (state.profile == null) return;
-    final updatedProfile = state.profile!.copyWith(gentleModeEnabled: true);
-
-    state = state.copyWith(profile: updatedProfile);
-
-    await _repository?.saveProfile(
-      const db.ConceptionProfilesCompanion(gentleModeEnabled: Value(true)),
-    );
+    await _initialization;
+    if (!mounted) return;
+    final profile = state.profile;
+    if (profile != null) {
+      await updateProfile(profile.copyWith(gentleModeEnabled: true));
+    }
   }
 
   Future<void> leaveConceptionMode() async {
-    if (state.profile == null) return;
-    final updatedProfile = state.profile!.copyWith(
-      status: ConceptionGoalStatus.paused,
-    );
-
-    state = state.copyWith(profile: updatedProfile);
-
-    await _repository?.saveProfile(
-      db.ConceptionProfilesCompanion(status: Value(updatedProfile.status.name)),
-    );
+    await _initialization;
+    if (!mounted) return;
+    final profile = state.profile;
+    if (profile != null) {
+      await updateProfile(
+        profile.copyWith(status: ConceptionGoalStatus.paused),
+      );
+    }
   }
 
-  void updateProfile(ConceptionProfile profile) {
-    _repository?.saveProfile(
-      db.ConceptionProfilesCompanion(status: Value(profile.status.name)),
-    );
-    state = state.copyWith(profile: profile);
+  Future<void> updateProfile(ConceptionProfile profile) async {
+    await _initialization;
+    if (!mounted) return;
+    await _repository?.saveProfile(profile);
+    if (mounted) state = state.copyWith(profile: profile);
   }
 
   Future<void> logObservation(FertilityObservation observation) async {
-    await _repository?.saveObservation(
-      db.FertilityObservationsCompanion(date: Value(observation.date)),
+    await _initialization;
+    if (!mounted) return;
+    final repository = _repository;
+    if (repository != null) {
+      await repository.saveObservation(observation);
+      final observations = await repository.getObservations();
+      if (mounted) state = state.copyWith(observations: observations);
+      return;
+    }
+    final date = observation.date;
+    final remaining = state.observations.where(
+      (entry) =>
+          entry.date.year != date.year ||
+          entry.date.month != date.month ||
+          entry.date.day != date.day,
     );
-
-    final targetDay = DateTime(
-      observation.date.year,
-      observation.date.month,
-      observation.date.day,
-    );
-    final filtered = state.observations.where((entry) {
-      final day = DateTime(entry.date.year, entry.date.month, entry.date.day);
-      return day != targetDay;
-    });
-
-    state = state.copyWith(observations: [observation, ...filtered]);
+    state = state.copyWith(observations: [observation, ...remaining]);
   }
 
   Future<void> toggleChecklistItem(String item) async {

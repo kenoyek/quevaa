@@ -25,6 +25,7 @@ class _ConceptionOnboardingPageState
   bool _partnerSupport = false;
   bool _prenatalReminder = true;
   bool _cyclesRegular = true;
+  bool _saving = false;
 
   @override
   Widget build(BuildContext context) {
@@ -192,29 +193,46 @@ class _ConceptionOnboardingPageState
           ),
         ),
         ElevatedButton.icon(
-          onPressed: () {
-            final baseProfile =
-                profile ??
-                ConceptionProfile(
-                  status: ConceptionGoalStatus.tryingToConceive,
-                  tryingStartDate: DateTime.now(),
-                  lastPeriodStartDate: DateTime.now(),
-                );
-            final updated = baseProfile.copyWith(
-              status: ConceptionGoalStatus.tryingToConceive,
-              cyclesUsuallyRegular: _cyclesRegular,
-              usesOvulationTests: _usesOvulationTests,
-              tracksBasalTemperature: _tracksBbt,
-              tracksCervicalMucus: _tracksMucus,
-              logsIntimacy: _logsIntimacy,
-              partnerSupportEnabled: _partnerSupport,
-              prenatalReminderEnabled: _prenatalReminder,
-            );
-            ref
-                .read(conceptionControllerProvider.notifier)
-                .updateProfile(updated);
-            context.go('/');
-          },
+          onPressed: _saving
+              ? null
+              : () async {
+                  setState(() => _saving = true);
+                  try {
+                    final baseProfile =
+                        profile ??
+                        ConceptionProfile(
+                          status: ConceptionGoalStatus.tryingToConceive,
+                          tryingStartDate: DateTime.now(),
+                          lastPeriodStartDate: DateTime.now(),
+                        );
+                    final updated = baseProfile.copyWith(
+                      status: ConceptionGoalStatus.tryingToConceive,
+                      cyclesUsuallyRegular: _cyclesRegular,
+                      usesOvulationTests: _usesOvulationTests,
+                      tracksBasalTemperature: _tracksBbt,
+                      tracksCervicalMucus: _tracksMucus,
+                      logsIntimacy: _logsIntimacy,
+                      partnerSupportEnabled: _partnerSupport,
+                      prenatalReminderEnabled: _prenatalReminder,
+                    );
+                    await ref
+                        .read(conceptionControllerProvider.notifier)
+                        .updateProfile(updated);
+                    if (context.mounted) context.go('/');
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Could not save your conception settings. Try again.',
+                          ),
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) setState(() => _saving = false);
+                  }
+                },
           icon: const Icon(Icons.spa_rounded, color: Colors.white),
           label: const Text('Enter Conception Mode'),
           style: ElevatedButton.styleFrom(

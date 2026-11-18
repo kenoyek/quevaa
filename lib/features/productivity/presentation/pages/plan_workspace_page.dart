@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/quevaa_layout.dart';
 import '../../../../app/theme/quevaa_spacing.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../cycle/application/cycle_workspace_provider.dart';
 import '../../../recommendations/application/daily_quevaa_plan_provider.dart';
 import '../../application/plan_workspace_provider.dart';
 
@@ -19,14 +22,18 @@ class PlanWorkspacePage extends ConsumerWidget {
     final todayTasks = ref.watch(rankedTodayTasksProvider);
     final summary = ref.watch(weeklyPlanSummaryProvider);
     final saving = ref.watch(planWorkspaceControllerProvider);
-    final plannedCount = todayTasks.length;
+    final plannedCount = todayTasks
+        .where((task) => !task.isCompleted && task.status != 'Completed')
+        .length;
     return Scaffold(
       backgroundColor: _pageBg(context),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showTaskSheet(context, ref),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New Task'),
-      ),
+      floatingActionButton: section == 'Today' && todayTasks.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: saving ? null : () => _showTaskSheet(context, ref),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('New Task'),
+            ),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -95,7 +102,7 @@ class _PlanHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final today = DateFormat.yMMMMEEEEd().format(DateTime.now());
+    final today = DateFormat.yMMMMEEEEd().format(ref.watch(localTodayProvider));
     final readiness = ref.watch(dailyQuevaaPlanProvider).readiness;
 
     return Padding(
@@ -117,11 +124,6 @@ class _PlanHeader extends ConsumerWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                 ),
-              IconButton.filled(
-                onPressed: () => _showTaskSheet(context, ref),
-                icon: const Icon(Icons.add_rounded),
-                tooltip: 'Add Task',
-              ),
             ],
           ),
           const SizedBox(height: QuevaaSpacing.xxs),
@@ -132,19 +134,36 @@ class _PlanHeader extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: QuevaaSpacing.m),
-          Text(
-            plannedCount == 0
-                ? '${readiness.label} day'
-                : '$plannedCount planned tasks',
-            style: theme.textTheme.headlineMedium,
-          ),
-          const SizedBox(height: QuevaaSpacing.xxs),
-          Text(
-            plannedCount == 0
-                ? readiness.primaryRecommendation
-                : 'Recommendations consider your readiness, tasks and priorities.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF482538), Color(0xFF733D59)],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  plannedCount == 0
+                      ? '${readiness.label} day'
+                      : '$plannedCount ${plannedCount == 1 ? 'task' : 'tasks'} left today',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+                if (plannedCount == 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    readiness.primaryRecommendation,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFFFFEAF1),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -169,9 +188,12 @@ class _TodayPlan extends StatelessWidget {
         .toList();
 
     final top = active.take(3).toList();
-    final other = active.skip(3).toList();
-    final lowEnergy = active
+    final remaining = active.skip(3);
+    final lowEnergy = remaining
         .where((task) => task.recommendedEnergy.toLowerCase() == 'low')
+        .toList();
+    final other = remaining
+        .where((task) => task.recommendedEnergy.toLowerCase() != 'low')
         .toList();
 
     if (tasks.isEmpty) {
@@ -187,8 +209,6 @@ class _TodayPlan extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _WeeklyReview(summary: summary),
-        const SizedBox(height: QuevaaSpacing.m),
         _TaskGroup(
           title: 'Top priorities',
           empty: 'No active tasks for today.',
@@ -211,6 +231,8 @@ class _TodayPlan extends StatelessWidget {
             showCompleted: true,
           ),
         ],
+        const SizedBox(height: QuevaaSpacing.m),
+        _WeeklyReview(summary: summary),
       ],
     );
   }
@@ -250,7 +272,7 @@ class _PlanEmptyState extends ConsumerWidget {
             ),
             const SizedBox(height: QuevaaSpacing.xs),
             Text(
-              'Add your first task or let Quevaa help organise your day.',
+              'Add a task to start planning today.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
               ),
@@ -276,12 +298,15 @@ class _UpcomingPlan extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final today = DateTime.now();
-    final weekStart = DateTime(
-      today.year,
-      today.month,
-      today.day,
-    ).subtract(Duration(days: today.weekday - 1));
+    final today = ref.watch(localTodayProvider);
+    final upcoming = <DateTime, List<Task>>{};
+    for (final task in tasks) {
+      final date = task.scheduledDate ?? task.dueDate;
+      if (date == null || task.isCompleted || task.status == 'Completed') {
+        continue;
+      }
+      upcoming.putIfAbsent(normalizeDate(date), () => []).add(task);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -290,18 +315,16 @@ class _UpcomingPlan extends ConsumerWidget {
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 12),
-        for (var index = 0; index < 7; index++)
+        for (var offset = 1; offset <= 7; offset++)
           _DayAgenda(
-            date: weekStart.add(Duration(days: index)),
-            tasks: tasks.where((task) {
-              final scheduled = task.scheduledDate ?? task.dueDate;
-              if (scheduled == null) return false;
-              return scheduled.year ==
-                      weekStart.add(Duration(days: index)).year &&
-                  scheduled.month ==
-                      weekStart.add(Duration(days: index)).month &&
-                  scheduled.day == weekStart.add(Duration(days: index)).day;
-            }).toList(),
+            date: DateTime(today.year, today.month, today.day + offset),
+            tasks:
+                upcoming[DateTime(
+                  today.year,
+                  today.month,
+                  today.day + offset,
+                )] ??
+                const [],
           ),
         const SizedBox(height: 12),
         _TaskGroup(
@@ -385,12 +408,7 @@ class _FocusWorkspace extends ConsumerWidget {
           children: [
             for (final minutes in const [15, 25, 45, 60])
               FilledButton.tonalIcon(
-                onPressed: () => ref
-                    .read(planWorkspaceControllerProvider.notifier)
-                    .saveFocusSession(
-                      title: '$minutes minute focus',
-                      durationMinutes: minutes,
-                    ),
+                onPressed: () => _startFocus(context, ref, minutes: minutes),
                 icon: const Icon(Icons.play_arrow_rounded),
                 label: Text('$minutes min'),
               ),
@@ -510,16 +528,20 @@ class _TaskTile extends ConsumerWidget {
                 .read(planWorkspaceControllerProvider.notifier)
                 .completeTask(task, completed: value ?? false),
           ),
+          onTap: focusMode
+              ? () => _startFocus(
+                  context,
+                  ref,
+                  minutes: task.estimatedDurationMinutes.clamp(15, 60),
+                  task: task,
+                )
+              : () => _showTaskSheet(context, ref, task: task),
           title: Text(
             task.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               decoration: completed ? TextDecoration.lineThrough : null,
               color: completed
-                  ? (Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white38
-                        : Colors.black38)
+                  ? Theme.of(context).colorScheme.onSurfaceVariant
                   : null,
             ),
           ),
@@ -534,6 +556,7 @@ class _TaskTile extends ConsumerWidget {
             ].join(' • '),
           ),
           trailing: PopupMenuButton<String>(
+            tooltip: 'Task actions',
             onSelected: (value) async {
               final controller = ref.read(
                 planWorkspaceControllerProvider.notifier,
@@ -544,19 +567,17 @@ class _TaskTile extends ConsumerWidget {
                 case 'duplicate':
                   await controller.duplicateTask(task);
                 case 'focus':
-                  await controller.saveFocusSession(
-                    title: task.title,
-                    durationMinutes: task.estimatedDurationMinutes.clamp(
-                      15,
-                      60,
-                    ),
-                    taskId: task.id,
+                  await _startFocus(
+                    context,
+                    ref,
+                    minutes: task.estimatedDurationMinutes.clamp(15, 60),
+                    task: task,
                   );
                 case 'delete':
                   final confirmed = await _confirm(
                     context,
                     'Archive this task?',
-                    'It will be removed from active planning but kept out of your daily view.',
+                    'It will be removed from your active plan.',
                   );
                   if (confirmed) await controller.archiveTask(task);
               }
@@ -564,7 +585,8 @@ class _TaskTile extends ConsumerWidget {
             itemBuilder: (context) => [
               const PopupMenuItem(value: 'edit', child: Text('Edit')),
               const PopupMenuItem(value: 'duplicate', child: Text('Duplicate')),
-              const PopupMenuItem(value: 'focus', child: Text('Start focus')),
+              if (!completed)
+                const PopupMenuItem(value: 'focus', child: Text('Start focus')),
               const PopupMenuItem(value: 'delete', child: Text('Archive')),
             ],
           ),
@@ -736,6 +758,109 @@ class _WeeklyReview extends StatelessWidget {
   }
 }
 
+Future<void> _startFocus(
+  BuildContext context,
+  WidgetRef ref, {
+  required int minutes,
+  Task? task,
+}) async {
+  final controller = ref.read(planWorkspaceControllerProvider.notifier);
+  final title = task?.title ?? '$minutes-minute focus';
+  final finished = await showDialog<bool>(
+    context: context,
+    builder: (_) => _FocusTimer(title: title, minutes: minutes),
+  );
+  if (finished != true || !context.mounted) return;
+  try {
+    await controller.saveFocusSession(
+      title: title,
+      durationMinutes: minutes,
+      taskId: task?.id,
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Focus session logged.')));
+    }
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save your focus session.')),
+      );
+    }
+  }
+}
+
+class _FocusTimer extends StatefulWidget {
+  const _FocusTimer({required this.title, required this.minutes});
+
+  final String title;
+  final int minutes;
+
+  @override
+  State<_FocusTimer> createState() => _FocusTimerState();
+}
+
+class _FocusTimerState extends State<_FocusTimer> {
+  late final Stopwatch _clock;
+  late final Timer _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = Stopwatch()..start();
+    _ticker = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => setState(() {}),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ticker.cancel();
+    _clock.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final total = widget.minutes * 60;
+    final remaining = (total - _clock.elapsed.inSeconds).clamp(0, total);
+    final seconds = (remaining % 60).toString().padLeft(2, '0');
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${remaining ~/ 60}:$seconds',
+            style: Theme.of(context).textTheme.displaySmall,
+          ),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(value: (total - remaining) / total),
+          if (remaining == 0)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text('Session complete.'),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(remaining == 0 ? 'Discard' : 'End session'),
+        ),
+        if (remaining == 0)
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save session'),
+          ),
+      ],
+    );
+  }
+}
+
 class _SessionHistory extends StatelessWidget {
   final List<FocusSession> sessions;
 
@@ -778,8 +903,14 @@ void _showTaskSheet(BuildContext context, WidgetRef ref, {Task? task}) {
   var category = task?.category ?? 'General';
   var priority = task?.priority ?? 'Normal';
   var energy = task?.recommendedEnergy ?? 'Flexible';
-  var duration = (task?.estimatedDurationMinutes ?? 30).toDouble();
-  DateTime? scheduled = task?.scheduledDate ?? DateTime.now();
+  var duration = (task?.estimatedDurationMinutes ?? 30)
+      .clamp(5, 180)
+      .toDouble();
+  final today = ref.read(localTodayProvider);
+  DateTime? scheduled = task == null ? today : task.scheduledDate;
+  final formKey = GlobalKey<FormState>();
+  var saving = false;
+  String? saveError;
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -794,136 +925,200 @@ void _showTaskSheet(BuildContext context, WidgetRef ref, {Task? task}) {
             20 + MediaQuery.of(context).viewInsets.bottom,
           ),
           child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task == null ? 'Add task' : 'Edit task',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: title,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                ),
-                TextField(
-                  controller: notes,
-                  decoration: const InputDecoration(labelText: 'Notes'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: category,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items:
-                      const [
-                            'General',
-                            'Work',
-                            'Home',
-                            'Care',
-                            'Admin',
-                            'Creative',
-                          ]
-                          .map(
-                            (item) => DropdownMenuItem(
-                              value: item,
-                              child: Text(item),
-                            ),
-                          )
-                          .toList(),
-                  onChanged: (value) =>
-                      setState(() => category = value ?? category),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: priority,
-                  decoration: const InputDecoration(labelText: 'Priority'),
-                  items: const ['Low', 'Normal', 'High', 'Urgent']
-                      .map(
-                        (item) =>
-                            DropdownMenuItem(value: item, child: Text(item)),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => priority = value ?? priority),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: energy,
-                  decoration: const InputDecoration(
-                    labelText: 'Energy requirement',
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task == null ? 'Add task' : 'Edit task',
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
-                  items: const ['Low', 'Moderate', 'High', 'Flexible']
-                      .map(
-                        (item) =>
-                            DropdownMenuItem(value: item, child: Text(item)),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => energy = value ?? energy),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    scheduled == null
-                        ? 'No scheduled date'
-                        : 'Scheduled ${DateFormat.yMMMd().format(scheduled!)}',
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: title,
+                    decoration: const InputDecoration(labelText: 'Title'),
+                    validator: (value) => (value?.trim().isEmpty ?? true)
+                        ? 'Enter a task title.'
+                        : null,
                   ),
-                  trailing: const Icon(Icons.calendar_today_rounded),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      firstDate: DateTime.now().subtract(
-                        const Duration(days: 365),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: notes,
+                    decoration: const InputDecoration(labelText: 'Notes'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: category,
+                    decoration: const InputDecoration(labelText: 'Category'),
+                    items:
+                        const [
+                              'General',
+                              'Work',
+                              'Home',
+                              'Care',
+                              'Admin',
+                              'Creative',
+                            ]
+                            .map(
+                              (item) => DropdownMenuItem(
+                                value: item,
+                                child: Text(item),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (value) =>
+                        setState(() => category = value ?? category),
+                  ),
+                  DropdownButtonFormField<String>(
+                    initialValue: priority,
+                    decoration: const InputDecoration(labelText: 'Priority'),
+                    items: const ['Low', 'Normal', 'High', 'Urgent']
+                        .map(
+                          (item) =>
+                              DropdownMenuItem(value: item, child: Text(item)),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => priority = value ?? priority),
+                  ),
+                  DropdownButtonFormField<String>(
+                    initialValue: energy,
+                    decoration: const InputDecoration(
+                      labelText: 'Energy requirement',
+                    ),
+                    items: const ['Low', 'Moderate', 'High', 'Flexible']
+                        .map(
+                          (item) =>
+                              DropdownMenuItem(value: item, child: Text(item)),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => energy = value ?? energy),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      scheduled == null
+                          ? 'No scheduled date'
+                          : 'Scheduled ${DateFormat.yMMMd().format(scheduled!)}',
+                    ),
+                    trailing: scheduled == null
+                        ? const Icon(Icons.calendar_today_rounded)
+                        : IconButton(
+                            onPressed: () => setState(() => scheduled = null),
+                            tooltip: 'Clear scheduled date',
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                    onTap: () async {
+                      final date = scheduled ?? today;
+                      final earliest = DateTime(
+                        today.year - 1,
+                        today.month,
+                        today.day,
+                      );
+                      final latest = DateTime(
+                        today.year + 3,
+                        today.month,
+                        today.day,
+                      );
+                      final picked = await showDatePicker(
+                        context: context,
+                        firstDate: date.isBefore(earliest) ? date : earliest,
+                        lastDate: date.isAfter(latest) ? date : latest,
+                        initialDate: date,
+                        currentDate: today,
+                      );
+                      if (context.mounted && picked != null) {
+                        setState(() => scheduled = picked);
+                      }
+                    },
+                  ),
+                  Row(
+                    children: [
+                      const SizedBox(width: 110, child: Text('Duration')),
+                      Expanded(
+                        child: Slider(
+                          value: duration,
+                          min: 5,
+                          max: 180,
+                          divisions: 35,
+                          label: '${duration.round()} min',
+                          onChanged: (value) =>
+                              setState(() => duration = value),
+                        ),
                       ),
-                      lastDate: DateTime.now().add(
-                        const Duration(days: 365 * 3),
-                      ),
-                      initialDate: scheduled ?? DateTime.now(),
-                    );
-                    if (picked != null) setState(() => scheduled = picked);
-                  },
-                ),
-                Row(
-                  children: [
-                    const SizedBox(width: 110, child: Text('Duration')),
-                    Expanded(
-                      child: Slider(
-                        value: duration,
-                        min: 5,
-                        max: 180,
-                        divisions: 35,
-                        label: '${duration.round()} min',
-                        onChanged: (value) => setState(() => duration = value),
+                      Text('${duration.round()}m'),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (saveError != null)
+                    Text(
+                      saveError!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
                       ),
                     ),
-                    Text('${duration.round()}m'),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      await ref
-                          .read(planWorkspaceControllerProvider.notifier)
-                          .saveTask(
-                            id: task?.id,
-                            title: title.text,
-                            notes: notes.text,
-                            category: category,
-                            priority: priority,
-                            energy: energy,
-                            scheduledDate: scheduled,
-                            dueDate: scheduled,
-                            estimatedDurationMinutes: duration.round(),
-                            status: 'Planned',
-                          );
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.check_rounded),
-                    label: const Text('Save task'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              if (!formKey.currentState!.validate()) return;
+                              setState(() {
+                                saving = true;
+                                saveError = null;
+                              });
+                              try {
+                                final previousDate = task?.scheduledDate;
+                                final followsSchedule =
+                                    task?.dueDate == previousDate;
+                                await ref
+                                    .read(
+                                      planWorkspaceControllerProvider.notifier,
+                                    )
+                                    .saveTask(
+                                      id: task?.id,
+                                      title: title.text,
+                                      notes: notes.text,
+                                      category: category,
+                                      priority: priority,
+                                      energy: energy,
+                                      scheduledDate: scheduled,
+                                      dueDate: followsSchedule
+                                          ? scheduled
+                                          : task?.dueDate,
+                                      scheduledTimeMinutes:
+                                          task?.scheduledTimeMinutes,
+                                      reminderMinutes: previousDate == null
+                                          ? null
+                                          : task?.reminderAt
+                                                ?.difference(previousDate)
+                                                .inMinutes,
+                                      recurrenceRule: task?.recurrenceRule,
+                                      estimatedDurationMinutes: duration
+                                          .round(),
+                                      status: task?.status ?? 'Planned',
+                                    );
+                                if (context.mounted) Navigator.pop(context);
+                              } catch (_) {
+                                if (context.mounted) {
+                                  setState(() {
+                                    saving = false;
+                                    saveError =
+                                        'Could not finish saving this task. Try again.';
+                                  });
+                                }
+                              }
+                            },
+                      icon: const Icon(Icons.check_rounded),
+                      label: const Text('Save task'),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

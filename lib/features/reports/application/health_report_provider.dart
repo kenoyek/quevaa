@@ -100,6 +100,8 @@ class HealthReportController extends StateNotifier<AsyncValue<void>> {
   final Ref ref;
 
   Future<void> generatePdf() async {
+    if (state.isLoading) return;
+    final options = ref.read(healthReportOptionsProvider);
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final model = await ref.read(healthReportModelProvider.future);
@@ -116,11 +118,18 @@ class HealthReportController extends StateNotifier<AsyncValue<void>> {
 
       final filename =
           '${model.filenamePrefix}_${_filenameDate(model.generatedAt)}.pdf';
-      final directory = await getTemporaryDirectory();
+      if (!identical(options, ref.read(healthReportOptionsProvider))) return;
+      final temporaryRoot = await getTemporaryDirectory();
+      final directory = await temporaryRoot.createTemp('quevaa-report-');
       final file = File('${directory.path}/$filename');
       await file.writeAsBytes(bytes, flush: true);
       if (!await file.exists() || await file.length() == 0) {
         throw StateError('The PDF file could not be written.');
+      }
+
+      if (!identical(options, ref.read(healthReportOptionsProvider))) {
+        await directory.delete(recursive: true);
+        return;
       }
 
       final db = ref.read(appDatabaseProvider);
@@ -138,6 +147,7 @@ class HealthReportController extends StateNotifier<AsyncValue<void>> {
             ),
           );
 
+      if (!identical(options, ref.read(healthReportOptionsProvider))) return;
       ref
           .read(generatedHealthReportProvider.notifier)
           .state = GeneratedHealthReport(

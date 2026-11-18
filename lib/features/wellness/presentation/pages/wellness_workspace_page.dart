@@ -13,29 +13,52 @@ import '../../../workouts/data/workout_catalog.dart';
 import '../../../workouts/domain/entities/workout_entity.dart';
 import '../../application/wellness_workspace_provider.dart';
 
-class WellnessWorkspacePage extends ConsumerWidget {
+class WellnessWorkspacePage extends ConsumerStatefulWidget {
   final String? initialSection;
 
   const WellnessWorkspacePage({super.key, this.initialSection});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final section = ref.watch(wellnessSectionProvider);
-    if (initialSection != null &&
-        initialSection != section &&
-        const [
-          'For You',
-          'Meals',
-          'Movement',
-          'Mind',
-          'Progress',
-        ].contains(initialSection)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) {
-          ref.read(wellnessSectionProvider.notifier).state = initialSection!;
-        }
-      });
+  ConsumerState<WellnessWorkspacePage> createState() =>
+      _WellnessWorkspacePageState();
+}
+
+class _WellnessWorkspacePageState extends ConsumerState<WellnessWorkspacePage> {
+  @override
+  void initState() {
+    super.initState();
+    _openInitialSection();
+  }
+
+  @override
+  void didUpdateWidget(covariant WellnessWorkspacePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSection != widget.initialSection) {
+      _openInitialSection();
     }
+  }
+
+  void _openInitialSection() {
+    final section = widget.initialSection;
+    if (!const [
+      'For You',
+      'Meals',
+      'Movement',
+      'Mind',
+      'Progress',
+    ].contains(section)) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.initialSection == section) {
+        ref.read(wellnessSectionProvider.notifier).state = section!;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final section = ref.watch(wellnessSectionProvider);
     final recommendation = ref.watch(wellnessRecommendationProvider);
     return Scaffold(
       backgroundColor: _pageBg(context),
@@ -66,7 +89,11 @@ class WellnessWorkspacePage extends ConsumerWidget {
                     label: 'Move',
                     icon: Icons.fitness_center_rounded,
                   ),
-                  (value: 'Mind', label: 'Mind', icon: Icons.edit_note_rounded),
+                  (
+                    value: 'Mind',
+                    label: 'Journal',
+                    icon: Icons.edit_note_rounded,
+                  ),
                   (
                     value: 'Progress',
                     label: 'Progress',
@@ -176,16 +203,8 @@ class _MealsWorkspace extends ConsumerWidget {
         const <String>{};
     final preparedEntries =
         ref.watch(mealPreparationHistoryProvider).valueOrNull ?? const [];
-    final today = ref.watch(localTodayProvider);
-    final preparedTodayIds = preparedEntries
-        .where(
-          (entry) =>
-              entry.date == today &&
-              entry.mealType.isNotEmpty &&
-              entry.deletedAt == null,
-        )
-        .map((entry) => '${entry.mealId}:${entry.mealType}')
-        .toSet();
+    final plannedMeals =
+        ref.watch(plannedMealsForTodayProvider).valueOrNull ?? const {};
     final pantry = ref.watch(pantryStreamProvider).valueOrNull ?? const [];
     final shopping = ref.watch(shoppingStreamProvider).valueOrNull ?? const [];
     return Column(
@@ -235,11 +254,6 @@ class _MealsWorkspace extends ConsumerWidget {
                 ].join(' • '),
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Family meals prioritize household safety, pantry fit, servings, prep time and recent rotation. Your cycle context remains a light personal ranking signal.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
               const SizedBox(height: 12),
               for (final mealType in const [
                 'Breakfast',
@@ -253,11 +267,9 @@ class _MealsWorkspace extends ConsumerWidget {
                     compactTitle: mealType == 'Snack'
                         ? 'Optional snack'
                         : mealType,
-                    whySuggested:
-                        '${recipe.whySuggested(dailyPlan.cycleOutput.estimatedPhase)} For shared meals, Quevaa keeps household safety and preferences first.',
-                    isSaved: savedIds.contains(recipe.id),
-                    isPrepared: preparedTodayIds.contains(
-                      '${recipe.id}:${recipe.mealType}',
+                    isPlanned: plannedMeals[mealType]?.id == recipe.id,
+                    whySuggested: recipe.whySuggested(
+                      dailyPlan.cycleOutput.estimatedPhase,
                     ),
                   ),
               const SizedBox(height: 12),
@@ -613,70 +625,84 @@ class _MovementWorkspace extends ConsumerWidget {
   }
 }
 
-class _MindWorkspace extends ConsumerWidget {
-  final String prompt;
-
+class _MindWorkspace extends ConsumerStatefulWidget {
   const _MindWorkspace({required this.prompt});
 
+  final String prompt;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final journalStream = ref.watch(journalStreamProvider);
+  ConsumerState<_MindWorkspace> createState() => _MindWorkspaceState();
+}
+
+class _MindWorkspaceState extends ConsumerState<_MindWorkspace> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final journal = ref.watch(journalStreamProvider);
+    final theme = Theme.of(context);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _JournalPrompt(prompt: prompt),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        _JournalPrompt(prompt: widget.prompt),
+        const SizedBox(height: 20),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 10,
+          runSpacing: 8,
           children: [
-            Text(
-              'Your reflections',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            FilledButton.icon(
+            Text('Your journal', style: theme.textTheme.headlineMedium),
+            FilledButton.tonalIcon(
               onPressed: () => _showJournalSheet(context, ref),
               icon: const Icon(Icons.add_rounded),
-              label: const Text('New Entry'),
+              label: const Text('New entry'),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        journalStream.when(
+        journal.when(
           data: (entries) {
             if (entries.isEmpty) {
               return Container(
                 padding: const EdgeInsets.all(20),
                 decoration: _panelDecoration(context),
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.edit_note_rounded,
-                      size: 48,
-                      color: AppColors.purplePrimary,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No private reflections saved yet',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Tap "New Entry" or pick today\'s prompt above to write a private reflection.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+                child: const Text('Your saved reflections will appear here.'),
               );
             }
+
+            final visible = entries.where((entry) {
+              return [
+                entry.title,
+                entry.mood,
+                entry.encryptedContent,
+              ].any((text) => text?.toLowerCase().contains(_query) == true);
+            });
             return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final entry in entries) _JournalEntryTile(entry: entry),
+                TextField(
+                  onChanged: (value) =>
+                      setState(() => _query = value.trim().toLowerCase()),
+                  decoration: const InputDecoration(
+                    labelText: 'Search journal',
+                    prefixIcon: Icon(Icons.search_rounded),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (visible.isEmpty) const Text('No matching reflections.'),
+                for (final entry in visible)
+                  _JournalEntryTile(key: ValueKey(entry.id), entry: entry),
               ],
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => const Text('Could not load journal entries.'),
+          error: (_, _) => OutlinedButton.icon(
+            onPressed: () => ref.invalidate(journalStreamProvider),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry loading journal'),
+          ),
         ),
       ],
     );
@@ -686,11 +712,12 @@ class _MindWorkspace extends ConsumerWidget {
 class _JournalEntryTile extends ConsumerWidget {
   final JournalEntry entry;
 
-  const _JournalEntryTile({required this.entry});
+  const _JournalEntryTile({super.key, required this.entry});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unavailable = entry.encryptedContent.isEmpty;
     final dateStr = DateFormat.yMMMd().add_jm().format(entry.createdAt);
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -727,23 +754,58 @@ class _JournalEntryTile extends ConsumerWidget {
                       entry.mood!,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: isDark
-                            ? AppColors.purpleLight
+                            ? AppColors.textPrimaryDark
                             : AppColors.purpleDark,
                       ),
                     ),
                   ),
                 PopupMenuButton<String>(
-                  onSelected: (val) async {
-                    if (val == 'edit') {
+                  tooltip: 'Journal entry actions',
+                  onSelected: (action) async {
+                    if (action == 'edit') {
                       _showJournalSheet(context, ref, entry: entry);
-                    } else if (val == 'delete') {
-                      await ref
-                          .read(wellnessWorkspaceControllerProvider.notifier)
-                          .deleteJournalEntry(entry.id);
+                      return;
+                    }
+                    final controller = ref.read(
+                      wellnessWorkspaceControllerProvider.notifier,
+                    );
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete this reflection?'),
+                        content: const Text(
+                          'This removes the entry from your journal.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Keep entry'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return;
+                    try {
+                      await controller.deleteJournalEntry(entry.id);
+                    } catch (_) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Could not finish deleting the reflection.',
+                            ),
+                          ),
+                        );
+                      }
                     }
                   },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  itemBuilder: (_) => [
+                    if (!unavailable)
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
                     const PopupMenuItem(value: 'delete', child: Text('Delete')),
                   ],
                 ),
@@ -751,7 +813,9 @@ class _JournalEntryTile extends ConsumerWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              entry.encryptedContent,
+              unavailable
+                  ? 'This reflection could not be unlocked.'
+                  : entry.encryptedContent,
               maxLines: 4,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium,
@@ -809,21 +873,41 @@ class _MealRecommendationCard extends ConsumerWidget {
   final NigerianRecipe recipe;
   final String? compactTitle;
   final String? whySuggested;
-  final bool isSaved;
-  final bool isPrepared;
+  final bool isPlanned;
 
   const _MealRecommendationCard({
     required this.recipe,
     this.compactTitle,
     this.whySuggested,
-    this.isSaved = false,
-    this.isPrepared = false,
+    this.isPlanned = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final today = ref.watch(localTodayProvider);
+    final isSaved =
+        ref.watch(savedMealIdsProvider).valueOrNull?.contains(recipe.id) ??
+        false;
+    final isPrepared =
+        ref
+            .watch(mealPreparationHistoryProvider)
+            .valueOrNull
+            ?.any(
+              (row) =>
+                  normalizeDate(row.date) == today &&
+                  row.mealId == recipe.id &&
+                  row.mealType == recipe.mealType,
+            ) ??
+        false;
+    final planned =
+        isPlanned ||
+        ref
+                .watch(plannedMealsForTodayProvider)
+                .valueOrNull?[recipe.mealType]
+                ?.id ==
+            recipe.id;
 
     return Container(
       width: double.infinity,
@@ -833,45 +917,59 @@ class _MealRecommendationCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.terracottaContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(QuevaaSpacing.s),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF3C2A29) : const Color(0xFFFCF0E8),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.terracottaContainer.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(QuevaaSpacing.s),
+                  ),
+                  child: const Icon(
+                    Icons.restaurant_rounded,
+                    color: AppColors.terracottaPrimary,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.restaurant_rounded,
-                  color: AppColors.terracottaPrimary,
-                ),
-              ),
-              const SizedBox(width: QuevaaSpacing.m),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      compactTitle ?? 'Recommended meal',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: AppColors.terracottaPrimary,
-                        fontWeight: FontWeight.bold,
+                const SizedBox(width: QuevaaSpacing.m),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        compactTitle ?? 'Recommended meal',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: isDark
+                              ? const Color(0xFFF6BEA9)
+                              : const Color(0xFF884B36),
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    Text(recipe.title, style: theme.textTheme.titleLarge),
-                  ],
+                      Text(recipe.title, style: theme.textTheme.headlineSmall),
+                      if (planned)
+                        Text(
+                          'On your meal plan',
+                          style: theme.textTheme.labelMedium,
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: QuevaaSpacing.s),
           Wrap(
             spacing: QuevaaSpacing.xs,
             runSpacing: QuevaaSpacing.xxs,
             children: [
-              _MetadataChip(label: recipe.mealType),
+              if (compactTitle == null) _MetadataChip(label: recipe.mealType),
               _MetadataChip(label: recipe.region),
               _MetadataChip(label: '${recipe.totalMinutes} min'),
               _MetadataChip(label: recipe.difficulty),
@@ -890,103 +988,62 @@ class _MealRecommendationCard extends ConsumerWidget {
             whySuggested ?? 'Nutrients: ${recipe.keyNutrients}',
             style: theme.textTheme.bodySmall?.copyWith(
               fontStyle: FontStyle.italic,
-              color: AppColors.sagePrimary,
+              color: isDark ? AppColors.sageLight : AppColors.sageDark,
             ),
           ),
           const SizedBox(height: QuevaaSpacing.m),
-          Column(
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => _showMealDetailSheet(context, ref, recipe),
+              icon: const Icon(Icons.menu_book_outlined),
+              label: const Text('View recipe'),
+            ),
+          ),
+          const SizedBox(height: QuevaaSpacing.xs),
+          Wrap(
+            spacing: QuevaaSpacing.xs,
+            runSpacing: QuevaaSpacing.xxs,
             children: [
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: isPrepared
-                      ? null
-                      : () => _confirmPrepared(context, ref, recipe),
-                  icon: Icon(
-                    isPrepared
-                        ? Icons.check_circle_rounded
-                        : Icons.check_rounded,
-                  ),
-                  label: Text(isPrepared ? 'Prepared Today' : 'Mark Prepared'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.terracottaPrimary,
-                  ),
+              TextButton.icon(
+                onPressed: () async {
+                  try {
+                    await ref
+                        .read(wellnessWorkspaceControllerProvider.notifier)
+                        .toggleSavedMeal(recipe);
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Could not update saved meals.'),
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: Icon(
+                  isSaved
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
                 ),
+                label: Text(isSaved ? 'Saved' : 'Save'),
               ),
-              const SizedBox(height: QuevaaSpacing.xs),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await ref
-                            .read(wellnessWorkspaceControllerProvider.notifier)
-                            .toggleSavedMeal(recipe);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                isSaved
-                                    ? 'Removed from saved meals.'
-                                    : 'Saved meal.',
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      icon: Icon(
-                        isSaved
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        size: 18,
-                      ),
-                      label: Text(isSaved ? 'Saved' : 'Save'),
-                    ),
-                  ),
-                  const SizedBox(width: QuevaaSpacing.xs),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showMealDetailSheet(
-                        context,
-                        ref,
-                        recipe,
-                        initialTab: 0,
-                      ),
-                      icon: const Icon(Icons.menu_book_rounded, size: 18),
-                      label: const Text('View Recipe'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: QuevaaSpacing.xs),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showMealDetailSheet(
-                        context,
-                        ref,
-                        recipe,
-                        initialTab: 1,
-                      ),
-                      icon: const Icon(
-                        Icons.format_list_bulleted_rounded,
-                        size: 18,
-                      ),
-                      label: const Text('Ingredients'),
-                    ),
-                  ),
-                  const SizedBox(width: QuevaaSpacing.xs),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => ref
-                          .read(wellnessWorkspaceControllerProvider.notifier)
-                          .showAnotherMeal(recipe.mealType),
-                      icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-                      label: const Text('Another'),
-                    ),
-                  ),
-                ],
+              if (!planned)
+                TextButton.icon(
+                  onPressed: () => ref
+                      .read(wellnessWorkspaceControllerProvider.notifier)
+                      .showAnotherMeal(recipe.mealType),
+                  icon: const Icon(Icons.swap_horiz_rounded),
+                  label: const Text('Another'),
+                ),
+              TextButton.icon(
+                onPressed: isPrepared
+                    ? null
+                    : () => _confirmPrepared(context, ref, recipe),
+                icon: Icon(
+                  isPrepared ? Icons.check_circle_rounded : Icons.check_rounded,
+                ),
+                label: Text(isPrepared ? 'Prepared today' : 'Mark prepared'),
               ),
             ],
           ),
@@ -1444,18 +1501,21 @@ class _JournalPrompt extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _panelDecoration(context),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF412737) : const Color(0xFFF9E9F0),
+        borderRadius: BorderRadius.circular(22),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Daily reflection prompt',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Daily reflection prompt', style: theme.textTheme.labelLarge),
           const SizedBox(height: 8),
-          Text(prompt),
+          Text(prompt, style: theme.textTheme.headlineSmall),
           const SizedBox(height: 12),
           Wrap(
             spacing: 10,
@@ -1490,14 +1550,28 @@ void _showJournalSheet(
 }) {
   final titleController = TextEditingController(text: entry?.title ?? '');
   final contentController = TextEditingController(
-    text: entry?.encryptedContent ?? initialContent ?? '',
+    text: entry?.encryptedContent ?? '',
   );
   var mood = entry?.mood ?? 'Calm';
+  final moods = {
+    'Calm',
+    'Reflective',
+    'Grateful',
+    'Hopeful',
+    'Anxious',
+    'Tired',
+    'Energized',
+    mood,
+  };
+  final formKey = GlobalKey<FormState>();
+  var saving = false;
+  String? saveError;
 
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
+    constraints: const BoxConstraints(maxWidth: 560),
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => SafeArea(
         child: Padding(
@@ -1508,72 +1582,106 @@ void _showJournalSheet(
             20 + MediaQuery.of(context).viewInsets.bottom,
           ),
           child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  entry == null ? 'New journal entry' : 'Edit journal entry',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Title (optional)',
-                    hintText: 'e.g. Quiet moment, Evening reflection',
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    entry == null ? 'New journal entry' : 'Edit journal entry',
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: mood,
-                  decoration: const InputDecoration(labelText: 'Mood'),
-                  items:
-                      const [
-                            'Calm',
-                            'Reflective',
-                            'Grateful',
-                            'Hopeful',
-                            'Anxious',
-                            'Tired',
-                            'Energized',
-                          ]
-                          .map(
-                            (m) => DropdownMenuItem(value: m, child: Text(m)),
-                          )
-                          .toList(),
-                  onChanged: (val) => setState(() => mood = val ?? mood),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: contentController,
-                  maxLines: 6,
-                  decoration: const InputDecoration(
-                    labelText: 'Reflection notes',
-                    hintText: 'Write your private thoughts...',
+                  if (initialContent != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      initialContent,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Title (optional)',
+                      hintText: 'e.g. Quiet moment, Evening reflection',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      if (contentController.text.trim().isEmpty) return;
-                      await ref
-                          .read(wellnessWorkspaceControllerProvider.notifier)
-                          .saveJournalEntry(
-                            id: entry?.id,
-                            title: titleController.text,
-                            content: contentController.text,
-                            mood: mood,
-                          );
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.check_rounded),
-                    label: Text(entry == null ? 'Save Entry' : 'Update Entry'),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: mood,
+                    decoration: const InputDecoration(labelText: 'Mood'),
+                    items: moods
+                        .map(
+                          (mood) =>
+                              DropdownMenuItem(value: mood, child: Text(mood)),
+                        )
+                        .toList(),
+                    onChanged: (val) => setState(() => mood = val ?? mood),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: contentController,
+                    minLines: 4,
+                    maxLines: 8,
+                    validator: (value) => (value?.trim().isEmpty ?? true)
+                        ? 'Write a short reflection before saving.'
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Reflection notes',
+                      hintText: 'Write your private thoughts...',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (saveError != null)
+                    Text(
+                      saveError!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              if (!formKey.currentState!.validate()) return;
+                              setState(() {
+                                saving = true;
+                                saveError = null;
+                              });
+                              try {
+                                await ref
+                                    .read(
+                                      wellnessWorkspaceControllerProvider
+                                          .notifier,
+                                    )
+                                    .saveJournalEntry(
+                                      id: entry?.id,
+                                      title: titleController.text,
+                                      content: contentController.text,
+                                      mood: mood,
+                                    );
+                                if (context.mounted) Navigator.pop(context);
+                              } catch (_) {
+                                if (context.mounted) {
+                                  setState(() {
+                                    saving = false;
+                                    saveError =
+                                        'Could not finish saving your reflection. Try again.';
+                                  });
+                                }
+                              }
+                            },
+                      icon: const Icon(Icons.check_rounded),
+                      label: Text(
+                        entry == null ? 'Save Entry' : 'Update Entry',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../features/conception/application/conception_controller.dart';
 import '../../features/conception/application/conception_settings_provider.dart';
 import '../../features/conception/presentation/pages/conception_dashboard_page.dart';
 import '../../features/conception/presentation/pages/conception_onboarding_page.dart';
@@ -389,12 +388,7 @@ class _NormalMePage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 14),
                       FilledButton.icon(
-                        onPressed: () {
-                          ref
-                              .read(conceptionControllerProvider.notifier)
-                              .enterConceptionMode();
-                          context.go('/conception/onboarding');
-                        },
+                        onPressed: () => context.go('/conception/onboarding'),
                         icon: const Icon(Icons.favorite_rounded),
                         label: const Text(
                           'Set current goal: Trying to conceive',

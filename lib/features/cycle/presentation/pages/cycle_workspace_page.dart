@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/database/app_database.dart';
@@ -28,113 +28,73 @@ class CycleWorkspacePage extends ConsumerWidget {
     final periods = ref.watch(periodHistoryProvider).valueOrNull ?? const [];
     final ttcEnabled = ref.watch(conceptionModeActiveProvider);
 
+    final selected = ref.watch(selectedCycleDateProvider);
+
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgWarmDark : AppColors.bgWarmCream,
+      backgroundColor: isDark ? AppColors.bgWarmDark : const Color(0xFFFCF7F9),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(cycleLogsInRangeProvider);
-            ref.invalidate(periodHistoryProvider);
-          },
-          child: CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                sliver: SliverToBoxAdapter(
-                  child: _CycleHeader(
-                    view: view,
-                    onViewChanged: (value) => ref
-                        .read(cycleWorkspaceControllerProvider.notifier)
-                        .setCalendarView(value),
-                    onQuickLog: () => _showQuickLogSheet(
-                      context,
-                      ref,
-                      ref.read(selectedCycleDateProvider),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final inset = width > 672 ? (width - 640) / 2 : 16.0;
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(cycleLogsInRangeProvider);
+                ref.invalidate(symptomsInRangeProvider);
+                ref.invalidate(periodHistoryProvider);
+              },
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(inset, 20, inset, 12),
+                    sliver: SliverToBoxAdapter(
+                      child: _CycleHeader(
+                        output: output,
+                        onQuickLog: () =>
+                            _showQuickLogSheet(context, ref, selected),
+                      ),
                     ),
-                    cycleDay: output.currentCycleDay,
-                    phase: output.estimatedPhase,
-                    confidence: formatPredictionConfidence(output.confidence),
                   ),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: _OverviewCards(output: output, periods: periods),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: _CalendarLegend(ttcEnabled: ttcEnabled),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: logs.when(
-                    data: (dailyLogs) => symptoms.when(
-                      data: (symptomRows) => _CycleCalendar(
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(inset, 0, inset, 16),
+                    sliver: SliverToBoxAdapter(
+                      child: _CycleCalendar(
                         view: view,
-                        dailyLogs: dailyLogs,
-                        symptoms: symptomRows,
+                        dailyLogs: logs.valueOrNull ?? const [],
+                        symptoms: symptoms.valueOrNull ?? const [],
                         periods: periods,
                         ttcEnabled: ttcEnabled,
+                        onViewChanged: (value) => ref
+                            .read(cycleWorkspaceControllerProvider.notifier)
+                            .setCalendarView(value),
                         onSelectDate: (date) {
                           ref.read(selectedCycleDateProvider.notifier).state =
                               date;
                           _showDayDetails(context, ref, date);
                         },
                       ),
-                      loading: () => _CycleCalendar(
-                        view: view,
-                        dailyLogs: const [],
-                        symptoms: const [],
-                        periods: periods,
-                        ttcEnabled: ttcEnabled,
-                        onSelectDate: (date) {},
-                      ),
-                      error: (error, stack) => _CycleCalendar(
-                        view: view,
-                        dailyLogs: const [],
-                        symptoms: const [],
-                        periods: periods,
-                        ttcEnabled: ttcEnabled,
-                        onSelectDate: (date) {},
-                      ),
-                    ),
-                    loading: () => const _LoadingPanel(),
-                    error: (error, stack) => _CycleCalendar(
-                      view: view,
-                      dailyLogs: const [],
-                      symptoms: const [],
-                      periods: periods,
-                      ttcEnabled: ttcEnabled,
-                      onSelectDate: (date) {},
                     ),
                   ),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                sliver: SliverToBoxAdapter(
-                  child: _CycleInsights(
-                    periods: periods,
-                    logs: logs.valueOrNull ?? const [],
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(inset, 0, inset, 16),
+                    sliver: SliverToBoxAdapter(
+                      child: _OverviewCards(output: output, periods: periods),
+                    ),
                   ),
-                ),
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(inset, 0, inset, 100),
+                    sliver: SliverToBoxAdapter(
+                      child: _CycleInsights(
+                        periods: periods,
+                        logs: logs.valueOrNull ?? const [],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -142,92 +102,112 @@ class CycleWorkspacePage extends ConsumerWidget {
 }
 
 class _CycleHeader extends StatelessWidget {
-  final String view;
-  final ValueChanged<String> onViewChanged;
-  final VoidCallback onQuickLog;
-  final int cycleDay;
-  final String phase;
-  final String confidence;
+  const _CycleHeader({required this.output, required this.onQuickLog});
 
-  const _CycleHeader({
-    required this.view,
-    required this.onViewChanged,
-    required this.onQuickLog,
-    required this.cycleDay,
-    required this.phase,
-    required this.confidence,
-  });
+  final CycleEngineOutput output;
+  final VoidCallback onQuickLog;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardSurfaceDark : AppColors.cardSurfaceLight,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
+    final prediction = output.periodPredictions.firstOrNull;
+    final phase = output.estimatedPhase.toLowerCase();
+    final phaseLabel = phase.startsWith('estimated')
+        ? output.estimatedPhase
+        : 'Estimated $phase phase';
+    final format = DateFormat.MMMd(Localizations.localeOf(context).toString());
+    final nextPeriod = prediction == null
+        ? null
+        : '${format.format(prediction.predictedBleedingRange.start)} – '
+              '${format.format(prediction.predictedBleedingRange.end)}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                header: true,
                 child: Text('Cycle', style: theme.textTheme.displaySmall),
               ),
-              FilledButton.icon(
-                onPressed: onQuickLog,
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Quick log'),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF773D5B),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(0, 48),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text('Cycle Day $cycleDay', style: theme.textTheme.headlineMedium),
-          const SizedBox(height: 4),
-          Text(
-            phase.toLowerCase().contains('phase')
-                ? 'Estimated ${phase.toLowerCase()}'
-                : 'Estimated ${phase.toLowerCase()} phase',
-            style: theme.textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Prediction confidence: ${_titleCase(confidence)}',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
+              onPressed: onQuickLog,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Quick log'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF482538), Color(0xFF733D59)],
             ),
           ),
-          const SizedBox(height: 16),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                value: 'Month',
-                label: Text('Month'),
-                icon: Icon(Icons.calendar_month_rounded),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nextPeriod == null
+                          ? 'Cycle overview'
+                          : 'Next period · estimated',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: const Color(0xFFFFDDE9),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      nextPeriod ?? 'Start tracking your cycle',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      output.hasEnoughData
+                          ? 'Cycle day ${output.currentCycleDay} · ${formatPredictionConfidence(output.confidence)} confidence'
+                          : 'Log a period to start seeing estimates.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFFFFEAF1),
+                      ),
+                    ),
+                    if (output.hasEnoughData) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        phaseLabel,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFFFFDDE9),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              ButtonSegment(
-                value: 'Three months',
-                label: Text('3 mo'),
-                icon: Icon(Icons.view_week_rounded),
-              ),
-              ButtonSegment(
-                value: 'Year',
-                label: Text('Year'),
-                icon: Icon(Icons.grid_view_rounded),
+              const SizedBox(width: 12),
+              const CircleAvatar(
+                radius: 22,
+                backgroundColor: Color(0x33FFFFFF),
+                foregroundColor: Color(0xFFFFDDE9),
+                child: Icon(Icons.water_drop_outlined, size: 22),
               ),
             ],
-            selected: {view},
-            onSelectionChanged: (selection) => onViewChanged(selection.first),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -244,34 +224,10 @@ class _OverviewCards extends StatelessWidget {
     final primaryPred = output.periodPredictions.firstOrNull;
     final enough = output.hasEnoughData && periods.length >= 2;
 
-    final String nextPeriodBody;
-    final String nextPeriodFoot;
-
-    if (primaryPred != null) {
-      final bleedingStartStr = df.format(
-        primaryPred.predictedBleedingRange.start,
-      );
-      final bleedingEndStr = df.format(primaryPred.predictedBleedingRange.end);
-      final possibleStartStr =
-          '${df.format(primaryPred.possibleStartRange.start)}–${df.format(primaryPred.possibleStartRange.end)}';
-
-      nextPeriodBody =
-          'Expected: $bleedingStartStr\nDuration: ${primaryPred.expectedDurationDays} days ($bleedingStartStr–$bleedingEndStr)';
-      if (output.confidence == PredictionConfidence.low ||
-          primaryPred.possibleStartRange.start !=
-              primaryPred.estimatedStartDate) {
-        nextPeriodFoot =
-            'Possible start: $possibleStartStr • Confidence: ${formatPredictionConfidence(output.confidence)}';
-      } else {
-        nextPeriodFoot =
-            'Confidence: ${formatPredictionConfidence(output.confidence)}';
-      }
-    } else {
-      nextPeriodBody = 'Add period history to estimate';
-      nextPeriodFoot =
-          'Confidence: ${formatPredictionConfidence(output.confidence)}';
-    }
-
+    final possibleStart = primaryPred == null
+        ? null
+        : '${df.format(primaryPred.possibleStartRange.start)} – '
+              '${df.format(primaryPred.possibleStartRange.end)}';
     final lastThree = <int>[];
     for (var i = 0; i < periods.length - 1; i++) {
       lastThree.add(
@@ -279,30 +235,19 @@ class _OverviewCards extends StatelessWidget {
       );
     }
     final recent = lastThree.reversed.take(3).toList().reversed.toList();
-    return GridView(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.9,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _InfoCard(
-          icon: Icons.event_available_rounded,
-          title: 'Next period',
-          body: nextPeriodBody,
-          foot: nextPeriodFoot,
-        ),
-        _InfoCard(
-          icon: Icons.timeline_rounded,
-          title: 'Current cycle',
-          body: output.hasEnoughData
-              ? 'Day ${output.currentCycleDay}'
-              : 'Data needed',
-          foot: 'Estimated ${output.medianCycleLength.round()}-day cycle',
-        ),
+        if (primaryPred != null) ...[
+          _InfoCard(
+            icon: Icons.event_available_outlined,
+            title: 'Period estimates',
+            body: 'Possible start: $possibleStart',
+            foot:
+                'Estimated bleeding duration: ${primaryPred.expectedDurationDays} days',
+          ),
+          const SizedBox(height: 10),
+        ],
         _InfoCard(
           icon: Icons.insights_rounded,
           title: 'Typical cycle',
@@ -313,6 +258,7 @@ class _OverviewCards extends StatelessWidget {
               ? 'Variation: ${output.cycleLengthVariability.toStringAsFixed(1)}'
               : 'Predictions will improve as you log more periods',
         ),
+        const SizedBox(height: 10),
         _InfoCard(
           icon: Icons.history_rounded,
           title: 'Recent pattern',
@@ -333,6 +279,7 @@ class _CycleCalendar extends ConsumerWidget {
   final List<CyclePeriod> periods;
   final bool ttcEnabled;
   final ValueChanged<DateTime> onSelectDate;
+  final ValueChanged<String> onViewChanged;
 
   const _CycleCalendar({
     required this.view,
@@ -341,73 +288,116 @@ class _CycleCalendar extends ConsumerWidget {
     required this.periods,
     required this.ttcEnabled,
     required this.onSelectDate,
+    required this.onViewChanged,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     final visibleMonth = ref.watch(visibleCycleMonthProvider);
     final selected = ref.watch(selectedCycleDateProvider);
     final output = ref.watch(currentCycleOutputProvider);
+    final today = ref.watch(localTodayProvider);
     final monthCount = switch (view) {
       'Three months' => 3,
       'Year' => 12,
       _ => 1,
     };
-    return Column(
-      children: [
-        _CalendarToolbar(
-          month: visibleMonth,
-          showYearJump: view == 'Year',
-          onToday: () {
-            final now = DateTime.now();
-            ref.read(visibleCycleMonthProvider.notifier).state = DateTime(
-              now.year,
-              now.month,
-            );
-            ref.read(selectedCycleDateProvider.notifier).state = normalizeDate(
-              now,
-            );
-          },
-          onPrevious: () => ref.read(visibleCycleMonthProvider.notifier).state =
-              DateTime(visibleMonth.year, visibleMonth.month - monthCount),
-          onNext: () => ref.read(visibleCycleMonthProvider.notifier).state =
-              DateTime(visibleMonth.year, visibleMonth.month + monthCount),
-        ),
-        const SizedBox(height: 12),
-        GestureDetector(
-          onHorizontalDragEnd: (details) {
-            final velocity = details.primaryVelocity ?? 0;
-            if (velocity.abs() < 150) return;
-            ref.read(visibleCycleMonthProvider.notifier).state = DateTime(
-              visibleMonth.year,
-              visibleMonth.month + (velocity < 0 ? monthCount : -monthCount),
-            );
-          },
-          child: Column(
-            children: [
-              for (var index = 0; index < monthCount; index++)
-                Padding(
-                  padding: EdgeInsets.only(
-                    bottom: index == monthCount - 1 ? 0 : 16,
-                  ),
-                  child: _MonthGrid(
-                    month: DateTime(
-                      visibleMonth.year,
-                      visibleMonth.month + index,
-                    ),
-                    selected: selected,
-                    dailyLogs: dailyLogs,
-                    symptoms: symptoms,
-                    periods: periods,
-                    output: output,
-                    ttcEnabled: ttcEnabled,
-                    onSelectDate: onSelectDate,
-                  ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+      decoration: _panelDecoration(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SegmentedButton<String>(
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (!states.contains(WidgetState.selected)) return null;
+                return dark ? const Color(0xFF533346) : const Color(0xFFF3DDE7);
+              }),
+              foregroundColor: WidgetStatePropertyAll(
+                theme.colorScheme.onSurface,
+              ),
+              side: WidgetStatePropertyAll(
+                BorderSide(
+                  color: dark ? AppColors.borderDark : AppColors.borderLight,
                 ),
+              ),
+              minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
+            ),
+            segments: const [
+              ButtonSegment(value: 'Month', label: Text('Month')),
+              ButtonSegment(value: 'Three months', label: Text('3 months')),
+              ButtonSegment(value: 'Year', label: Text('Year')),
             ],
+            selected: {view},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) => onViewChanged(selection.first),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          _CalendarToolbar(
+            month: visibleMonth,
+            monthCount: monthCount,
+            onToday: () {
+              final now = today;
+              ref.read(visibleCycleMonthProvider.notifier).state = DateTime(
+                now.year,
+                now.month,
+              );
+              ref.read(selectedCycleDateProvider.notifier).state =
+                  normalizeDate(now);
+            },
+            onPrevious: () =>
+                ref.read(visibleCycleMonthProvider.notifier).state = DateTime(
+                  visibleMonth.year,
+                  visibleMonth.month - monthCount,
+                ),
+            onNext: () => ref.read(visibleCycleMonthProvider.notifier).state =
+                DateTime(visibleMonth.year, visibleMonth.month + monthCount),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onHorizontalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity.abs() < 150) return;
+              ref.read(visibleCycleMonthProvider.notifier).state = DateTime(
+                visibleMonth.year,
+                visibleMonth.month +
+                    ((velocity < 0) ==
+                            (Directionality.of(context) == TextDirection.ltr)
+                        ? monthCount
+                        : -monthCount),
+              );
+            },
+            child: Column(
+              children: [
+                for (var index = 0; index < monthCount; index++)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index == monthCount - 1 ? 0 : 16,
+                    ),
+                    child: _MonthGrid(
+                      month: DateTime(
+                        visibleMonth.year,
+                        visibleMonth.month + index,
+                      ),
+                      selected: selected,
+                      today: today,
+                      showTitle: monthCount > 1,
+                      dailyLogs: dailyLogs,
+                      symptoms: symptoms,
+                      periods: periods,
+                      output: output,
+                      onSelectDate: onSelectDate,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          _CalendarLegend(ttcEnabled: ttcEnabled),
+        ],
+      ),
     );
   }
 }
@@ -415,21 +405,23 @@ class _CycleCalendar extends ConsumerWidget {
 class _MonthGrid extends StatelessWidget {
   final DateTime month;
   final DateTime selected;
+  final DateTime today;
+  final bool showTitle;
   final List<DailyLog> dailyLogs;
   final List<SymptomEntry> symptoms;
   final List<CyclePeriod> periods;
   final CycleEngineOutput output;
-  final bool ttcEnabled;
   final ValueChanged<DateTime> onSelectDate;
 
   const _MonthGrid({
     required this.month,
     required this.selected,
+    required this.today,
+    required this.showTitle,
     required this.dailyLogs,
     required this.symptoms,
     required this.periods,
     required this.output,
-    required this.ttcEnabled,
     required this.onSelectDate,
   });
 
@@ -437,6 +429,13 @@ class _MonthGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final localizations = MaterialLocalizations.of(context);
     final firstDayOffset = localizations.firstDayOfWeekIndex;
+    final locale = Localizations.localeOf(context).toString();
+    final shortWeekday = DateFormat.E(locale);
+    final fullWeekday = DateFormat.EEEE(locale);
+    final weekdays = [
+      for (var i = 0; i < 7; i++)
+        DateTime.utc(2024, 1, 7 + (firstDayOffset + i) % 7),
+    ];
     final first = DateTime(month.year, month.month);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final leading = ((first.weekday % 7 - firstDayOffset) % 7 + 7) % 7;
@@ -450,242 +449,201 @@ class _MonthGrid extends StatelessWidget {
           .putIfAbsent(normalizeDate(symptom.date), () => [])
           .add(symptom);
     }
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _panelDecoration(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showTitle) ...[
           Text(
-            DateFormat.yMMMM().format(month),
-            style: Theme.of(context).textTheme.headlineMedium,
+            localizations.formatMonthYear(month),
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              for (var i = 0; i < 7; i++)
-                Expanded(
+          const SizedBox(height: 8),
+        ],
+        Row(
+          children: [
+            for (final weekday in weekdays)
+              Expanded(
+                child: Semantics(
+                  label: fullWeekday.format(weekday),
+                  excludeSemantics: true,
                   child: Center(
-                    child: Text(
-                      localizations.narrowWeekdays[(firstDayOffset + i) % 7],
-                      style: Theme.of(context).textTheme.labelMedium,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        shortWeekday.format(weekday),
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
                     ),
                   ),
                 ),
-            ],
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: cellCount,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            mainAxisSpacing: 2,
+            crossAxisSpacing: 2,
+            mainAxisExtent: 50,
           ),
-          const SizedBox(height: 8),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: cellCount,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              mainAxisSpacing: 6,
-              crossAxisSpacing: 6,
-            ),
-            itemBuilder: (context, index) {
-              final dayNumber = index - leading + 1;
-              if (dayNumber < 1 || dayNumber > daysInMonth) {
-                return const SizedBox.shrink();
-              }
-              final date = DateTime(month.year, month.month, dayNumber);
-              final log = logsByDate[date];
-              final daySymptoms = symptomsByDate[date] ?? const [];
-              final state = _calendarState(
-                date,
-                periods,
-                output,
-                ttcEnabled,
-                log,
-                daySymptoms,
-              );
-              return _DayCell(
-                date: date,
-                selected: _sameDate(date, selected),
-                state: state,
-                onTap: () => onSelectDate(date),
-              );
-            },
-          ),
-        ],
-      ),
+          itemBuilder: (context, index) {
+            final dayNumber = index - leading + 1;
+            if (dayNumber < 1 || dayNumber > daysInMonth) {
+              return const SizedBox.shrink();
+            }
+            final date = DateTime(month.year, month.month, dayNumber);
+            final log = logsByDate[date];
+            final daySymptoms = symptomsByDate[date] ?? const [];
+            final state = _calendarState(
+              date,
+              periods,
+              output,
+              today,
+              log,
+              daySymptoms,
+            );
+            return _DayCell(
+              date: date,
+              selected: _sameDate(date, selected),
+              today: _sameDate(date, today),
+              state: state,
+              onTap: () => onSelectDate(date),
+            );
+          },
+        ),
+      ],
     );
   }
 }
 
 class _DayCell extends StatelessWidget {
-  final DateTime date;
-  final bool selected;
-  final _CalendarDayState state;
-  final VoidCallback onTap;
-
   const _DayCell({
     required this.date,
     required this.selected,
+    required this.today,
     required this.state,
     required this.onTap,
   });
 
+  final DateTime date;
+  final bool selected;
+  final bool today;
+  final _CalendarDayState state;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final today = _sameDate(date, DateTime.now());
-
-    Color bg;
-    Color fg;
-    BorderRadius borderRadius = BorderRadius.circular(12);
-
-    if (state.confirmedPeriod) {
-      bg = isDark
-          ? AppColors.cycleMenstrualConfirmedDark
-          : AppColors.cycleMenstrualConfirmedLight;
-      fg = isDark
-          ? AppColors.cycleMenstrualConfirmedTextDark
-          : AppColors.cycleMenstrualConfirmedTextLight;
-    } else if (state.predictedPeriod) {
-      bg = isDark
-          ? AppColors.cycleMenstrualPredictedDark
-          : AppColors.cycleMenstrualPredictedLight;
-      fg = theme.colorScheme.onSurface;
-
-      if (state.isStartEdge && state.isEndEdge) {
-        borderRadius = BorderRadius.circular(12);
-      } else if (state.isStartEdge) {
-        borderRadius = const BorderRadius.only(
-          topLeft: Radius.circular(12),
-          bottomLeft: Radius.circular(12),
-        );
-      } else if (state.isEndEdge) {
-        borderRadius = const BorderRadius.only(
-          topRight: Radius.circular(12),
-          bottomRight: Radius.circular(12),
-        );
-      } else {
-        borderRadius = BorderRadius.zero;
-      }
-    } else {
-      fg = theme.colorScheme.onSurface;
-      bg = switch (state.phase) {
-        CycleCalendarPhase.estimatedOvulation =>
-          isDark ? AppColors.cycleOvulationDark : AppColors.cycleOvulationLight,
-        CycleCalendarPhase.fertileWindow =>
-          isDark
-              ? AppColors.cycleFertileWindowDark
-              : AppColors.cycleFertileWindowLight,
-        CycleCalendarPhase.follicular =>
-          isDark
-              ? AppColors.cycleFollicularDark
-              : AppColors.cycleFollicularLight,
-        CycleCalendarPhase.luteal =>
-          isDark ? AppColors.cycleLutealDark : AppColors.cycleLutealLight,
-        CycleCalendarPhase.menstrual =>
-          isDark
-              ? AppColors.cycleMenstrualPredictedDark
-              : AppColors.cycleMenstrualPredictedLight,
-        CycleCalendarPhase.unknown => Colors.transparent,
-      };
-    }
-
-    Color borderColor = Colors.transparent;
-    double borderWidth = 1.4;
-
-    if (selected) {
-      borderColor = isDark ? AppColors.textPrimaryDark : AppColors.deepPlum;
-      borderWidth = 2.2;
-    } else if (today) {
-      borderColor = AppColors.terracottaPrimary;
-      borderWidth = 1.8;
-    } else if (state.predictedPeriod) {
-      borderColor = isDark
-          ? AppColors.cycleMenstrualPredictedBorderDark
-          : AppColors.cycleMenstrualPredictedBorderLight;
-      borderWidth = 1.2;
-    } else if (state.phase == CycleCalendarPhase.estimatedOvulation) {
-      borderColor = isDark
-          ? AppColors.cycleOvulationBorderDark
-          : AppColors.cycleOvulationBorderLight;
-      borderWidth = 1.2;
-    } else if (state.isUncertainty) {
-      borderColor = isDark
-          ? AppColors.borderDark
-          : AppColors.terracottaLight.withValues(alpha: 0.5);
-      borderWidth = 1.0;
-    }
+    final dark = theme.brightness == Brightness.dark;
+    final localizations = MaterialLocalizations.of(context);
+    final background = state.confirmedPeriod
+        ? (dark ? const Color(0xFF813A59) : const Color(0xFF8E365B))
+        : state.predictedPeriod
+        ? (dark ? const Color(0xFF512A3D) : const Color(0xFFF7DFE9))
+        : switch (state.phase) {
+            CycleCalendarPhase.estimatedOvulation =>
+              dark
+                  ? AppColors.cycleOvulationDark
+                  : AppColors.cycleOvulationLight,
+            CycleCalendarPhase.fertileWindow =>
+              dark
+                  ? AppColors.cycleFertileWindowDark
+                  : AppColors.cycleFertileWindowLight,
+            CycleCalendarPhase.follicular =>
+              dark
+                  ? AppColors.cycleFollicularDark
+                  : AppColors.cycleFollicularLight,
+            CycleCalendarPhase.luteal =>
+              dark ? AppColors.cycleLutealDark : AppColors.cycleLutealLight,
+            CycleCalendarPhase.menstrual =>
+              dark
+                  ? AppColors.cycleMenstrualPredictedDark
+                  : AppColors.cycleMenstrualPredictedLight,
+            CycleCalendarPhase.unknown => Colors.transparent,
+          };
+    final ink = state.confirmedPeriod
+        ? Colors.white
+        : theme.colorScheme.onSurface;
+    final outline = dark ? const Color(0xFFF6AFCB) : const Color(0xFF773D5B);
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(selected || today ? 13 : 10),
+      side: selected || today
+          ? BorderSide(
+              color: state.confirmedPeriod && dark ? Colors.white : outline,
+              width: selected ? 2 : 1,
+            )
+          : BorderSide.none,
+    );
+    final phaseMarker = state.confirmedPeriod
+        ? Icons.water_drop_rounded
+        : state.predictedPeriod
+        ? Icons.water_drop_outlined
+        : state.isUncertainty
+        ? Icons.more_horiz_rounded
+        : switch (state.phase) {
+            CycleCalendarPhase.estimatedOvulation =>
+              Icons.radio_button_checked_rounded,
+            CycleCalendarPhase.fertileWindow => Icons.eco_outlined,
+            CycleCalendarPhase.follicular => Icons.circle_outlined,
+            CycleCalendarPhase.luteal => Icons.nightlight_outlined,
+            _ => null,
+          };
+    final label =
+        '${localizations.formatFullDate(date)}'
+        '${today ? ', today' : ''}. ${state.semanticLabel}';
 
     return Semantics(
       button: true,
       selected: selected,
-      label: '${DateFormat.yMMMMd().format(date)}. ${state.semanticLabel}',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: borderRadius,
-        child: Container(
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: borderRadius,
-            border: Border.all(color: borderColor, width: borderWidth),
-          ),
+      label: label,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: Material(
+        color: background,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
           child: Stack(
+            alignment: Alignment.center,
             children: [
-              Center(
-                child: Text(
-                  '${date.day}',
-                  style: TextStyle(
-                    color: fg,
-                    fontWeight: selected || today
-                        ? FontWeight.w800
-                        : FontWeight.w600,
+              Positioned(
+                top: 4,
+                left: 0,
+                right: 0,
+                bottom: 16,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${date.day}',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: ink,
+                      fontWeight: selected || today
+                          ? FontWeight.w800
+                          : FontWeight.w600,
+                      decoration: today ? TextDecoration.underline : null,
+                      decorationColor: ink,
+                    ),
                   ),
                 ),
               ),
-              if (state.phase == CycleCalendarPhase.estimatedOvulation)
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: Container(
-                    width: 5,
-                    height: 5,
-                    decoration: const BoxDecoration(
-                      color: AppColors.warmGoldPrimary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+              Positioned(
+                bottom: 5,
+                child: Row(
+                  children: [
+                    if (phaseMarker != null)
+                      Icon(phaseMarker, size: 10, color: ink),
+                    if (state.hasLog)
+                      Icon(Icons.edit_note_rounded, size: 10, color: ink),
+                    if (state.spotting || state.symptomSeverity > 0)
+                      Icon(Icons.circle, size: 5, color: ink),
+                  ],
                 ),
-              if (state.hasLog)
-                const Positioned(
-                  right: 4,
-                  top: 4,
-                  child: Icon(
-                    Icons.edit_note_rounded,
-                    size: 11,
-                    color: AppColors.deepPlum,
-                  ),
-                ),
-              if (state.symptomSeverity > 0)
-                Positioned(
-                  left: 4,
-                  bottom: 4,
-                  child: Container(
-                    width: 5 + state.symptomSeverity.toDouble(),
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: AppColors.purplePrimary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-              if (state.spotting)
-                const Positioned(
-                  right: 4,
-                  bottom: 4,
-                  child: Icon(
-                    Icons.circle,
-                    size: 6,
-                    color: AppColors.terracottaDark,
-                  ),
-                ),
+              ),
             ],
           ),
         ),
@@ -699,6 +657,7 @@ void _showDayDetails(BuildContext context, WidgetRef ref, DateTime date) {
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
+    constraints: const BoxConstraints(maxWidth: 560),
     builder: (context) => Consumer(
       builder: (context, ref, child) {
         final selectedSnapshot = ref.watch(selectedDayCycleSnapshotProvider);
@@ -856,6 +815,7 @@ void _showDayDetails(BuildContext context, WidgetRef ref, DateTime date) {
                               energy: log?.energyLevel ?? 3,
                               stress: log?.stressLevel ?? 2,
                               sleepQuality: log?.sleepQuality ?? 3,
+                              sleepHours: log?.sleepHours,
                               water: log?.waterGlasses ?? 0,
                               symptoms: symptoms
                                   .map((e) => e.symptomCategory)
@@ -913,21 +873,76 @@ void _showDayDetails(BuildContext context, WidgetRef ref, DateTime date) {
   );
 }
 
-void _showQuickLogSheet(BuildContext context, WidgetRef ref, DateTime date) {
+Future<void> _showQuickLogSheet(
+  BuildContext context,
+  WidgetRef ref,
+  DateTime date,
+) async {
+  final DailyLog? existing;
+  try {
+    existing = await ref.read(selectedDayLogProvider.future);
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load the selected day.')),
+      );
+    }
+    return;
+  }
+  if (!context.mounted ||
+      !_sameDate(date, ref.read(selectedCycleDateProvider))) {
+    return;
+  }
   final formKey = GlobalKey<FormState>();
-  var flow = 'None';
-  var pain = 0.0;
-  var energy = 3.0;
-  var stress = 2.0;
-  var sleep = 3.0;
-  var water = 0.0;
-  var mood = 'Calm';
-  final notes = TextEditingController();
-  final symptoms = <String>{};
+  var flow = existing?.flow ?? 'None';
+  if (flow.toLowerCase() == 'very heavy') flow = 'Very Heavy';
+  final flows = {
+    'None',
+    'Spotting',
+    'Light',
+    'Medium',
+    'Heavy',
+    'Very Heavy',
+    flow,
+  };
+  var pain = (existing?.painLevel ?? 0).clamp(0, 5).toDouble();
+  var energy = (existing?.energyLevel ?? 3).clamp(1, 5).toDouble();
+  var stress = (existing?.stressLevel ?? 2).clamp(0, 5).toDouble();
+  var sleep = (existing?.sleepQuality ?? 3).clamp(1, 5).toDouble();
+  final waterMax = (existing?.waterGlasses ?? 0).clamp(12, 100).toDouble();
+  var water = (existing?.waterGlasses ?? 0).clamp(0, waterMax).toDouble();
+  var mood = existing?.mood ?? 'Calm';
+  final moods = {
+    'Calm',
+    'Happy',
+    'Motivated',
+    'Focused',
+    'Irritable',
+    'Anxious',
+    'Sad',
+    'Sensitive',
+    'Overwhelmed',
+    mood,
+  };
+  final notes = TextEditingController(text: existing?.generalNotes);
+  final symptoms = _loggedSymptoms(existing).toSet();
+  final symptomChoices = {
+    'Cramps',
+    'Headache',
+    'Back pain',
+    'Bloating',
+    'Fatigue',
+    'Acne',
+    'Nausea',
+    'Breast tenderness',
+    'Digestive changes',
+    ...symptoms,
+  };
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
+    constraints: const BoxConstraints(maxWidth: 560),
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => SafeArea(
         child: Padding(
@@ -954,22 +969,12 @@ void _showQuickLogSheet(BuildContext context, WidgetRef ref, DateTime date) {
                   DropdownButtonFormField<String>(
                     initialValue: flow,
                     decoration: const InputDecoration(labelText: 'Flow'),
-                    items:
-                        const [
-                              'None',
-                              'Spotting',
-                              'Light',
-                              'Medium',
-                              'Heavy',
-                              'Very heavy',
-                            ]
-                            .map(
-                              (item) => DropdownMenuItem(
-                                value: item,
-                                child: Text(item),
-                              ),
-                            )
-                            .toList(),
+                    items: flows
+                        .map(
+                          (item) =>
+                              DropdownMenuItem(value: item, child: Text(item)),
+                        )
+                        .toList(),
                     onChanged: (value) => setState(() => flow = value ?? flow),
                   ),
                   _SliderRow(
@@ -1001,31 +1006,18 @@ void _showQuickLogSheet(BuildContext context, WidgetRef ref, DateTime date) {
                   _SliderRow(
                     label: 'Water',
                     value: water,
-                    max: 12,
+                    max: waterMax,
                     onChanged: (value) => setState(() => water = value),
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: mood,
                     decoration: const InputDecoration(labelText: 'Mood'),
-                    items:
-                        const [
-                              'Calm',
-                              'Happy',
-                              'Motivated',
-                              'Focused',
-                              'Irritable',
-                              'Anxious',
-                              'Sad',
-                              'Sensitive',
-                              'Overwhelmed',
-                            ]
-                            .map(
-                              (item) => DropdownMenuItem(
-                                value: item,
-                                child: Text(item),
-                              ),
-                            )
-                            .toList(),
+                    items: moods
+                        .map(
+                          (item) =>
+                              DropdownMenuItem(value: item, child: Text(item)),
+                        )
+                        .toList(),
                     onChanged: (value) => setState(() => mood = value ?? mood),
                   ),
                   const SizedBox(height: 16),
@@ -1038,17 +1030,7 @@ void _showQuickLogSheet(BuildContext context, WidgetRef ref, DateTime date) {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      for (final symptom in const [
-                        'Cramps',
-                        'Headache',
-                        'Back pain',
-                        'Bloating',
-                        'Fatigue',
-                        'Acne',
-                        'Nausea',
-                        'Breast tenderness',
-                        'Digestive changes',
-                      ])
+                      for (final symptom in symptomChoices)
                         FilterChip(
                           label: Text(symptom),
                           selected: symptoms.contains(symptom),
@@ -1083,6 +1065,7 @@ void _showQuickLogSheet(BuildContext context, WidgetRef ref, DateTime date) {
                               energy: energy.round(),
                               stress: stress.round(),
                               sleepQuality: sleep.round(),
+                              sleepHours: existing?.sleepHours,
                               water: water.round(),
                               symptoms: symptoms.toList(),
                               notes: notes.text,
@@ -1101,6 +1084,16 @@ void _showQuickLogSheet(BuildContext context, WidgetRef ref, DateTime date) {
       ),
     ),
   ).whenComplete(notes.dispose);
+}
+
+List<String> _loggedSymptoms(DailyLog? log) {
+  if (log == null) return const [];
+  try {
+    final decoded = jsonDecode(log.customSymptomsJson);
+    return decoded is List ? decoded.whereType<String>().toList() : const [];
+  } on FormatException {
+    return const [];
+  }
 }
 
 class _CycleInsights extends StatelessWidget {
@@ -1130,9 +1123,7 @@ class _CycleInsights extends StatelessWidget {
     }
     final symptomCounts = <String, int>{};
     for (final log in logs) {
-      for (final item
-          in (jsonDecode(log.customSymptomsJson) as List<dynamic>)
-              .cast<String>()) {
+      for (final item in _loggedSymptoms(log)) {
         symptomCounts[item] = (symptomCounts[item] ?? 0) + 1;
       }
     }
@@ -1196,33 +1187,25 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(14),
       decoration: _panelDecoration(context),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, size: 20, color: AppColors.terracottaPrimary),
-          const SizedBox(height: 4),
-          Text(title, style: Theme.of(context).textTheme.labelMedium),
-          const SizedBox(height: 2),
+          Icon(icon, size: 20, color: theme.colorScheme.primary),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              body,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ),
-          Text(
-            foot,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).textTheme.bodySmall?.color,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.labelLarge),
+                const SizedBox(height: 4),
+                Text(body, style: theme.textTheme.titleSmall),
+                const SizedBox(height: 3),
+                Text(foot, style: theme.textTheme.bodySmall),
+              ],
             ),
           ),
         ],
@@ -1232,42 +1215,56 @@ class _InfoCard extends StatelessWidget {
 }
 
 class _CalendarToolbar extends StatelessWidget {
-  final DateTime month;
-  final bool showYearJump;
-  final VoidCallback onPrevious;
-  final VoidCallback onNext;
-  final VoidCallback onToday;
-
   const _CalendarToolbar({
     required this.month,
-    required this.showYearJump,
+    required this.monthCount,
     required this.onPrevious,
     required this.onNext,
     required this.onToday,
   });
 
+  final DateTime month;
+  final int monthCount;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final VoidCallback onToday;
+
   @override
   Widget build(BuildContext context) {
+    final localizations = MaterialLocalizations.of(context);
+    final isLtr = Directionality.of(context) == TextDirection.ltr;
+    final interval = switch (monthCount) {
+      3 => 'three months',
+      12 => 'year',
+      _ => 'month',
+    };
+    final heading = monthCount == 1
+        ? localizations.formatMonthYear(month)
+        : '${DateFormat.yMMM().format(month)} – '
+              '${DateFormat.yMMM().format(DateTime(month.year, month.month + monthCount - 1))}';
     return Row(
       children: [
-        IconButton(
-          onPressed: onPrevious,
-          icon: const Icon(Icons.chevron_left_rounded),
-          tooltip: 'Previous',
-        ),
         Expanded(
-          child: Center(
-            child: Text(
-              DateFormat.yMMM().format(month),
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+          child: Semantics(
+            header: true,
+            liveRegion: true,
+            child: Text(heading, style: Theme.of(context).textTheme.titleLarge),
           ),
         ),
         TextButton(onPressed: onToday, child: const Text('Today')),
         IconButton(
+          onPressed: onPrevious,
+          icon: Icon(
+            isLtr ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+          ),
+          tooltip: 'Previous $interval',
+        ),
+        IconButton(
           onPressed: onNext,
-          icon: const Icon(Icons.chevron_right_rounded),
-          tooltip: 'Next',
+          icon: Icon(
+            isLtr ? Icons.chevron_right_rounded : Icons.chevron_left_rounded,
+          ),
+          tooltip: 'Next $interval',
         ),
       ],
     );
@@ -1275,69 +1272,98 @@ class _CalendarToolbar extends StatelessWidget {
 }
 
 class _CalendarLegend extends StatelessWidget {
-  final bool ttcEnabled;
-
   const _CalendarLegend({required this.ttcEnabled});
+
+  final bool ttcEnabled;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final periodAndFertilityItems = [
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final items = [
       (
         Icons.water_drop_rounded,
-        'Confirmed period',
-        isDark
-            ? AppColors.cycleMenstrualConfirmedDark
-            : AppColors.cycleMenstrualConfirmedLight,
+        'Logged period',
+        dark ? const Color(0xFFF6AFCB) : const Color(0xFF8E365B),
       ),
       (
-        Icons.calendar_today_rounded,
+        Icons.water_drop_outlined,
         'Predicted period',
-        isDark
-            ? AppColors.cycleMenstrualPredictedBorderDark
-            : AppColors.cycleMenstrualPredictedBorderLight,
+        dark ? const Color(0xFFF6AFCB) : const Color(0xFF8E365B),
       ),
       (
-        Icons.eco_rounded,
-        'Fertile window',
-        isDark ? AppColors.cycleFertileWindowDark : AppColors.sagePrimary,
+        Icons.more_horiz_rounded,
+        'Possible period start',
+        theme.colorScheme.onSurface,
+      ),
+      (
+        Icons.eco_outlined,
+        'Estimated fertile window',
+        dark ? AppColors.sageLight : AppColors.sageDark,
       ),
       (
         Icons.radio_button_checked_rounded,
         'Estimated ovulation',
-        AppColors.warmGoldPrimary,
+        dark ? AppColors.warmGoldLight : AppColors.cycleOvulationBorderLight,
       ),
-    ];
-
-    final phaseItems = [
       (
         Icons.circle_outlined,
         'Follicular phase',
-        isDark ? AppColors.sageLight : AppColors.sageDark,
+        dark ? AppColors.sageLight : AppColors.sageDark,
       ),
       (
-        Icons.shield_moon_outlined,
+        Icons.nightlight_outlined,
         'Luteal phase',
-        isDark ? AppColors.purpleLight : AppColors.purplePrimary,
+        dark ? const Color(0xFFC4A7D5) : AppColors.purpleLight,
       ),
-      (Icons.edit_note_rounded, 'Log', AppColors.deepPlum),
-      if (ttcEnabled)
-        (Icons.science_rounded, 'TTC signs', AppColors.warmGoldPrimary),
+      (Icons.edit_note_rounded, 'Daily log saved', theme.colorScheme.onSurface),
+      (Icons.circle, 'Spotting or symptoms', theme.colorScheme.onSurface),
     ];
 
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+    Widget item((IconData, String, Color) entry) => Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        for (final item in [...periodAndFertilityItems, ...phaseItems])
-          Chip(
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            avatar: Icon(item.$1, size: 14, color: item.$3),
-            label: Text(item.$2, style: const TextStyle(fontSize: 12)),
-          ),
+        Icon(entry.$1, size: 14, color: entry.$3),
+        const SizedBox(width: 4),
+        Flexible(child: Text(entry.$2, style: theme.textTheme.bodySmall)),
       ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 14,
+            runSpacing: 6,
+            children: items.take(2).map(item).toList(),
+          ),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 8),
+            title: Text('Calendar key', style: theme.textTheme.labelLarge),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            shape: const Border(),
+            collapsedShape: const Border(),
+            children: [
+              Wrap(
+                spacing: 14,
+                runSpacing: 8,
+                children: items.skip(2).map(item).toList(),
+              ),
+              if (ttcEnabled)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Tap a date to see cycle and fertility details.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1393,24 +1419,11 @@ class _SliderRow extends StatelessWidget {
   }
 }
 
-class _LoadingPanel extends StatelessWidget {
-  const _LoadingPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 220,
-      decoration: _panelDecoration(context),
-      child: const Center(child: CircularProgressIndicator()),
-    );
-  }
-}
-
 _CalendarDayState _calendarState(
   DateTime date,
   List<CyclePeriod> periods,
   CycleEngineOutput output,
-  bool ttcEnabled,
+  DateTime today,
   DailyLog? log,
   List<SymptomEntry> symptoms,
 ) {
@@ -1418,7 +1431,7 @@ _CalendarDayState _calendarState(
 
   final confirmedPeriod = periods.any((period) {
     final start = normalizeDate(period.startDate);
-    final end = normalizeDate(period.endDate ?? DateTime.now());
+    final end = normalizeDate(period.endDate ?? today);
     return !d.isBefore(start) && !d.isAfter(end);
   });
 
@@ -1431,16 +1444,6 @@ _CalendarDayState _calendarState(
   }
 
   final bool predictedPeriod = matchingPred != null && !confirmedPeriod;
-  bool isStartEdge = false;
-  bool isEndEdge = false;
-
-  if (matchingPred != null && !confirmedPeriod) {
-    final start = normalizeDate(matchingPred.predictedBleedingRange.start);
-    final end = normalizeDate(matchingPred.predictedBleedingRange.end);
-    isStartEdge = _sameDate(d, start);
-    isEndEdge = _sameDate(d, end);
-  }
-
   bool isUncertainty = false;
   if (!confirmedPeriod && !predictedPeriod) {
     for (final pred in output.periodPredictions) {
@@ -1465,7 +1468,8 @@ _CalendarDayState _calendarState(
     if (confirmedPeriod) 'confirmed period',
     if (predictedPeriod) 'predicted period day',
     if (isUncertainty) 'possible start window',
-    phase.displayName,
+    if (!confirmedPeriod && !predictedPeriod) phase.displayName,
+    if (log?.spotting ?? false) 'spotting',
     if (log != null) 'daily log saved',
     if (severity > 0) 'symptom severity $severity',
   ];
@@ -1473,8 +1477,6 @@ _CalendarDayState _calendarState(
   return _CalendarDayState(
     confirmedPeriod: confirmedPeriod,
     predictedPeriod: predictedPeriod,
-    isStartEdge: isStartEdge,
-    isEndEdge: isEndEdge,
     isUncertainty: isUncertainty,
     phase: phase,
     hasLog: log != null,
@@ -1487,8 +1489,6 @@ _CalendarDayState _calendarState(
 class _CalendarDayState {
   final bool confirmedPeriod;
   final bool predictedPeriod;
-  final bool isStartEdge;
-  final bool isEndEdge;
   final bool isUncertainty;
   final CycleCalendarPhase phase;
   final bool hasLog;
@@ -1499,8 +1499,6 @@ class _CalendarDayState {
   const _CalendarDayState({
     required this.confirmedPeriod,
     required this.predictedPeriod,
-    this.isStartEdge = false,
-    this.isEndEdge = false,
     this.isUncertainty = false,
     required this.phase,
     required this.hasLog,
@@ -1523,7 +1521,3 @@ BoxDecoration _panelDecoration(BuildContext context) {
 
 bool _sameDate(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
-
-String _titleCase(String value) => value.isEmpty
-    ? value
-    : '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';

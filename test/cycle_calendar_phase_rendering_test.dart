@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quevaa/core/database/app_database.dart';
 import 'package:quevaa/core/providers/database_provider.dart';
+import 'package:quevaa/features/cycle/application/cycle_workspace_provider.dart';
 import 'package:quevaa/features/cycle/domain/cycle_engine.dart';
 import 'package:quevaa/features/cycle/domain/models/cycle_calendar_phase.dart';
 import 'package:quevaa/features/cycle/presentation/pages/cycle_workspace_page.dart';
@@ -162,6 +163,72 @@ void main() {
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(Duration.zero);
+    });
+
+    testWidgets('navigates months and opens a date at large text size', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.binding.setSurfaceSize(const Size(320, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final today = DateTime(2026, 8, 8);
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          notificationSchedulerProvider.overrideWithValue(mockScheduler),
+          localTodayProvider.overrideWithValue(today),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(visibleCycleMonthProvider.notifier).state = DateTime(
+        2026,
+        8,
+      );
+      container.read(selectedCycleDateProvider.notifier).state = today;
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(1.5)),
+              child: child!,
+            ),
+            home: const CycleWorkspacePage(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final scroll = find.byType(Scrollable).first;
+      await tester.scrollUntilVisible(
+        find.byTooltip('Next month'),
+        150,
+        scrollable: scroll,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('August 2026'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Next month'));
+      await tester.pumpAndSettle();
+      expect(find.text('September 2026'), findsOneWidget);
+
+      await tester.tap(find.text('Today'));
+      await tester.pumpAndSettle();
+      expect(find.text('August 2026'), findsOneWidget);
+      final todayCell = find.bySemanticsLabel(RegExp('August 8, 2026, today'));
+      await tester.scrollUntilVisible(todayCell, 120, scrollable: scroll);
+      expect(todayCell, findsOneWidget);
+      await tester.tap(todayCell);
+      await tester.pumpAndSettle();
+      expect(find.text('Log this day'), findsOneWidget);
+      expect(container.read(selectedCycleDateProvider), today);
+      semantics.dispose();
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
     });
 
     testWidgets('Renders properly in Dark Theme', (tester) async {

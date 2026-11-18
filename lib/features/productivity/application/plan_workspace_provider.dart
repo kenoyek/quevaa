@@ -3,12 +3,15 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/analytics/app_logger.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/providers/database_provider.dart';
 import '../../cycle/application/cycle_workspace_provider.dart';
 import '../../notifications/application/notification_preferences_provider.dart';
 import '../../notifications/application/notification_snapshot_provider.dart';
 import '../../notifications/domain/services/notification_scheduler.dart';
+import '../../recommendations/application/daily_quevaa_plan_provider.dart'
+    show todaysDailyLogProvider;
 import '../domain/entities/task_entity.dart';
 import '../domain/productivity_engine.dart';
 
@@ -30,19 +33,26 @@ final taskStreamProvider = StreamProvider<List<Task>>((ref) {
 
 final todayTasksProvider = Provider<List<Task>>((ref) {
   final tasks = ref.watch(taskStreamProvider).valueOrNull ?? const [];
-  final today = normalizeDate(DateTime.now());
+  final today = ref.watch(localTodayProvider);
   return tasks.where((task) {
+    if (task.isCompleted || task.status == 'Completed') {
+      final completedAt = task.completedAt;
+      return completedAt != null && normalizeDate(completedAt) == today;
+    }
     final scheduled = task.scheduledDate == null
         ? null
         : normalizeDate(task.scheduledDate!);
     final due = task.dueDate == null ? null : normalizeDate(task.dueDate!);
-    return scheduled == today || due == today || task.status == 'Planned';
+    return scheduled == today ||
+        (due != null && !due.isAfter(today)) ||
+        (scheduled != null && scheduled.isBefore(today)) ||
+        (scheduled == null && due == null && task.status == 'Planned');
   }).toList();
 });
 
 final rankedTodayTasksProvider = Provider<List<Task>>((ref) {
   final tasks = ref.watch(todayTasksProvider);
-  final log = ref.watch(selectedDayLogProvider).valueOrNull;
+  final log = ref.watch(todaysDailyLogProvider).valueOrNull;
   final ranked = ProductivityEngine.rankTasks(
     tasks: [
       for (final task in tasks)
@@ -62,9 +72,11 @@ final rankedTodayTasksProvider = Provider<List<Task>>((ref) {
     userEnergyLevel: log?.energyLevel ?? 3,
     userPainLevel: log?.painLevel ?? 0,
   );
-  final ids = ranked.map((task) => task.id).toList();
-  return [...tasks]
-    ..sort((a, b) => ids.indexOf(a.id).compareTo(ids.indexOf(b.id)));
+  final byId = {for (final task in tasks) task.id: task};
+  return [
+    for (final task in ranked) byId[task.id]!,
+    ...tasks.where((task) => task.isCompleted || task.status == 'Completed'),
+  ];
 });
 
 final routineStreamProvider = StreamProvider<List<Routine>>((ref) {
@@ -318,11 +330,13 @@ class PlanWorkspaceController extends Notifier<bool> {
               updatedAt: now,
               title: title,
               taskId: Value(taskId),
-              startedAt: Value(now),
+              startedAt: Value(
+                now.subtract(Duration(minutes: durationMinutes)),
+              ),
               durationMinutes: durationMinutes,
               breakMinutes: Value(breakMinutes),
               status: const Value('Completed'),
-              completedAt: Value(now.add(Duration(minutes: durationMinutes))),
+              completedAt: Value(now),
             ),
           );
     } finally {
@@ -332,16 +346,20 @@ class PlanWorkspaceController extends Notifier<bool> {
 }
 
 Future<void> _reconcileNotifications(Ref ref, AppDatabase db) async {
-  final snapshot = await buildNotificationSourceSnapshotFromDatabase(
-    db,
-    today: ref.read(localTodayProvider),
-  );
-  await ref
-      .read(notificationSchedulerProvider)
-      .reconcileNotifications(
-        NotificationReconciliationReason.taskChanged,
-        snapshot: snapshot,
-      );
+  try {
+    final snapshot = await buildNotificationSourceSnapshotFromDatabase(
+      db,
+      today: ref.read(localTodayProvider),
+    );
+    await ref
+        .read(notificationSchedulerProvider)
+        .reconcileNotifications(
+          NotificationReconciliationReason.taskChanged,
+          snapshot: snapshot,
+        );
+  } catch (_) {
+    AppLogger.error('Could not refresh reminders after updating the plan');
+  }
 }
 
 EnergyTag _energyFromString(String value) {

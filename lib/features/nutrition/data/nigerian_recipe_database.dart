@@ -1902,8 +1902,17 @@ int _regionScore(NigerianRecipe recipe, String? preferredRegion) {
 }
 
 int _stableTiebreak(DateTime date, String id) {
-  final seed = DateTime(date.year, date.month, date.day).millisecondsSinceEpoch;
-  return Object.hash(seed, id).abs() % 41;
+  // Object.hash is seeded per process. The same inputs must rank the same
+  // recipes after a restart, using the user's calendar date.
+  final key = '${date.year}-${date.month}-${date.day}|$id';
+  var hash = 2166136261;
+  for (final unit in key.codeUnits) {
+    hash = ((hash ^ unit) * 16777619) & 0x7fffffff;
+  }
+  // Mix the high and low bits so adjacent dates rotate similar recipe IDs.
+  hash ^= hash >>> 16;
+  hash = (hash * 0x45d9f3b) & 0x7fffffff;
+  return (hash ^ (hash >>> 16)) % 41;
 }
 
 String _normalizeToken(String value) => value.trim().toLowerCase();

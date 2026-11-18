@@ -30,7 +30,9 @@ class _FertilityLogPageState extends ConsumerState<FertilityLogPage> {
   bool _disturbed = false;
   bool _intimacy = false;
   bool _insemination = false;
-  bool _prenatal = true;
+  bool _prenatal = false;
+  bool _recordTemperature = false;
+  bool _saving = false;
   bool _illness = false;
   int _mood = 3;
   int _energy = 3;
@@ -93,18 +95,6 @@ class _FertilityLogPageState extends ConsumerState<FertilityLogPage> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Local photo attachments are not enabled in this build.',
-                    ),
-                  ),
-                ),
-                icon: const Icon(Icons.camera_alt_outlined),
-                label: const Text('Store photo locally'),
-              ),
             ],
           ),
         ),
@@ -117,50 +107,58 @@ class _FertilityLogPageState extends ConsumerState<FertilityLogPage> {
                 'BBT should be taken after waking and before normal activity. It can help confirm that ovulation has already occurred, not reliably predict it by itself.',
               ),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: Slider(
-                      value: _temperature,
-                      min: 35.8,
-                      max: 37.4,
-                      divisions: 32,
-                      label: '${_temperature.toStringAsFixed(2)} C',
-                      onChanged: (value) =>
-                          setState(() => _temperature = value),
+              _FlagSwitch(
+                label: 'Record my temperature',
+                value: _recordTemperature,
+                onChanged: (value) =>
+                    setState(() => _recordTemperature = value),
+              ),
+              if (_recordTemperature) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: _temperature,
+                        min: 35.8,
+                        max: 37.4,
+                        divisions: 32,
+                        label: '${_temperature.toStringAsFixed(2)} C',
+                        onChanged: (value) =>
+                            setState(() => _temperature = value),
+                      ),
                     ),
-                  ),
-                  SizedBox(
-                    width: 70,
-                    child: Text('${_temperature.toStringAsFixed(2)} C'),
-                  ),
-                ],
-              ),
-              _FlagSwitch(
-                label: 'Poor sleep',
-                value: _poorSleep,
-                onChanged: (value) => setState(() => _poorSleep = value),
-              ),
-              _FlagSwitch(
-                label: 'Fever or illness',
-                value: _fever,
-                onChanged: (value) => setState(() => _fever = value),
-              ),
-              _FlagSwitch(
-                label: 'Alcohol',
-                value: _alcohol,
-                onChanged: (value) => setState(() => _alcohol = value),
-              ),
-              _FlagSwitch(
-                label: 'Woke unusually early',
-                value: _earlyWake,
-                onChanged: (value) => setState(() => _earlyWake = value),
-              ),
-              _FlagSwitch(
-                label: 'Measurement disturbed',
-                value: _disturbed,
-                onChanged: (value) => setState(() => _disturbed = value),
-              ),
+                    SizedBox(
+                      width: 70,
+                      child: Text('${_temperature.toStringAsFixed(2)} C'),
+                    ),
+                  ],
+                ),
+                _FlagSwitch(
+                  label: 'Poor sleep',
+                  value: _poorSleep,
+                  onChanged: (value) => setState(() => _poorSleep = value),
+                ),
+                _FlagSwitch(
+                  label: 'Fever or illness',
+                  value: _fever,
+                  onChanged: (value) => setState(() => _fever = value),
+                ),
+                _FlagSwitch(
+                  label: 'Alcohol',
+                  value: _alcohol,
+                  onChanged: (value) => setState(() => _alcohol = value),
+                ),
+                _FlagSwitch(
+                  label: 'Woke unusually early',
+                  value: _earlyWake,
+                  onChanged: (value) => setState(() => _earlyWake = value),
+                ),
+                _FlagSwitch(
+                  label: 'Measurement disturbed',
+                  value: _disturbed,
+                  onChanged: (value) => setState(() => _disturbed = value),
+                ),
+              ],
             ],
           ),
         ),
@@ -235,9 +233,9 @@ class _FertilityLogPageState extends ConsumerState<FertilityLogPage> {
           ),
         ),
         ElevatedButton.icon(
-          onPressed: _save,
+          onPressed: _saving ? null : _save,
           icon: const Icon(Icons.check_rounded, color: Colors.white),
-          label: const Text('Save fertility log'),
+          label: Text(_saving ? 'Saving…' : 'Save fertility log'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.terracottaPrimary,
             foregroundColor: Colors.white,
@@ -251,45 +249,61 @@ class _FertilityLogPageState extends ConsumerState<FertilityLogPage> {
     );
   }
 
-  void _save() {
-    final now = DateTime.now();
-    final day = DateTime(now.year, now.month, now.day);
-    ref
-        .read(conceptionControllerProvider.notifier)
-        .logObservation(
-          FertilityObservation(
-            date: day,
-            cervicalMucus: CervicalMucusEntry(date: day, type: _mucus),
-            ovulationTest: OvulationTestEntry(testedAt: now, result: _lhTest),
-            basalTemperature: BasalTemperatureEntry(
-              measuredAt: now,
-              temperature: _temperature,
-              poorSleep: _poorSleep,
-              feverOrIllness: _fever,
-              alcohol: _alcohol,
-              wokeUnusuallyEarly: _earlyWake,
-              disturbed: _disturbed,
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final now = DateTime.now();
+      final day = DateTime(now.year, now.month, now.day);
+      await ref
+          .read(conceptionControllerProvider.notifier)
+          .logObservation(
+            FertilityObservation(
+              date: day,
+              cervicalMucus: CervicalMucusEntry(date: day, type: _mucus),
+              ovulationTest: OvulationTestEntry(testedAt: now, result: _lhTest),
+              basalTemperature: !_recordTemperature
+                  ? null
+                  : BasalTemperatureEntry(
+                      measuredAt: now,
+                      temperature: _temperature,
+                      poorSleep: _poorSleep,
+                      feverOrIllness: _fever,
+                      alcohol: _alcohol,
+                      wokeUnusuallyEarly: _earlyWake,
+                      disturbed: _disturbed,
+                    ),
+              intimacy: _intimacy
+                  ? IntimacyEntry(
+                      occurredAt: now,
+                      type: _insemination
+                          ? IntimacyType.insemination
+                          : IntimacyType.intercourse,
+                    )
+                  : null,
+              pregnancyTest: PregnancyTestEntry(
+                testedAt: now,
+                result: _pregnancyTest,
+              ),
+              mood: _mood,
+              energy: _energy,
+              stress: _stress,
+              prenatalSupplement: _prenatal,
+              illness: _illness || _fever,
             ),
-            intimacy: _intimacy
-                ? IntimacyEntry(
-                    occurredAt: now,
-                    type: _insemination
-                        ? IntimacyType.insemination
-                        : IntimacyType.intercourse,
-                  )
-                : null,
-            pregnancyTest: PregnancyTestEntry(
-              testedAt: now,
-              result: _pregnancyTest,
-            ),
-            mood: _mood,
-            energy: _energy,
-            stress: _stress,
-            prenatalSupplement: _prenatal,
-            illness: _illness || _fever,
+          );
+      if (mounted) context.go('/');
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save your fertility log. Try again.'),
           ),
         );
-    context.go('/');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }
 

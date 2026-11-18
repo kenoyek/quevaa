@@ -71,9 +71,6 @@ class HealthReportsPage extends ConsumerWidget {
               onShare: generated == null
                   ? null
                   : controller.shareGeneratedReport,
-              onExport: generated == null
-                  ? null
-                  : controller.shareGeneratedReport,
             ),
           ],
         ),
@@ -310,7 +307,6 @@ class _GenerateCard extends StatelessWidget {
   final VoidCallback onGenerate;
   final VoidCallback? onPreview;
   final VoidCallback? onShare;
-  final VoidCallback? onExport;
 
   const _GenerateCard({
     required this.model,
@@ -319,7 +315,6 @@ class _GenerateCard extends StatelessWidget {
     required this.onGenerate,
     required this.onPreview,
     required this.onShare,
-    required this.onExport,
   });
 
   @override
@@ -358,11 +353,6 @@ class _GenerateCard extends StatelessWidget {
                   onPressed: onShare,
                   icon: const Icon(Icons.ios_share_rounded),
                   label: const Text('Share'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: onExport,
-                  icon: const Icon(Icons.save_alt_rounded),
-                  label: const Text('Save / Export'),
                 ),
               ],
             ),

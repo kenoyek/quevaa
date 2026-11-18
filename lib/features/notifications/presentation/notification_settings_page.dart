@@ -31,11 +31,6 @@ class _NotificationSettingsPageState
   var _savingDraft = false;
 
   @override
-  void dispose() {
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final preferencesAsync = ref.watch(notificationPreferencesProvider);
     final permissionStatusAsync = ref.watch(
@@ -44,6 +39,19 @@ class _NotificationSettingsPageState
     final pendingAsync = ref.watch(pendingNotificationsProvider);
     final controllerState = ref.watch(notificationControllerProvider);
     final controller = ref.read(notificationControllerProvider.notifier);
+    ref.listen(notificationControllerProvider, (_, next) {
+      if (next.hasError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              next.error is StateError
+                  ? (next.error as StateError).message
+                  : 'Quevaa could not update reminders. Please try again.',
+            ),
+          ),
+        );
+      }
+    });
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -97,9 +105,7 @@ class _NotificationSettingsPageState
           final notificationsEnabled = draft.enabled && permissionGranted;
           final permissionBlocked =
               permissionKnownDenied &&
-              (draft.enabled ||
-                  draft.permissionInvitationSeen ||
-                  draft.permissionPreviouslyDeclined);
+              (draft.enabled || draft.permissionPreviouslyDeclined);
           final controllerBusy = controllerState.isLoading && !_savingDraft;
           final toolsBusy = controllerState.isLoading || _savingDraft;
           final previewMode =
@@ -113,9 +119,11 @@ class _NotificationSettingsPageState
                 enabled: notificationsEnabled,
                 permissionBlocked: permissionBlocked,
                 permissionPreviouslyDeclined:
-                    draft.permissionPreviouslyDeclined,
-                onEnable: controller.requestAndEnable,
-                onDismiss: controller.dismissPermissionInvitation,
+                    permissionKnownDenied && draft.permissionPreviouslyDeclined,
+                onEnable: toolsBusy ? null : controller.requestAndEnable,
+                onDismiss: toolsBusy
+                    ? null
+                    : controller.dismissPermissionInvitation,
                 onOpenSettings: controller.openSystemNotificationSettings,
               ),
               const SizedBox(height: 12),
@@ -300,6 +308,15 @@ class _NotificationSettingsPageState
                             label: const Text('Send test notification'),
                           ),
                           OutlinedButton.icon(
+                            onPressed: toolsBusy
+                                ? null
+                                : () => controller.sendTestNotification(
+                                    scheduled: true,
+                                  ),
+                            icon: const Icon(Icons.schedule_rounded),
+                            label: const Text('Schedule a test reminder'),
+                          ),
+                          OutlinedButton.icon(
                             onPressed: toolsBusy ? null : controller.cancelAll,
                             icon: const Icon(Icons.delete_outline_rounded),
                             label: const Text('Cancel all reminders'),
@@ -307,6 +324,10 @@ class _NotificationSettingsPageState
                         ],
                       ),
                       const SizedBox(height: 12),
+                      const Text(
+                        'A scheduled test lets you check delivery with Quevaa in the background. It is due in one minute. Your device may deliver it later.',
+                      ),
+                      const SizedBox(height: 8),
                       pendingAsync.when(
                         loading: () => const LinearProgressIndicator(),
                         error: (_, __) =>

@@ -6,8 +6,8 @@ class NotificationPermissionCard extends StatelessWidget {
   final bool enabled;
   final bool permissionBlocked;
   final bool permissionPreviouslyDeclined;
-  final VoidCallback onEnable;
-  final VoidCallback onDismiss;
+  final VoidCallback? onEnable;
+  final VoidCallback? onDismiss;
   final VoidCallback onOpenSettings;
 
   const NotificationPermissionCard({
@@ -53,7 +53,7 @@ class NotificationPermissionCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               blocked
-                  ? 'Notifications are currently blocked for Quevaa on this device. Open Android notification settings, allow notifications, then return here to enable reminders.'
+                  ? 'Notifications are currently blocked for Quevaa on this device. Open your device settings, allow notifications for Quevaa, then return here.'
                   : 'Quevaa can remind you about cycle check-ins, planned tasks, meals, workouts and private wellness routines. Your reminders are scheduled on this device. No internet connection is required.',
             ),
             const SizedBox(height: 14),

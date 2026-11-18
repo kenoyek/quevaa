@@ -20,8 +20,12 @@ final wellnessSectionProvider = StateProvider<String>((ref) => 'For You');
 final mealsSectionProvider = StateProvider<String>((ref) => 'Today');
 final plannerModeProvider = StateProvider<String>((ref) => 'Week');
 final plannerWeekStartProvider = StateProvider<DateTime>((ref) {
-  final today = normalizeDate(DateTime.now());
-  return today.subtract(Duration(days: today.weekday - DateTime.monday));
+  final today = ref.watch(localTodayProvider);
+  return DateTime(
+    today.year,
+    today.month,
+    today.day - today.weekday + DateTime.monday,
+  );
 });
 
 final todaysWellnessLogProvider = StreamProvider<DailyLog?>((ref) {

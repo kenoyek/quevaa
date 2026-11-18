@@ -24,7 +24,7 @@ class _AppLockWrapperState extends ConsumerState<AppLockWrapper>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (ref.read(appLockProvider)) {
+      if (mounted && ref.read(appLockProvider)) {
         _triggerUnlock();
       }
     });

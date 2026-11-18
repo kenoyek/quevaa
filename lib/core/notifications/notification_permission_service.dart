@@ -44,7 +44,7 @@ class QuevaaNotificationPermissionService {
           false;
     }
 
-    return true;
+    return false;
   }
 
   Future<QuevaaNotificationPermissionStatus> status() async {

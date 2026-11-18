@@ -21,7 +21,7 @@ class QuevaaNotificationSystemSettings {
   }
 
   static Future<bool> openNotificationSettings() async {
-    if (!Platform.isAndroid) return false;
+    if (!Platform.isAndroid && !Platform.isIOS) return false;
     try {
       return await _channel.invokeMethod<bool>('openNotificationSettings') ??
           false;

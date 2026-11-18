@@ -57,17 +57,19 @@ class NotificationScheduler {
   final QuevaaNotificationPermissionService permissionService;
   final QuevaaNotificationTimezoneService timezoneService;
 
-  Future<NotificationReconciliationResult>? _activeReconciliation;
+  Future<void> _reconciliationQueue = Future.value();
 
   Future<NotificationReconciliationResult> reconcileNotifications(
     NotificationReconciliationReason reason, {
     NotificationSourceSnapshot snapshot = const NotificationSourceSnapshot(),
   }) {
-    final active = _activeReconciliation;
-    if (active != null) return active;
-    final operation = _reconcile(reason, snapshot: snapshot);
-    _activeReconciliation = operation;
-    operation.whenComplete(() => _activeReconciliation = null);
+    final operation = _reconciliationQueue.then(
+      (_) => _reconcile(reason, snapshot: snapshot),
+    );
+    _reconciliationQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
     return operation;
   }
 
@@ -79,12 +81,18 @@ class NotificationScheduler {
     final timezoneName = await timezoneService.initializeTimezone();
     final permission = await permissionService.status();
     if (!preferences.enabled ||
-        permission == QuevaaNotificationPermissionStatus.denied) {
+        permission != QuevaaNotificationPermissionStatus.granted) {
       final persisted = await repository.loadScheduleFingerprints();
-      if (persisted.isNotEmpty) {
-        await localService.cancelAll();
-        await repository.markSchedulesCancelled(persisted.keys);
+      final pending = await localService.pending();
+      for (final request in pending) {
+        if (request.id ==
+                QuevaaLocalNotificationService.scheduledTestNotificationId &&
+            permission == QuevaaNotificationPermissionStatus.granted) {
+          continue;
+        }
+        await localService.cancel(request.id);
       }
+      await repository.markSchedulesCancelled(persisted.keys);
       return NotificationReconciliationResult(
         reason: reason,
         desiredCount: 0,
@@ -96,24 +104,28 @@ class NotificationScheduler {
       );
     }
 
-    final now = timezoneService.localLocation.currentTime;
+    final persisted = await repository.loadScheduleFingerprints();
+    final pendingNative = await localService.pending();
+    final pendingNativeIds = pendingNative
+        .map((request) => request.id)
+        .where(
+          (id) =>
+              id != QuevaaLocalNotificationService.scheduledTestNotificationId,
+        )
+        .toSet();
+    final location = timezoneService.localLocation;
     final desired = engine.buildDesiredSchedules(
       preferences: preferences,
       snapshot: snapshot,
-      location: timezoneService.localLocation,
-      now: now,
+      location: location,
+      now: location.currentTime,
+      // Android may still have an inexact alarm queued after its target time.
+      retainPending: (schedule) =>
+          pendingNativeIds.contains(schedule.id) &&
+          persisted[schedule.id] == schedule.fingerprint,
     );
-    final desiredById = {for (final schedule in desired) schedule.id: schedule};
-    final persisted = await repository.loadScheduleFingerprints();
-    final pendingNative = await localService.pending();
-    final pendingNativeIds = pendingNative.map((request) => request.id).toSet();
-
-    final obsoleteIds = persisted.keys
-        .where(
-          (id) =>
-              !desiredById.containsKey(id) || !pendingNativeIds.contains(id),
-        )
-        .toSet();
+    final desiredIds = desired.map((schedule) => schedule.id).toSet();
+    final obsoleteIds = persisted.keys.toSet().difference(desiredIds);
     final toSchedule = <QuevaaNotificationSchedule>[];
     var unchanged = 0;
     for (final schedule in desired) {
@@ -125,7 +137,7 @@ class NotificationScheduler {
       }
     }
 
-    for (final id in obsoleteIds) {
+    for (final id in pendingNativeIds.difference(desiredIds)) {
       await localService.cancel(id);
     }
     for (final schedule in toSchedule) {
@@ -142,8 +154,7 @@ class NotificationScheduler {
       scheduledCount: toSchedule.length,
       cancelledCount: obsoleteIds.length,
       unchangedCount: unchanged,
-      permissionGranted:
-          permission == QuevaaNotificationPermissionStatus.granted,
+      permissionGranted: true,
       timezone: timezoneName,
     );
   }

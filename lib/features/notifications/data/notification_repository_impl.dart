@@ -210,14 +210,18 @@ class NotificationRepositoryImpl implements NotificationRepository {
           isPending: const Value(false),
         ),
       );
-      await (_database.update(
-        _database.notificationInboxEntries,
-      )..where((table) => table.notificationId.equals(id))).write(
-        NotificationInboxEntriesCompanion(
-          updatedAt: Value(now),
-          deletedAt: Value(now),
-        ),
-      );
+      await (_database.update(_database.notificationInboxEntries)..where(
+            (table) =>
+                table.notificationId.equals(id) &
+                table.deliveredAt.isNull() &
+                table.scheduledFor.isBiggerThanValue(now),
+          ))
+          .write(
+            NotificationInboxEntriesCompanion(
+              updatedAt: Value(now),
+              deletedAt: Value(now),
+            ),
+          );
     }
   }
 
@@ -226,13 +230,15 @@ class NotificationRepositoryImpl implements NotificationRepository {
     DateTime reconciledAt,
     String timezone,
   ) async {
-    final preferences = await loadPreferences();
-    await savePreferences(
-      preferences.copyWith(
-        lastKnownTimezone: timezone,
-        lastReconciliationAt: reconciledAt,
-      ),
-    );
+    await _database
+        .update(_database.notificationPreferenceRows)
+        .write(
+          NotificationPreferenceRowsCompanion(
+            updatedAt: Value(reconciledAt),
+            lastKnownTimezone: Value(timezone),
+            lastReconciliationAt: Value(reconciledAt),
+          ),
+        );
   }
 
   static AppNotification _mapInboxRow(NotificationInboxEntry row) {

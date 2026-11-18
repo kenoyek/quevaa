@@ -45,7 +45,15 @@ class QuevaaNotificationChannels {
     importance: Importance.low,
   );
 
+  static const test = AndroidNotificationChannel(
+    'quevaa_test',
+    'Test notifications',
+    description: 'Notifications sent from the reminder settings test button',
+    importance: Importance.high,
+  );
+
   static const all = [
+    test,
     cycle,
     conception,
     medication,

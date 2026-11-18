@@ -31,17 +31,20 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
           permissionPreviouslyDeclined: !permission,
         ),
       );
-      if (permission) {
-        await ref
-            .read(notificationSchedulerProvider)
-            .reconcileNotifications(
-              NotificationReconciliationReason.preferencesChanged,
-              snapshot: ref.read(notificationSourceSnapshotProvider),
-            );
-      }
       ref.invalidate(notificationPreferencesProvider);
       ref.invalidate(notificationPermissionStatusProvider);
-      ref.invalidate(pendingNotificationsProvider);
+      if (permission) {
+        try {
+          await ref
+              .read(notificationSchedulerProvider)
+              .reconcileNotifications(
+                NotificationReconciliationReason.preferencesChanged,
+                snapshot: ref.read(notificationSourceSnapshotProvider),
+              );
+        } finally {
+          ref.invalidate(pendingNotificationsProvider);
+        }
+      }
     });
   }
 
@@ -111,23 +114,33 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
     );
   }
 
-  Future<void> sendTestNotification() async {
+  Future<void> sendTestNotification({bool scheduled = false}) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final permissionService = ref.read(notificationPermissionServiceProvider);
-      await permissionService.requestPermission();
+      final requested = await permissionService.requestPermission();
       final status = await permissionService.status();
-      final permission = status == QuevaaNotificationPermissionStatus.granted;
+      final permission =
+          status == QuevaaNotificationPermissionStatus.granted ||
+          (status == QuevaaNotificationPermissionStatus.unknown && requested);
       if (!permission) {
         throw StateError('Notification permission is disabled.');
       }
-      await QuevaaLocalNotificationService.instance.scheduleTestNotification();
+      await QuevaaLocalNotificationService.instance.sendTestNotification(
+        scheduled: scheduled,
+      );
       ref.invalidate(pendingNotificationsProvider);
     });
   }
 
   Future<void> openSystemNotificationSettings() async {
-    await QuevaaNotificationSystemSettings.openNotificationSettings();
+    state = await AsyncValue.guard(() async {
+      if (!await QuevaaNotificationSystemSettings.openNotificationSettings()) {
+        throw StateError(
+          'Open your device settings to allow Quevaa reminders.',
+        );
+      }
+    });
   }
 
   Future<void> cancelAll() async {

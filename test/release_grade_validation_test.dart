@@ -251,13 +251,15 @@ void main() {
         now: tz.TZDateTime(lagos, 2026, 8, 16, 8),
       );
 
-      final lowProductivity = _onlyType(
+      final lowProductivity = _byType(
         low,
         QuevaaNotificationType.productivityGuidance,
+        '2026-08-16',
       ).notification;
-      final highProductivity = _onlyType(
+      final highProductivity = _byType(
         high,
         QuevaaNotificationType.productivityGuidance,
+        '2026-08-16',
       ).notification;
       expect(lowProductivity.title, contains('lighter'));
       expect(highProductivity.title, contains('focus'));
@@ -389,11 +391,4 @@ QuevaaNotificationSchedule _byType(
         item.notification.type == type &&
         (item.notification.localRecordId ?? '').contains(localRecordIdFragment),
   );
-}
-
-QuevaaNotificationSchedule _onlyType(
-  List<QuevaaNotificationSchedule> schedules,
-  QuevaaNotificationType type,
-) {
-  return schedules.singleWhere((item) => item.notification.type == type);
 }

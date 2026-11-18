@@ -47,7 +47,9 @@ class RouterRefreshNotifier extends ChangeNotifier {
 }
 
 final routerRefreshNotifierProvider = Provider<RouterRefreshNotifier>((ref) {
-  return RouterRefreshNotifier(ref);
+  final notifier = RouterRefreshNotifier(ref);
+  ref.onDispose(notifier.dispose);
+  return notifier;
 });
 
 class StartupErrorPage extends ConsumerWidget {
@@ -138,7 +140,7 @@ class StartupErrorPage extends ConsumerWidget {
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ref.watch(routerRefreshNotifierProvider);
 
-  return GoRouter(
+  final router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: refreshNotifier,
@@ -260,6 +262,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });
 
 class _ModeAwareHomePage extends ConsumerWidget {

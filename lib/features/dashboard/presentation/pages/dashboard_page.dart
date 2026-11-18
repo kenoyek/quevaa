@@ -12,6 +12,7 @@ import '../../../dashboard/domain/readiness_calculator.dart';
 import '../../../insights/domain/insight_generator.dart';
 import '../../../nutrition/data/nigerian_recipe_database.dart';
 import '../../../notifications/presentation/widgets/notification_bell_button.dart';
+import '../../../notifications/presentation/widgets/notification_permission_invitation.dart';
 import '../../../recommendations/application/daily_quevaa_plan_provider.dart';
 import '../../../workouts/domain/entities/workout_entity.dart';
 import 'dart:convert';
@@ -110,6 +111,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 onNotificationsTap: () => context.push('/notifications'),
               ),
               const SizedBox(height: 20),
+
+              const NotificationPermissionInvitation(),
 
               // Rhythm Card
               _RhythmCard(output: cycleOutput)

@@ -7,15 +7,57 @@ import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 import 'theme/quevaa_theme_mode.dart';
 import 'startup/app_startup_provider.dart';
+import '../core/analytics/app_logger.dart';
 import '../core/notifications/notification_routing_provider.dart';
 import '../core/security/widgets/app_lock_wrapper.dart';
+import '../features/notifications/application/notification_inbox_provider.dart';
 import '../features/notifications/application/notification_preferences_provider.dart';
+import '../features/notifications/application/pending_notifications_provider.dart';
+import '../features/notifications/domain/services/notification_scheduler.dart';
 
-class QuevaaApp extends ConsumerWidget {
+class QuevaaApp extends ConsumerStatefulWidget {
   const QuevaaApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<QuevaaApp> createState() => _QuevaaAppState();
+}
+
+class _QuevaaAppState extends ConsumerState<QuevaaApp> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleListener = AppLifecycleListener(onResume: _refreshReminders);
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refreshReminders() async {
+    ref.invalidate(notificationPermissionStatusProvider);
+    try {
+      final refresh = appStartupProvider(
+        NotificationReconciliationReason.appResumed,
+      );
+      ref.invalidate(refresh);
+      await ref.read(refresh.future);
+    } catch (error, stack) {
+      AppLogger.error('Refreshing reminders failed', error, stack);
+    } finally {
+      if (mounted) {
+        ref.invalidate(pendingNotificationsProvider);
+        ref.invalidate(notificationInboxProvider);
+        ref.invalidate(unreadNotificationCountProvider);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selectedMode =
         ref.watch(quevaaThemeModeProvider).valueOrNull ??
         QuevaaThemeMode.system;
@@ -42,7 +84,7 @@ class QuevaaApp extends ConsumerWidget {
           );
 
     final router = ref.watch(routerProvider);
-    ref.watch(appStartupProvider);
+    ref.watch(appStartupProvider(NotificationReconciliationReason.appStarted));
 
     // Listen for notification taps
     ref.listen(notificationRoutingProvider, (previous, next) {
@@ -52,7 +94,14 @@ class QuevaaApp extends ConsumerWidget {
           unawaited(
             ref
                 .read(notificationRepositoryProvider)
-                .markInboxEntryRead(notificationId),
+                .markInboxEntryRead(notificationId)
+                .catchError((Object error, StackTrace stack) {
+                  AppLogger.error(
+                    'Updating reminder status failed',
+                    error,
+                    stack,
+                  );
+                }),
           );
         }
         router.go(next.route);

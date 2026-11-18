@@ -34,11 +34,18 @@ class AppLockNotifier extends StateNotifier<bool> with WidgetsBindingObserver {
 
   void _initLockState() {
     final db = ref.read(appDatabaseProvider);
-    (db.select(db.appSettings)..limit(1)).getSingleOrNull().then((settings) {
-      if (settings != null) {
-        _inactivityThresholdSeconds = settings.autoLockInactivitySeconds;
-      }
-    });
+    unawaited(
+      (db.select(db.appSettings)..limit(1))
+          .getSingleOrNull()
+          .then((settings) {
+            if (mounted && settings != null) {
+              _inactivityThresholdSeconds = settings.autoLockInactivitySeconds;
+            }
+          })
+          .catchError((Object _, StackTrace __) {
+            AppLogger.error('Loading app lock settings failed');
+          }),
+    );
 
     final current = ref.read(userProfileProvider).valueOrNull;
     if (current?.isBiometricEnabled ?? false) {
@@ -84,7 +91,7 @@ class AppLockNotifier extends StateNotifier<bool> with WidgetsBindingObserver {
         AppLogger.info(
           'Device does not support local authentication; unlocking',
         );
-        state = false;
+        if (mounted) state = false;
         return true;
       }
 
@@ -97,7 +104,7 @@ class AppLockNotifier extends StateNotifier<bool> with WidgetsBindingObserver {
         ),
       );
 
-      if (authenticated) {
+      if (authenticated && mounted) {
         state = false;
         AppLogger.info('App unlocked via biometrics');
       }

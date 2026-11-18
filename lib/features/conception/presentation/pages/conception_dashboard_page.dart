@@ -10,6 +10,7 @@ import '../../application/conception_controller.dart';
 import '../../application/fertility_dashboard_provider.dart';
 import '../../domain/entities/fertility_assessment.dart';
 import '../../../notifications/presentation/widgets/notification_bell_button.dart';
+import '../../../notifications/presentation/widgets/notification_permission_invitation.dart';
 import '../widgets/conception_widgets.dart';
 
 class ConceptionDashboardPage extends ConsumerWidget {
@@ -31,6 +32,7 @@ class ConceptionDashboardPage extends ConsumerWidget {
         onPressed: () => context.push('/notifications'),
       ),
       children: [
+        const NotificationPermissionInvitation(),
         _HeroAssessmentCard(
           assessment: assessment,
         ).animate().fadeIn(duration: 450.ms).slideY(begin: 0.06, end: 0),

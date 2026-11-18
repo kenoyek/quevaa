@@ -1,8 +1,13 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quevaa/core/database/app_database.dart';
+import 'package:quevaa/core/notifications/local_notification_service.dart';
+import 'package:quevaa/core/notifications/notification_timezone_service.dart';
 import 'package:quevaa/core/notifications/notification_destination_resolver.dart';
 import 'package:quevaa/core/notifications/notification_constants.dart';
 import 'package:quevaa/core/notifications/notification_id.dart';
@@ -22,6 +27,7 @@ import 'package:quevaa/features/notifications/domain/repositories/notification_r
 import 'package:quevaa/features/notifications/domain/services/notification_scheduler.dart';
 import 'package:quevaa/features/notifications/domain/services/notification_policy_engine.dart';
 import 'package:quevaa/features/notifications/domain/services/smart_notification_engine.dart';
+import 'package:quevaa/features/notifications/presentation/widgets/notification_permission_invitation.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -33,6 +39,12 @@ class MockNotificationPermissionService extends Mock
 
 class MockNotificationScheduler extends Mock implements NotificationScheduler {}
 
+class MockLocalNotificationService extends Mock
+    implements QuevaaLocalNotificationService {}
+
+class MockNotificationTimezoneService extends Mock
+    implements QuevaaNotificationTimezoneService {}
+
 void main() {
   late tz.Location lagos;
 
@@ -43,6 +55,16 @@ void main() {
     registerFallbackValue(QuevaaNotificationPreferences.defaults());
     registerFallbackValue(NotificationReconciliationReason.preferencesChanged);
     registerFallbackValue(const NotificationSourceSnapshot());
+    registerFallbackValue(<int>[]);
+    registerFallbackValue(<QuevaaNotificationSchedule>[]);
+    registerFallbackValue(DateTime(2026));
+    registerFallbackValue(
+      _schedule(
+        lagos,
+        QuevaaNotificationType.hydration,
+        DateTime(2026, 8, 18, 15),
+      ),
+    );
   });
 
   group('Stable notification IDs', () {
@@ -82,6 +104,30 @@ void main() {
   });
 
   group('Notification policy engine', () {
+    test('retains an overdue alarm only when it is still pending', () {
+      final now = tz.TZDateTime(lagos, 2026, 8, 18, 15);
+      final pending = _schedule(
+        lagos,
+        QuevaaNotificationType.hydration,
+        DateTime(2026, 8, 18, 14, 45),
+      );
+      final expired = _schedule(
+        lagos,
+        QuevaaNotificationType.workout,
+        DateTime(2026, 8, 18, 14, 30),
+      );
+      final schedules = const NotificationPolicyEngine().applyPolicies(
+        desired: [pending, expired],
+        preferences: QuevaaNotificationPreferences.defaults().copyWith(
+          enabled: true,
+        ),
+        now: now,
+        retainPending: (schedule) => schedule.id == pending.id,
+      );
+
+      expect(schedules.map((schedule) => schedule.id), [pending.id]);
+    });
+
     test('moves ordinary reminders out of quiet hours crossing midnight', () {
       final preferences = QuevaaNotificationPreferences.defaults().copyWith(
         enabled: true,
@@ -277,6 +323,29 @@ void main() {
       );
     });
 
+    test('keeps upcoming reminders for the current day on refresh', () {
+      final schedules = const SmartNotificationEngine().buildDesiredSchedules(
+        preferences: QuevaaNotificationPreferences.defaults().copyWith(
+          enabled: true,
+          dailyCap: 20,
+        ),
+        snapshot: const NotificationSourceSnapshot(
+          estimatedPhase: 'Follicular',
+        ),
+        location: lagos,
+        now: tz.TZDateTime(lagos, 2026, 8, 16, 9),
+      );
+
+      final hydrationDays = schedules
+          .where(
+            (schedule) =>
+                schedule.notification.type == QuevaaNotificationType.hydration,
+          )
+          .map((schedule) => schedule.notification.scheduledAt.day)
+          .toSet();
+      expect(hydrationDays, {16, 17});
+    });
+
     test('schedules one daily meal notification for the stable meal plan', () {
       final preferences = QuevaaNotificationPreferences.defaults().copyWith(
         enabled: true,
@@ -312,7 +381,179 @@ void main() {
     });
   });
 
+  test('a failed reconciliation does not drop the next request', () async {
+    final repository = MockNotificationRepository();
+    final localService = MockLocalNotificationService();
+    final permissions = MockNotificationPermissionService();
+    final timezone = MockNotificationTimezoneService();
+    when(
+      repository.loadPreferences,
+    ).thenAnswer((_) async => QuevaaNotificationPreferences.defaults());
+    when(timezone.initializeTimezone).thenAnswer((_) async => lagos.name);
+    var checks = 0;
+    when(permissions.status).thenAnswer((_) async {
+      if (checks++ == 0) throw StateError('Platform check failed');
+      return QuevaaNotificationPermissionStatus.denied;
+    });
+    when(repository.loadScheduleFingerprints).thenAnswer((_) async => {});
+    when(localService.pending).thenAnswer(
+      (_) async => [const PendingNotificationRequest(42, null, null, null)],
+    );
+    when(() => localService.cancel(42)).thenAnswer((_) async {});
+    when(
+      () => repository.markSchedulesCancelled(any()),
+    ).thenAnswer((_) async {});
+    final scheduler = NotificationScheduler(
+      repository: repository,
+      engine: const SmartNotificationEngine(),
+      localService: localService,
+      permissionService: permissions,
+      timezoneService: timezone,
+    );
+
+    final first = scheduler.reconcileNotifications(
+      NotificationReconciliationReason.appStarted,
+    );
+    final second = scheduler.reconcileNotifications(
+      NotificationReconciliationReason.preferencesChanged,
+    );
+
+    await expectLater(first, throwsStateError);
+    expect(
+      (await second).reason,
+      NotificationReconciliationReason.preferencesChanged,
+    );
+    verify(() => localService.cancel(42)).called(1);
+  });
+
+  testWidgets(
+    'Android bridge requests permission and posts immediate and scheduled tests',
+    (tester) async {
+      const channel = MethodChannel(
+        'dexterous.com/flutter/local_notifications',
+      );
+      final messenger = tester.binding.defaultBinaryMessenger;
+      final calls = <MethodCall>[];
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call);
+        if (call.method == 'initialize' ||
+            call.method == 'requestNotificationsPermission') {
+          return true;
+        }
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+      final service = QuevaaLocalNotificationService.instance;
+      await service.initialize(onTap: (_) {});
+      final permissions = QuevaaNotificationPermissionService(service.plugin);
+      expect(await permissions.requestPermission(), isTrue);
+      await service.sendTestNotification();
+      await service.sendTestNotification(scheduled: true);
+
+      expect(
+        calls.map((call) => call.method),
+        containsAllInOrder([
+          'initialize',
+          'createNotificationChannel',
+          'requestNotificationsPermission',
+          'show',
+          'zonedSchedule',
+        ]),
+      );
+      final scheduled = calls.singleWhere(
+        (call) => call.method == 'zonedSchedule',
+      );
+      expect(
+        scheduled.arguments['id'],
+        QuevaaLocalNotificationService.scheduledTestNotificationId,
+      );
+      expect(scheduled.arguments['timeZoneName'], lagos.name);
+    },
+  );
+
   group('Notification preference controller', () {
+    testWidgets(
+      'home invitation requests permission and queues device reminders after a grant',
+      (tester) async {
+        final repository = MockNotificationRepository();
+        final permissionService = MockNotificationPermissionService();
+        final localService = MockLocalNotificationService();
+        final timezone = MockNotificationTimezoneService();
+        var preferences = QuevaaNotificationPreferences.defaults();
+        const snapshot = NotificationSourceSnapshot(
+          estimatedPhase: 'Follicular',
+        );
+        late List<QuevaaNotificationSchedule> savedSchedules;
+        when(repository.loadPreferences).thenAnswer((_) async => preferences);
+        when(() => repository.savePreferences(any())).thenAnswer((call) async {
+          preferences =
+              call.positionalArguments.single as QuevaaNotificationPreferences;
+        });
+        when(repository.loadScheduleFingerprints).thenAnswer((_) async => {});
+        when(
+          () => repository.markSchedulesCancelled(any()),
+        ).thenAnswer((_) async {});
+        when(() => repository.upsertScheduleStates(any())).thenAnswer((
+          call,
+        ) async {
+          savedSchedules =
+              call.positionalArguments.single
+                  as List<QuevaaNotificationSchedule>;
+        });
+        when(
+          () => repository.upsertInboxEntries(any()),
+        ).thenAnswer((_) async {});
+        when(
+          () => repository.persistReconciliation(any(), any()),
+        ).thenAnswer((_) async {});
+        when(timezone.initializeTimezone).thenAnswer((_) async => lagos.name);
+        when(() => timezone.localLocation).thenReturn(lagos);
+        when(localService.pending).thenAnswer((_) async => []);
+        when(() => localService.schedule(any())).thenAnswer((_) async {});
+        when(permissionService.requestPermission).thenAnswer((_) async => true);
+        when(
+          permissionService.status,
+        ).thenAnswer((_) async => QuevaaNotificationPermissionStatus.granted);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              notificationRepositoryProvider.overrideWithValue(repository),
+              notificationPermissionServiceProvider.overrideWithValue(
+                permissionService,
+              ),
+              notificationSchedulerProvider.overrideWithValue(
+                NotificationScheduler(
+                  repository: repository,
+                  engine: const SmartNotificationEngine(),
+                  localService: localService,
+                  permissionService: permissionService,
+                  timezoneService: timezone,
+                ),
+              ),
+              notificationSourceSnapshotProvider.overrideWithValue(snapshot),
+            ],
+            child: const MaterialApp(
+              home: Scaffold(body: NotificationPermissionInvitation()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        verifyNever(permissionService.requestPermission);
+        await tester.tap(find.text('Enable reminders'));
+        await tester.pumpAndSettle();
+        verify(permissionService.requestPermission).called(1);
+        expect(preferences.enabled, isTrue);
+        expect(preferences.permissionInvitationSeen, isTrue);
+        expect(savedSchedules, isNotEmpty);
+        verify(
+          () => localService.schedule(any()),
+        ).called(savedSchedules.length);
+        expect(find.text('Enable reminders'), findsNothing);
+      },
+    );
+
     test('keeps Quevaa reminders on when Android blocks permission', () async {
       final repository = MockNotificationRepository();
       final permissionService = MockNotificationPermissionService();
@@ -481,6 +722,33 @@ void main() {
       expect(await repository.unreadCount(), 0);
       expect(items.single.readAt, isNotNull);
     });
+
+    test(
+      'retiring a schedule preserves past inbox entries and hides future ones',
+      () async {
+        final now = tz.TZDateTime.now(lagos);
+        final past = _schedule(
+          lagos,
+          QuevaaNotificationType.hydration,
+          now.subtract(const Duration(hours: 1)),
+        );
+        final future = _schedule(
+          lagos,
+          QuevaaNotificationType.hydration,
+          now.add(const Duration(hours: 1)),
+          idSuffix: 'future',
+        );
+        await repository.upsertInboxEntries([past, future]);
+        await repository.markSchedulesCancelled([past.id, future.id]);
+
+        expect((await repository.watchInbox().first).single.id, past.id);
+        final futureEntry =
+            await (database.select(database.notificationInboxEntries)
+                  ..where((table) => table.notificationId.equals(future.id)))
+                .getSingle();
+        expect(futureEntry.deletedAt, isNotNull);
+      },
+    );
 
     test('reports twelve unread and supports mark all read', () async {
       final schedules = [

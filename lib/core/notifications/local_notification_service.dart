@@ -1,3 +1,5 @@
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../features/notifications/domain/entities/notification_schedule.dart';
@@ -21,12 +23,17 @@ class QuevaaLocalNotificationService {
 
   bool _initialized = false;
 
+  bool get isSupported =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
   Future<void> initialize({
     required void Function(NotificationResponse response) onTap,
   }) async {
-    if (_initialized) return;
+    if (_initialized || !isSupported) return;
 
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const android = AndroidInitializationSettings('ic_stat_quevaa');
     const darwin = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -49,7 +56,16 @@ class QuevaaLocalNotificationService {
     _initialized = true;
   }
 
+  Future<NotificationResponse?> launchResponse() async {
+    if (!_initialized) return null;
+    final details = await plugin.getNotificationAppLaunchDetails();
+    return details?.didNotificationLaunchApp == true
+        ? details?.notificationResponse
+        : null;
+  }
+
   Future<void> schedule(QuevaaNotificationSchedule schedule) async {
+    _requireInitialization();
     final notification = schedule.notification;
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -87,12 +103,15 @@ class QuevaaLocalNotificationService {
     );
   }
 
-  Future<void> scheduleTestNotification() async {
+  static const scheduledTestNotificationId = -900000001;
+
+  Future<void> sendTestNotification({bool scheduled = false}) async {
+    _requireInitialization();
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        QuevaaNotificationChannels.cycle.id,
-        QuevaaNotificationChannels.cycle.name,
-        channelDescription: QuevaaNotificationChannels.cycle.description,
+        QuevaaNotificationChannels.test.id,
+        QuevaaNotificationChannels.test.name,
+        channelDescription: QuevaaNotificationChannels.test.description,
         importance: Importance.high,
         priority: Priority.high,
       ),
@@ -103,23 +122,45 @@ class QuevaaLocalNotificationService {
         presentSound: true,
       ),
     );
-    await plugin.show(
-      900000001,
-      'Quevaa reminders are ready',
-      'Your private on-device notifications are working.',
-      details,
-      payload: QuevaaNotificationPayload.forSchedule(
-        notificationId: 900000001,
-        type: QuevaaNotificationType.dailyCycleCheckIn,
-        route: '/notifications',
-      ).encode(),
-    );
+    final id = scheduled ? scheduledTestNotificationId : 900000001;
+    final payload = QuevaaNotificationPayload.forSchedule(
+      notificationId: id,
+      type: QuevaaNotificationType.dailyCycleCheckIn,
+      route: '/notifications',
+    ).encode();
+    const title = 'Quevaa test reminder';
+    const body = 'Your device delivered this private reminder.';
+    if (scheduled) {
+      await plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        tz.TZDateTime.now(tz.local).add(const Duration(minutes: 1)),
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+      );
+    } else {
+      await plugin.show(id, title, body, details, payload: payload);
+    }
   }
 
-  Future<void> cancel(int id) => plugin.cancel(id);
-  Future<void> cancelAll() => plugin.cancelAll();
-  Future<List<PendingNotificationRequest>> pending() =>
-      plugin.pendingNotificationRequests();
+  Future<void> cancel(int id) async {
+    if (_initialized) await plugin.cancel(id);
+  }
+
+  Future<void> cancelAll() async {
+    if (_initialized) await plugin.cancelAll();
+  }
+
+  Future<List<PendingNotificationRequest>> pending() async =>
+      _initialized ? plugin.pendingNotificationRequests() : [];
+
+  void _requireInitialization() {
+    if (!_initialized) throw StateError('Local notifications are unavailable.');
+  }
 
   Future<void> _createAndroidChannels() async {
     final android = plugin

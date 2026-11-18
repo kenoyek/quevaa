@@ -1,7 +1,6 @@
 package com.quevaa.quevaa
 
 import android.Manifest
-import android.app.AppOpsManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -44,20 +43,8 @@ class MainActivity : FlutterFragmentActivity() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             return true
         }
-        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+        return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
-        ) {
-            return false
-        }
-        val notificationOp =
-            AppOpsManager.permissionToOp(Manifest.permission.POST_NOTIFICATIONS) ?: return true
-        val appOpsManager = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-        val mode = appOpsManager.unsafeCheckOpNoThrow(
-            notificationOp,
-            applicationInfo.uid,
-            packageName
-        )
-        return mode == AppOpsManager.MODE_ALLOWED || mode == AppOpsManager.MODE_DEFAULT
     }
 
     private fun openNotificationSettings(): Boolean {

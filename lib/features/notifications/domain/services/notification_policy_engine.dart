@@ -15,6 +15,7 @@ class NotificationPolicyEngine {
     required List<QuevaaNotificationSchedule> desired,
     required QuevaaNotificationPreferences preferences,
     required tz.TZDateTime now,
+    bool Function(QuevaaNotificationSchedule)? retainPending,
   }) {
     if (!preferences.enabled) return const [];
 
@@ -32,7 +33,11 @@ class NotificationPolicyEngine {
             preferences: preferences,
           ),
         )
-        .where((schedule) => _withinRollingWindow(schedule, now))
+        .where(
+          (schedule) =>
+              _withinRollingWindow(schedule, now) ||
+              (retainPending?.call(schedule) ?? false),
+        )
         .toList();
 
     final deduped = _deduplicate(privacyApplied);
@@ -136,17 +141,18 @@ class NotificationPolicyEngine {
       return schedule;
     }
 
-    var adjusted = tz.TZDateTime(
-      notification.scheduledAt.location,
-      notification.scheduledAt.year,
-      notification.scheduledAt.month,
-      notification.scheduledAt.day,
+    final scheduledAt = notification.scheduledAt;
+    final endsTomorrow =
+        preferences.quietStartMinutes > preferences.quietEndMinutes &&
+        minutes >= preferences.quietStartMinutes;
+    final adjusted = tz.TZDateTime(
+      scheduledAt.location,
+      scheduledAt.year,
+      scheduledAt.month,
+      scheduledAt.day + (endsTomorrow ? 1 : 0),
       preferences.quietEndMinutes ~/ 60,
       preferences.quietEndMinutes % 60,
     );
-    if (!adjusted.isAfter(notification.scheduledAt)) {
-      adjusted = adjusted.add(const Duration(days: 1));
-    }
 
     return QuevaaNotificationSchedule(
       timezoneName: schedule.timezoneName,

@@ -117,6 +117,7 @@ class SmartNotificationEngine {
     required NotificationSourceSnapshot snapshot,
     required tz.Location location,
     required tz.TZDateTime now,
+    bool Function(QuevaaNotificationSchedule)? retainPending,
   }) {
     if (!snapshot.hasMeaningfulHealthState) {
       throw StateError(
@@ -132,15 +133,21 @@ class SmartNotificationEngine {
         _conceptionSchedules(snapshot, preferences, location, now),
       );
     }
-    desired.addAll(_wellnessSchedules(snapshot, preferences, location, now));
-    desired.addAll(
-      _productivitySchedules(snapshot, preferences, location, now),
-    );
+    final tomorrow = tz.TZDateTime(location, now.year, now.month, now.day + 1);
+    for (final day in [now, tomorrow]) {
+      desired.addAll(
+        _wellnessSchedules(snapshot, preferences, location, now, day: day),
+      );
+      desired.addAll(
+        _productivitySchedules(snapshot, preferences, location, now, day: day),
+      );
+    }
 
     return policyEngine.applyPolicies(
       desired: desired,
       preferences: preferences,
       now: now,
+      retainPending: retainPending,
     );
   }
 
@@ -348,9 +355,9 @@ class SmartNotificationEngine {
     NotificationSourceSnapshot snapshot,
     QuevaaNotificationPreferences preferences,
     tz.Location location,
-    tz.TZDateTime now,
-  ) {
-    final tomorrow = now.add(const Duration(days: 1));
+    tz.TZDateTime now, {
+    required tz.TZDateTime day,
+  }) {
     final readiness = ReadinessCalculator.calculate(
       selfReportedEnergy: snapshot.todayEnergyLevel,
       sleepHours: snapshot.todaySleepHours,
@@ -366,9 +373,9 @@ class SmartNotificationEngine {
     return [
       _schedule(
         type: QuevaaNotificationType.productivityGuidance,
-        entityId: 'productivity-${_dayKey(tomorrow)}',
+        entityId: 'productivity-${_dayKey(day)}',
         scheduledAt: _atTime(
-          tomorrow,
+          day,
           preferences.categoryTimes['dailyProductivity'] ?? 8 * 60 + 30,
         ),
         title: lowReadiness
@@ -394,15 +401,15 @@ class SmartNotificationEngine {
     NotificationSourceSnapshot snapshot,
     QuevaaNotificationPreferences preferences,
     tz.Location location,
-    tz.TZDateTime now,
-  ) {
-    final tomorrow = now.add(const Duration(days: 1));
+    tz.TZDateTime now, {
+    required tz.TZDateTime day,
+  }) {
     final schedules = <QuevaaNotificationSchedule>[
       _schedule(
         type: QuevaaNotificationType.breakfast,
-        entityId: 'meal-daily-${_dayKey(tomorrow)}',
+        entityId: 'meal-daily-${_dayKey(day)}',
         scheduledAt: _atTime(
-          tomorrow,
+          day,
           preferences.categoryTimes['breakfast'] ?? 8 * 60,
         ),
         title: "Today's Quevaa meal ideas are ready.",
@@ -417,8 +424,8 @@ class SmartNotificationEngine {
       ),
       _schedule(
         type: QuevaaNotificationType.workout,
-        entityId: 'movement-${_dayKey(tomorrow)}',
-        scheduledAt: _atTime(tomorrow, 17 * 60),
+        entityId: 'movement-${_dayKey(day)}',
+        scheduledAt: _atTime(day, 17 * 60),
         title: 'Your movement plan is ready when you are.',
         body: snapshot.workoutSuggestion == null
             ? 'Open Quevaa to review today’s plan.'
@@ -430,13 +437,13 @@ class SmartNotificationEngine {
         now: now,
       ),
     ];
-    if (!snapshot.hydrationTargetReached) {
+    if (!snapshot.hydrationTargetReached || _dayKey(day) != _dayKey(now)) {
       schedules.addAll([
         _schedule(
           type: QuevaaNotificationType.hydration,
-          entityId: 'hydration-am-${_dayKey(tomorrow)}',
+          entityId: 'hydration-am-${_dayKey(day)}',
           scheduledAt: _atTime(
-            tomorrow,
+            day,
             preferences.categoryTimes['hydrationMorning'] ?? 10 * 60,
           ),
           title: 'Hydration check-in',
@@ -449,9 +456,9 @@ class SmartNotificationEngine {
         ),
         _schedule(
           type: QuevaaNotificationType.hydration,
-          entityId: 'hydration-pm-${_dayKey(tomorrow)}',
+          entityId: 'hydration-pm-${_dayKey(day)}',
           scheduledAt: _atTime(
-            tomorrow,
+            day,
             preferences.categoryTimes['hydrationAfternoon'] ?? 15 * 60,
           ),
           title: 'Hydration check-in',
@@ -464,13 +471,13 @@ class SmartNotificationEngine {
         ),
       ]);
     }
-    if (!snapshot.journaledDays.contains(_dayKey(tomorrow))) {
+    if (!snapshot.journaledDays.contains(_dayKey(day))) {
       schedules.add(
         _schedule(
           type: QuevaaNotificationType.eveningReflection,
-          entityId: 'journal-${_dayKey(tomorrow)}',
+          entityId: 'journal-${_dayKey(day)}',
           scheduledAt: _atTime(
-            tomorrow,
+            day,
             preferences.categoryTimes['journal'] ?? 20 * 60,
           ),
           title: 'Would you like a quiet moment to reflect?',
